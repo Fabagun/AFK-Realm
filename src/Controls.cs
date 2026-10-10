@@ -48,7 +48,7 @@ namespace CoAInstaller
     /// <summary>Small line icons, drawn rather than taken from a font, so they look the same on every PC.</summary>
     static class Icons
     {
-        public static readonly string[] Names = { "server", "settings", "modules", "gamemaster", "database", "accounts", "maintenance", "journey", "auction", "client", "globe" };
+        public static readonly string[] Names = { "server", "settings", "modules", "gamemaster", "database", "accounts", "maintenance", "journey", "auction", "client", "globe", "bots" };
 
         public static void Paint(Graphics g, string name, RectangleF r, Color color, float width = 1.6f)
         {
@@ -137,6 +137,13 @@ namespace CoAInstaller
                         using (var p = Draw.Round(new RectangleF(x + w * 0.06f, y + h * 0.12f, w * 0.88f, h * 0.58f), 2.5f)) g.DrawPath(pen, p);
                         g.DrawLine(pen, x + w * 0.5f, y + h * 0.7f, x + w * 0.5f, y + h * 0.86f);
                         g.DrawLine(pen, x + w * 0.28f, y + h * 0.88f, x + w * 0.72f, y + h * 0.88f);
+                        break;
+                    case "bots":
+                        using (var p = Draw.Round(new RectangleF(x + w * 0.14f, y + h * 0.3f, w * 0.72f, h * 0.56f), 3f)) g.DrawPath(pen, p);
+                        g.FillEllipse(brush, x + w * 0.31f, y + h * 0.48f, w * 0.14f, h * 0.14f);
+                        g.FillEllipse(brush, x + w * 0.55f, y + h * 0.48f, w * 0.14f, h * 0.14f);
+                        g.DrawLine(pen, x + w * 0.5f, y + h * 0.3f, x + w * 0.5f, y + h * 0.1f);
+                        g.FillEllipse(brush, x + w * 0.44f, y + h * 0.02f, w * 0.12f, h * 0.12f);
                         break;
                     case "globe":
                         g.DrawEllipse(pen, x + w * 0.08f, y + h * 0.08f, w * 0.84f, h * 0.84f);

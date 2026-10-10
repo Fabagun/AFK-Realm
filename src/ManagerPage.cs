@@ -9,7 +9,7 @@ using System.Windows.Forms;
 namespace CoAInstaller
 {
     /// <summary>Day-to-day management of an installed server.</summary>
-    class ManagerPage : Page
+    partial class ManagerPage : Page
     {
         readonly Install inst;
         readonly ServerControl ctl;
@@ -187,6 +187,7 @@ namespace CoAInstaller
             shown.ResumeLayout();
             scroller.AutoScrollPosition = new Point(0, 0);
             scroller.ResumeLayout();
+            if (key == "bots") RefreshBots();
         }
 
         public ManagerPage(MainForm main) : base(main)
@@ -197,6 +198,7 @@ namespace CoAInstaller
 
             // --- side bar
             AddNav("server", "Server", "server");
+            AddNav("bots", "Bots", "bots");
             AddNav("settings", "Settings", "settings");
             AddNav("modules", "Modules", "modules");
             AddNav("gm", "Game master", "gamemaster");
@@ -346,6 +348,8 @@ namespace CoAInstaller
             clientBtn.Click += (s, e) => { using (var d = new ClientDialog(inst)) d.ShowDialog(this); ShowClientState(); };
 
             // --- Game master
+            BuildBotsSection();
+
             var gmCard = Section("gm", "Game master tools", "Help players on the running server: give, complete and reward quests (found by NPC name or around a character), " +
                 "unstuck, revive, level, gold and mail, announcements, and a console for every other GM command.", "gamemaster");
             var gmBtn = gmCard.Add(Ui.Primary("Open game master tools …"));

@@ -19,7 +19,7 @@ AFK Realm is work in progress, so a window may look slightly different from the 
 9. [Accounts](#9-accounts)
 10. [Playing with others](#10-playing-with-others)
 11. [Updates, backups and repair](#11-updates-backups-and-repair)
-12. [Resetting the random bots](#12-resetting-the-random-bots)
+12. [The random bots](#12-the-random-bots)
 13. [Where everything is stored](#13-where-everything-is-stored)
 14. [When something goes wrong](#14-when-something-goes-wrong)
 
@@ -436,7 +436,15 @@ Map data is not part of a backup; updates do not touch it.
 
 **Maintenance → Repair setup** sets up the database and configuration again without rebuilding the server. Characters and accounts are kept. Use it when the server does not start after something was interrupted.
 
-## 12. Resetting the random bots
+## 12. The random bots
+
+**Bots** (in the side bar) shows what the world is full of. At the top: how many random bots there are and how many of them are in the world right now, the players in the world, the bots' average level and Alliance : Horde. Below, as bars with number and share: the bots by faction, by class (the classes of CoA under the names the game shows), by race, by level band and by zone (the fifteen zones with the most bots; the others together). *Count* chooses between the bots in the world and all bots; for bots that are not in the world, the zone is the one they were last in.
+
+The page reads the database: it needs the server (at least its database) to be running. It refreshes every 30 seconds while it is open, and *Refresh* reads at once. The server writes the level and position of a bot every few minutes, so the numbers can be a little behind the game.
+
+![Bots](screenshots/35-bots.png)
+
+### Resetting the random bots
 
 **Maintenance → Reset random bots …** deletes every random bot with its characters, guilds, arena teams and mail. Your own accounts and characters are kept, including bots you created on your own accounts. New bots are created at the next server start, which then takes longer than usual.
 

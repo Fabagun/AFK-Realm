@@ -34,6 +34,7 @@ Pre-built repacks go stale quickly. Building from source keeps you on the latest
 - **Server management**: start, stop and restart (clean shutdown that saves all characters), live status, both server consoles in one window (output of worldserver and authserver, with a command line for GM commands) instead of separate console windows, and the reason shown right away if a server closes while starting
 - **Scheduled restart**: the server restarts on its own after a number of hours, every day at a set time or when the worldserver uses too much memory – players are told in the game beforehand, and the page shows uptime, memory and when the next restart is due
 - **Server settings**: a list of popular options (XP, drop and reputation rates, flight paths, cross-faction play, Playerbots count and levels) plus every option of the worldserver and all module configs, searchable, with the description from each template and one-click reset to the default
+- **Bots**: how many random bots there are and how many are in the world, the players beside them, their average level and the balance of Alliance and Horde, and the bots by class, race, level band and zone as bars – refreshed every 30 seconds while the page is open
 - **Accounts**: create accounts with GM levels, list all player accounts (bot accounts are filtered out) with their characters, delete accounts, set new passwords and change access levels
 - **Account transfer**: export an account with all its characters, items, mail and pets to an `.afkaccount` file and import it on another server – ids are renumbered, taken names are renamed at the next login
 - **Game master tools**: a line to the running server (its SOAP service, switched on for this PC only) with a quest helper – see a character's quest log with the progress of every objective, find quests by NPC name, quest title or id, or list the new quests around a character, then give, complete, reward or remove them with one click – plus unstuck, revive, level, rename, gold and mail for a character, announcements, and a console for every other GM command
@@ -57,6 +58,8 @@ Pre-built repacks go stale quickly. Building from source keeps you on the latest
 | ![World Journey](docs/screenshots/25-world-journey.png) | ![Auction house bots](docs/screenshots/29-auction-setup.png) |
 | **Modules and their setup pages** | **The game client** |
 | ![Modules](docs/screenshots/32-modules-page.png) | ![Game client](docs/screenshots/33-game-client.png) |
+| **Bots** | |
+| ![Bots](docs/screenshots/35-bots.png) | |
 | **Server settings** | **Player accounts** |
 | ![Server settings](docs/screenshots/9-server-settings.png) | ![Player accounts](docs/screenshots/10-player-accounts.png) |
 | **Backups** | **Update with automatic backup** |

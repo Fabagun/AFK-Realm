@@ -33,7 +33,7 @@ namespace CoAInstaller
         static string N(double v) { return v.ToString("0.###", CultureInfo.InvariantCulture); }
         static string Like(string text) { return MySql.Quote("%" + text.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%"); }
 
-        static string BotPattern(Install inst)
+        internal static string BotPattern(Install inst)
         {
             string prefix = Conf.Get(Path.Combine(inst.ConfigDir, "modules", "playerbots.conf"), "AiPlayerbot.RandomBotAccountPrefix");
             if (string.IsNullOrEmpty(prefix)) prefix = "rndbot";

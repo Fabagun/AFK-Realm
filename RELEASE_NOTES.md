@@ -1,6 +1,10 @@
-# AFK Realm 0.8.4 – preview
+# AFK Realm 0.9.0 – preview
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 0.9.0
+
+- **A page for the bots.** The new *Bots* page in the side bar shows what your world is full of: how many random bots there are and how many are out in the world right now, the players beside them, their average level and how Alliance and Horde are balanced – and then the bots by class, race, level and zone, as bars. It refreshes by itself every 30 seconds while you look at it, and can count only the bots in the world or all of them.
 
 ## New in 0.8.4
 
