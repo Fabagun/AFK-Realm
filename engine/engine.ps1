@@ -839,7 +839,19 @@ function Invoke-Configure([string]$CMake, $VisualStudio, [string]$OpenSsl, [stri
     # the command line (as below), so the type is not looked at. Looking for INTERNAL only threw the build
     # folder away before every build, and every update compiled everything again.
     $sameInstance = (Test-Path $cache) -and [regex]::IsMatch([IO.File]::ReadAllText($cache), '(?m)^CMAKE_GENERATOR_INSTANCE:[A-Z]+=' + [regex]::Escape($instance) + '(,|\r?$)')
-    if ($Clean -or ((Test-Path $cache) -and -not $sameInstance)) {
+    # A server folder that was copied or moved (a test copy of the server, say) brings the cache of the old place,
+    # which CMake refuses ("CMakeCache.txt directory ... is different"); the build starts afresh there.
+    $samePlace = $true
+    if (Test-Path $cache) {
+        $m = [regex]::Match([IO.File]::ReadAllText($cache), '(?m)^CMAKE_CACHEFILE_DIR:INTERNAL=(.*?)\r?$')
+        if ($m.Success) {
+            $was = $m.Groups[1].Value.Trim().Replace('\', '/').TrimEnd('/')
+            $now = $Paths.Build.Replace('\', '/').TrimEnd('/')
+            $samePlace = [string]::Equals($was, $now, [StringComparison]::OrdinalIgnoreCase)
+            if (-not $samePlace) { Write-Log "The build folder was made at $was; the server folder was copied or moved, so the build starts afresh (this takes longer once)." }
+        }
+    }
+    if ($Clean -or ((Test-Path $cache) -and (-not $sameInstance -or -not $samePlace))) {
         Remove-Item $Paths.Build -Recurse -Force -ErrorAction SilentlyContinue
     }
     New-Item -ItemType Directory -Force -Path $Paths.Build, $Paths.Server | Out-Null
@@ -1881,8 +1893,10 @@ try {
         try {
             # What the installed modules bring for the core and Playerbots goes into the fresh source.
             Invoke-ModulePatches $git
+            $failedAt = 'configure'
             Enter-Phase 'configure' 'Preparing the build (CMake)'
             Invoke-Configure $cmake $vs $openssl $boost -Clean:($action -eq 'Rebuild')
+            $failedAt = 'compile'
             Enter-Phase 'compile' 'Compiling the server'
             Invoke-Compile $cmake
         } catch {
@@ -1892,8 +1906,10 @@ try {
             try { Invoke-ModulePatches $git -Quiet } catch { }
             $names = @($moduleState.Added | ForEach-Object { Split-Path $_ -Leaf })
             if ($names.Count -gt 0) {
+                $why = if ($failedAt -eq 'configure') { 'Preparing the build failed before anything was compiled, so the module is probably not the cause; the CMake error is in logs\install.log. ' }
+                       else { 'The module is probably not compatible with this CoA version; the first compiler error is in logs\install.log. ' }
                 throw ('The server could not be built with ' + ($names -join ', ') + '. The module was taken out again and your server is unchanged. ' +
-                       'The module is probably not compatible with this CoA version; the first compiler error is in logs\install.log. (' + $_.Exception.Message + ')')
+                       $why + '(' + $_.Exception.Message + ')')
             }
             throw ('The server could not be built without the removed module, so it was put back and your server is unchanged. (' + $_.Exception.Message + ')')
         }
