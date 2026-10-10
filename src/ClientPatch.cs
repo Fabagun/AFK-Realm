@@ -27,7 +27,7 @@ namespace CoAInstaller
         static string RecordFile(Install inst) { return Path.Combine(inst.Root, "Dependencies", "client-patch.txt"); }
 
         internal class FileSpec { public string Module, From, To; public Dictionary<string, object> Fill; }
-        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows; }
+        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows; }
 
         public class Plan
         {
@@ -78,9 +78,10 @@ namespace CoAInstaller
                         DropRows = e.TryGetValue("dropRows", out v) ? v as Dictionary<string, object> : null,
                         AddRows = e.TryGetValue("addRows", out v) ? v as Dictionary<string, object> : null,
                         CloneRows = e.TryGetValue("cloneRows", out v) ? v as Dictionary<string, object> : null,
-                        FillRows = e.TryGetValue("fillRows", out v) ? v as Dictionary<string, object> : null };
+                        FillRows = e.TryGetValue("fillRows", out v) ? v as Dictionary<string, object> : null,
+                        SetRows = e.TryGetValue("setRows", out v) ? v as Dictionary<string, object> : null };
                     if ((edit.Line.Length > 0 && edit.InsertAfter.Length > 0) || edit.DropRows != null || edit.AddRows != null || edit.CloneRows != null ||
-                        edit.FillRows != null)
+                        edit.FillRows != null || edit.SetRows != null)
                         plan.Edits.Add(edit);
                 }
                 if (plan.Files.Count + plan.Edits.Count > before)
@@ -181,7 +182,8 @@ namespace CoAInstaller
                 foreach (var edit in group)
                     bytes = edit.DropRows != null ? DropRows(bytes, edit, group.Key) : edit.AddRows != null ? AddRows(bytes, edit, group.Key) :
                         edit.CloneRows != null ? CloneRows(bytes, edit, group.Key) :
-                        edit.FillRows != null ? FillRows(bytes, edit, group.Key) : InsertAfter(bytes, edit, group.Key);
+                        edit.FillRows != null ? FillRows(bytes, edit, group.Key) :
+                        edit.SetRows != null ? SetRows(bytes, edit, group.Key) : InsertAfter(bytes, edit, group.Key);
                 files[group.Key] = bytes;
                 if (notes != null) notes.Add(group.Key + " (from " + source + ")");
             }
@@ -268,11 +270,17 @@ namespace CoAInstaller
                 foreach (var value in lists[i]) { combo[i] = value; walk(i + 1); }
             };
             walk(0);
-            // Some tables the client holds in a list of fixed size (CharBaseInfo.dbc of the CoA client: about 300 rows);
-            // more rows than that crash the game, so the module names its limit.
+            // Some tables the client reads into lists of fixed size; more rows than that crash the game, so the module
+            // names its limit: of the whole table ("maxRows"), or of the rows that share their first field ("maxPerRace":
+            // the character creation of the CoA client takes 30 classes per race in CharBaseInfo.dbc).
             int most = edit.AddRows.TryGetValue("maxRows", out v) ? Convert.ToInt32(v) : int.MaxValue;
             if (table.Records.Count > most)
                 throw new InvalidOperationException(file + " would have " + table.Records.Count + " rows, more than the " + most +
+                    " the game takes (module " + edit.Module + "). Another module may have added rows to it too.");
+            int perFirst = edit.AddRows.TryGetValue("maxPerRace", out v) ? Convert.ToInt32(v) : int.MaxValue;
+            var crowded = table.Records.GroupBy(r => table.Field(r, 0)).FirstOrDefault(g => g.Count() > perFirst);
+            if (crowded != null)
+                throw new InvalidOperationException(file + " would have " + crowded.Count() + " rows for " + crowded.Key + ", more than the " + perFirst +
                     " the game takes (module " + edit.Module + "). Another module may have added rows to it too.");
             return table.ToBytes();
         }
@@ -299,16 +307,55 @@ namespace CoAInstaller
             if (match.Count == 0 || set.Count == 0 || table.RecordSize < 4 || match.Keys.Concat(set.Keys).Concat(key).Any(o => o < 4 || o >= table.RecordSize))
                 throw new InvalidOperationException("The rows module " + edit.Module + " copies in " + file + " are not described in a way it can use.");
             Func<byte[], string> keyOf = r => string.Join(",", key.Select(o => r[o]));
-            var have = new HashSet<string>(table.Records.Select(keyOf));
+            bool replace = edit.CloneRows.TryGetValue("replace", out v) && v is bool && (bool)v;
+            var have = new Dictionary<string, byte[]>();
+            foreach (var r in table.Records) if (!have.ContainsKey(keyOf(r))) have[keyOf(r)] = r;
             uint next = table.Records.Count == 0 ? 1 : table.Records.Max(r => BitConverter.ToUInt32(r, 0)) + 1;
             foreach (var row in table.Records.Where(r => match.All(m => r[m.Key] == m.Value)).ToList())
             {
                 var copy = (byte[])row.Clone();
                 foreach (var s in set) copy[s.Key] = s.Value;
-                if (!have.Add(keyOf(copy))) continue;
+                byte[] existing;
+                if (have.TryGetValue(keyOf(copy), out existing))
+                {
+                    // "replace": the row the copy would duplicate takes the copy's bytes and keeps its id.
+                    if (replace && existing != row) Buffer.BlockCopy(copy, 4, existing, 4, copy.Length - 4);
+                    continue;
+                }
                 BitConverter.GetBytes(next++).CopyTo(copy, 0);
+                have[keyOf(copy)] = copy;
                 table.Records.Add(copy);
             }
+            return table.ToBytes();
+        }
+
+        /// <summary>
+        /// Fields of rows changed in a DBC table: every row whose fields in "match" (field number: value) hold those values
+        /// gets the values in "set". The fields keep the width the table stores them in. Example: making a race of
+        /// ChrRaces.dbc playable for a faction.
+        /// </summary>
+        static byte[] SetRows(byte[] bytes, EditSpec edit, string file)
+        {
+            var table = DbcTable.Parse(bytes, file);
+            object v;
+            Func<string, Dictionary<int, uint>> fields = name =>
+            {
+                var d = edit.SetRows.TryGetValue(name, out v) ? v as Dictionary<string, object> : null;
+                var result = new Dictionary<int, uint>();
+                if (d != null) foreach (var kv in d) result[int.Parse(kv.Key)] = Convert.ToUInt32(kv.Value);
+                return result;
+            };
+            var match = fields("match"); var set = fields("set");
+            if (match.Count == 0 || set.Count == 0 || match.Keys.Concat(set.Keys).Any(f => f < 0 || f >= table.Fields))
+                throw new InvalidOperationException("The fields module " + edit.Module + " changes in " + file + " are not described in a way it can use.");
+            int changed = 0;
+            foreach (var row in table.Records.Where(r => match.All(m => table.Field(r, m.Key) == m.Value)))
+            {
+                foreach (var s in set) table.SetField(row, s.Key, s.Value);
+                changed++;
+            }
+            if (changed == 0)
+                throw new InvalidOperationException(file + " of the game client has no row module " + edit.Module + " changes. The client may have changed; update the module.");
             return table.ToBytes();
         }
 

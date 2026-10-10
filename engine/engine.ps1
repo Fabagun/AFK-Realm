@@ -1258,6 +1258,23 @@ function Repair-ModuleJournal([string]$Root) {
     }
 }
 
+# A module that writes rows at run time (which the record cannot see) brings SQL that takes them back:
+# data/sql/remove/<db-world|db-characters|db-auth>/*.sql, run when the module is removed, before its
+# recorded changes are undone.
+function Invoke-ModuleRemoveSql([string]$Root, [string]$Name, [string]$Folder) {
+    $dir = [IO.Path]::Combine($Folder, 'data', 'sql', 'remove')
+    if (-not (Test-Path $dir)) { return }
+    $files = @(foreach ($d in @(Get-ChildItem $dir -Directory)) {
+        $db = Get-ModuleSqlDatabase $d.Name
+        if ($db) { Get-ChildItem $d.FullName -File -Filter '*.sql' | Sort-Object Name | ForEach-Object { [pscustomobject]@{ Db = $db; Name = $_.Name; Path = $_.FullName } } }
+    })
+    foreach ($f in $files) {
+        Write-Log "$($Name): taking back what it wrote while running ($($f.Name)) ..."
+        try { Invoke-Stream (Get-MySqlTool 'mysql.exe') @("--defaults-extra-file=$Root", '--default-character-set=utf8', '--max-allowed-packet=1GB', $f.Db) -InFile $f.Path }
+        catch { Send-Event 'NOTE' "$($Name): $($f.Name) could not be run: $($_.Exception.Message)" }
+    }
+}
+
 # Undoes the recorded database changes of a module and removes it from the registry.
 function Undo-ModuleSql([string]$Root, [string]$Name) {
     Write-Log "$($Name): undoing its database changes ..."
@@ -1340,6 +1357,7 @@ function Complete-ModuleChange([string]$Password, $State) {
         Install-ModuleJournal $root
         $managed = @(Get-ManagedModules $root | ForEach-Object { $_.Name })
         foreach ($r in $State.Removed) {
+            if ($r.Aside) { Invoke-ModuleRemoveSql $root $r.Name $r.Aside }
             if ($managed -contains $r.Name) { Undo-ModuleSql $root $r.Name }
             else { Send-Event 'NOTE' "$($r.Name) was removed. It was not installed through AFK Realm, so its database changes (if any) stay in place." }
             if ($r.Aside) { Remove-ModuleConfigs $r.Aside }

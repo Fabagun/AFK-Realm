@@ -330,6 +330,16 @@ namespace CoAInstaller
             return BitConverter.ToUInt32(record, field * 4);
         }
 
+        /// <summary>Writes a field of a row, in the width the table stores its fields in.</summary>
+        public void SetField(byte[] record, int field, uint value)
+        {
+            int width = Fields > 0 && RecordSize % Fields == 0 ? RecordSize / Fields : 4;
+            if (width != 1 && width != 2) width = 4;
+            if (width < 4 && value >= (1u << (8 * width)))
+                throw new InvalidDataException("The value " + value + " does not fit into a field of " + width + " byte(s).");
+            for (int b = 0; b < width; b++) record[field * width + b] = (byte)(value >> (8 * b));
+        }
+
         public byte[] ToBytes()
         {
             using (var ms = new MemoryStream())
