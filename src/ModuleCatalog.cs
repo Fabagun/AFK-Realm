@@ -64,6 +64,9 @@ namespace CoAInstaller
                 new ModuleEntry { Name = "mod-classic-classes", FullName = "aspollon/mod-classic-classes", Branch = "main", Own = true,
                     Url = "https://github.com/aspollon/mod-classic-classes", CloneUrl = "https://github.com/aspollon/mod-classic-classes.git",
                     Description = "The classic classes - Warrior to Druid, as Warcraft Reborn plays them - next to the classes of CoA, for players and bots" },
+                new ModuleEntry { Name = "mod-custom-races", FullName = "aspollon/mod-custom-races", Branch = "main", Own = true,
+                    Url = "https://github.com/aspollon/mod-custom-races", CloneUrl = "https://github.com/aspollon/mod-custom-races.git",
+                    Description = "The races the game client carries - Goblin, Worgen, Pandaren, Vrykul and more - playable for players and bots" },
             };
         }
         static readonly Dictionary<string, ModuleAnalysis> analyses = new Dictionary<string, ModuleAnalysis>(StringComparer.OrdinalIgnoreCase);

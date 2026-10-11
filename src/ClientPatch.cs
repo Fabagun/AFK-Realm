@@ -26,8 +26,8 @@ namespace CoAInstaller
 
         static string RecordFile(Install inst) { return Path.Combine(inst.Root, "Dependencies", "client-patch.txt"); }
 
-        internal class FileSpec { public string Module, From, To; public Dictionary<string, object> Fill; }
-        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows; }
+        internal class FileSpec { public string Module, From, To; public List<Dictionary<string, object>> Fills; }
+        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows; }
 
         public class Plan
         {
@@ -64,24 +64,27 @@ namespace CoAInstaller
                 int before = plan.Files.Count + plan.Edits.Count;
                 foreach (var f in List(patch, "files"))
                 {
+                    if (!When(inst, f)) continue;
                     string from = Text(f, "from"), to = Text(f, "to");
                     string source;
                     try { source = Path.GetFullPath(Path.Combine(dir, from.Replace('/', Path.DirectorySeparatorChar))); } catch { continue; }
                     if (!source.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(source) || !SafeClientPath(to)) continue;
-                    plan.Files.Add(new FileSpec { Module = module, From = source, To = to.Replace('/', '\\'), Fill = f.TryGetValue("fill", out v) ? v as Dictionary<string, object> : null });
+                    plan.Files.Add(new FileSpec { Module = module, From = source, To = to.Replace('/', '\\'), Fills = Dicts(f.TryGetValue("fill", out v) ? v : null) });
                 }
                 foreach (var e in List(patch, "edits"))
                 {
                     string target = Text(e, "file");
-                    if (!SafeClientPath(target)) continue;
+                    if (!SafeClientPath(target) || !When(inst, e)) continue;
+                    foreach (var k in e.Keys.Where(k => k != "when").ToList()) e[k] = Settings(inst, e[k]);
                     var edit = new EditSpec { Module = module, File = target.Replace('/', '\\'), InsertAfter = Text(e, "insertAfter"), Line = Text(e, "line"),
                         DropRows = e.TryGetValue("dropRows", out v) ? v as Dictionary<string, object> : null,
                         AddRows = e.TryGetValue("addRows", out v) ? v as Dictionary<string, object> : null,
                         CloneRows = e.TryGetValue("cloneRows", out v) ? v as Dictionary<string, object> : null,
                         FillRows = e.TryGetValue("fillRows", out v) ? v as Dictionary<string, object> : null,
-                        SetRows = e.TryGetValue("setRows", out v) ? v as Dictionary<string, object> : null };
+                        SetRows = e.TryGetValue("setRows", out v) ? v as Dictionary<string, object> : null,
+                        CopyRows = e.TryGetValue("copyRows", out v) ? v as Dictionary<string, object> : null };
                     if ((edit.Line.Length > 0 && edit.InsertAfter.Length > 0) || edit.DropRows != null || edit.AddRows != null || edit.CloneRows != null ||
-                        edit.FillRows != null || edit.SetRows != null)
+                        edit.FillRows != null || edit.SetRows != null || edit.CopyRows != null)
                         plan.Edits.Add(edit);
                 }
                 if (plan.Files.Count + plan.Edits.Count > before)
@@ -103,6 +106,75 @@ namespace CoAInstaller
         }
 
         static string Text(Dictionary<string, object> d, string key) { object v; return d.TryGetValue(key, out v) && v != null ? Convert.ToString(v) : ""; }
+
+        /// <summary>
+        /// A number of an edit taken from a server setting: {"setting": key, "conf": file, "default": number} becomes the
+        /// number the setting holds (its default when it holds none). Example: the number a realm gave a race.
+        /// </summary>
+        static object Settings(Install inst, object v)
+        {
+            var d = v as Dictionary<string, object>;
+            if (d != null)
+            {
+                if (d.ContainsKey("setting"))
+                {
+                    string text = ConfValue(inst, Text(d, "conf"), Text(d, "setting"));
+                    long n;
+                    if (text != null && long.TryParse(text.Trim(), out n)) return n;
+                    object def;
+                    return d.TryGetValue("default", out def) ? def : 0;
+                }
+                foreach (var k in d.Keys.ToList()) d[k] = Settings(inst, d[k]);
+                return d;
+            }
+            var list = v as object[];
+            if (list != null) for (int i = 0; i < list.Length; i++) list[i] = Settings(inst, list[i]);
+            return v;
+        }
+
+        /// <summary>One object or a list of them.</summary>
+        static List<Dictionary<string, object>> Dicts(object v)
+        {
+            if (v is Dictionary<string, object>) return new List<Dictionary<string, object>> { (Dictionary<string, object>)v };
+            return ((v as object[]) ?? new object[0]).OfType<Dictionary<string, object>>().ToList();
+        }
+
+        /// <summary>The words of a setting: "Goblin Worgen" or "Goblin, Worgen".</summary>
+        static string[] Words(string value)
+        {
+            return Regex.Split(value ?? "", @"[\s,;]+").Where(w => w.Length > 0).ToArray();
+        }
+
+        /// <summary>
+        /// Whether a file or edit of a module's client patch is wanted with the server's settings: every condition of its
+        /// "when" ({conf, key, default} and one of: "has" - the setting lists this word; "in" - the setting is one of these
+        /// words; "notIn" - it is none of them; "is" - the setting is this word; case does not count) must hold. Without
+        /// "when", always.
+        /// </summary>
+        static bool When(Install inst, Dictionary<string, object> item)
+        {
+            object v;
+            if (!item.TryGetValue("when", out v)) return true;
+            foreach (var c in Dicts(v))
+            {
+                string value = ConfValue(inst, Text(c, "conf"), Text(c, "key")) ?? Text(c, "default");
+                var words = Words(value);
+                object w;
+                if (c.TryGetValue("has", out w) && !words.Any(x => x.Equals(Convert.ToString(w), StringComparison.OrdinalIgnoreCase))) return false;
+                if (c.TryGetValue("is", out w) && !value.Trim().Equals(Convert.ToString(w), StringComparison.OrdinalIgnoreCase)) return false;
+                if (c.TryGetValue("in", out w))
+                {
+                    var allowed = ((w as object[]) ?? new object[0]).Select(Convert.ToString);
+                    if (!allowed.Any(a => a.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase))) return false;
+                }
+                if (c.TryGetValue("notIn", out w))
+                {
+                    var refused = ((w as object[]) ?? new object[0]).Select(Convert.ToString);
+                    if (refused.Any(a => a.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase))) return false;
+                }
+            }
+            return true;
+        }
 
         /// <summary>Only files of the interface and the data tables, by a plain relative name.</summary>
         static bool SafeClientPath(string path)
@@ -134,7 +206,7 @@ namespace CoAInstaller
         }
 
         /// <summary>The newest copy of a file of the client: from the archive the game reads last.</summary>
-        static byte[] FromClient(string client, string name, out string source)
+        internal static byte[] FromClient(string client, string name, out string source)
         {
             foreach (var path in Enumerable.Reverse(ClientArchives(client)))
             {
@@ -167,7 +239,7 @@ namespace CoAInstaller
             foreach (var f in plan.Files)
             {
                 var bytes = File.ReadAllBytes(f.From);
-                if (f.Fill != null) bytes = Fill(inst, bytes, f.Fill);
+                foreach (var fill in f.Fills) bytes = Fill(inst, bytes, fill);
                 files[f.To] = bytes;
             }
             foreach (var group in plan.Edits.GroupBy(e => e.File, StringComparer.OrdinalIgnoreCase))
@@ -183,7 +255,8 @@ namespace CoAInstaller
                     bytes = edit.DropRows != null ? DropRows(bytes, edit, group.Key) : edit.AddRows != null ? AddRows(bytes, edit, group.Key) :
                         edit.CloneRows != null ? CloneRows(bytes, edit, group.Key) :
                         edit.FillRows != null ? FillRows(bytes, edit, group.Key) :
-                        edit.SetRows != null ? SetRows(bytes, edit, group.Key) : InsertAfter(bytes, edit, group.Key);
+                        edit.SetRows != null ? SetRows(bytes, edit, group.Key) :
+                        edit.CopyRows != null ? CopyRows(bytes, edit, group.Key) : InsertAfter(bytes, edit, group.Key);
                 files[group.Key] = bytes;
                 if (notes != null) notes.Add(group.Key + " (from " + source + ")");
             }
@@ -198,7 +271,12 @@ namespace CoAInstaller
             string value = ConfValue(inst, Text(fill, "conf"), Text(fill, "key")) ?? Text(fill, "default");
             var numbers = Regex.Matches(value, @"\d+").Cast<Match>().Select(m => int.Parse(m.Value)).Distinct().OrderBy(n => n);
             string set = "{ " + string.Join(", ", numbers.Select(n => "[" + n + "] = true")) + " }";
-            string line = template.Replace("{set}", set);
+            Func<string, string> lua = t => t.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", " ");
+            // {set}: the numbers of the setting as a Lua set; {words}: its words as a Lua list of strings; {text}: the
+            // setting itself, for inside a Lua string.
+            string line = template.Replace("{set}", set)
+                .Replace("{words}", "{ " + string.Join(", ", Words(value).Select(w => "\"" + lua(w) + "\"")) + " }")
+                .Replace("{text}", lua(value.Trim()));
             string text = Encoding.UTF8.GetString(bytes);
             var lines = text.Split('\n');
             for (int i = 0; i < lines.Length; i++)
@@ -338,11 +416,12 @@ namespace CoAInstaller
         {
             var table = DbcTable.Parse(bytes, file);
             object v;
+            // A value in quotes is a text: it goes into the table's strings, and the field takes its offset.
             Func<string, Dictionary<int, uint>> fields = name =>
             {
                 var d = edit.SetRows.TryGetValue(name, out v) ? v as Dictionary<string, object> : null;
                 var result = new Dictionary<int, uint>();
-                if (d != null) foreach (var kv in d) result[int.Parse(kv.Key)] = Convert.ToUInt32(kv.Value);
+                if (d != null) foreach (var kv in d) result[int.Parse(kv.Key)] = kv.Value is string ? table.AddString((string)kv.Value) : Convert.ToUInt32(kv.Value);
                 return result;
             };
             var match = fields("match"); var set = fields("set");
@@ -356,6 +435,45 @@ namespace CoAInstaller
             }
             if (changed == 0)
                 throw new InvalidOperationException(file + " of the game client has no row module " + edit.Module + " changes. The client may have changed; update the module.");
+            return table.ToBytes();
+        }
+
+        /// <summary>
+        /// Rows copied within a DBC table, by field: every row whose fields in "match" (field number: value) hold those
+        /// values is copied with the fields in "set" changed. With "newId" the copy gets a new id (field 0, after the
+        /// highest). A copy is left out when a row agrees with it in the fields of "key" already (default: all fields but
+        /// the id). The fields keep the width the table stores them in. Example: the skins and hair of a race of the
+        /// client, copied to the number a module gives that race.
+        /// </summary>
+        static byte[] CopyRows(byte[] bytes, EditSpec edit, string file)
+        {
+            var table = DbcTable.Parse(bytes, file);
+            object v;
+            // A value in quotes is a text: it goes into the table's strings, and the field takes its offset.
+            Func<string, Dictionary<int, uint>> fields = name =>
+            {
+                var d = edit.CopyRows.TryGetValue(name, out v) ? v as Dictionary<string, object> : null;
+                var result = new Dictionary<int, uint>();
+                if (d != null) foreach (var kv in d) result[int.Parse(kv.Key)] = kv.Value is string ? table.AddString((string)kv.Value) : Convert.ToUInt32(kv.Value);
+                return result;
+            };
+            var match = fields("match"); var set = fields("set");
+            bool newId = edit.CopyRows.TryGetValue("newId", out v) && v is bool && (bool)v;
+            var key = ((edit.CopyRows.TryGetValue("key", out v) ? v as object[] : null) ?? new object[0]).Select(x => Convert.ToInt32(x)).ToArray();
+            if (key.Length == 0) key = Enumerable.Range(newId ? 1 : 0, Math.Max(0, table.Fields - (newId ? 1 : 0))).ToArray();
+            if (match.Count == 0 || set.Count == 0 || match.Keys.Concat(set.Keys).Concat(key).Any(f => f < 0 || f >= table.Fields))
+                throw new InvalidOperationException("The rows module " + edit.Module + " copies in " + file + " are not described in a way it can use.");
+            Func<byte[], string> keyOf = r => string.Join(",", key.Select(f => table.Field(r, f)));
+            var have = new HashSet<string>(table.Records.Select(keyOf));
+            uint next = table.Records.Count == 0 ? 1 : table.Records.Max(r => table.Field(r, 0)) + 1;
+            foreach (var row in table.Records.Where(r => match.All(m => table.Field(r, m.Key) == m.Value)).ToList())
+            {
+                var copy = (byte[])row.Clone();
+                foreach (var f in set) table.SetField(copy, f.Key, f.Value);
+                if (!have.Add(keyOf(copy))) continue;
+                if (newId) table.SetField(copy, 0, next++);
+                table.Records.Add(copy);
+            }
             return table.ToBytes();
         }
 

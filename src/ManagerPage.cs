@@ -341,6 +341,12 @@ namespace CoAInstaller
             var classicBtn = classicCard.Add(Ui.Primary("Set up the classic classes …"));
             classicBtn.Click += (s, e) => OpenSetup(new ClassicSetup(inst));
 
+            racesCard = Section("modules", "Custom races", "Which races of the game client - Goblin, Worgen, Pandaren, Vrykul and more - can be played, and the stock race each leans on: " +
+                "where it starts, its quests, racial abilities and faction.", "accounts");
+            racesCard.Stripe = Ui.Accent;
+            var racesBtn = racesCard.Add(Ui.Primary("Set up the races …"));
+            racesBtn.Click += (s, e) => OpenSetup(new RacesSetup(inst));
+
             var clientCard = Section("modules", "Game client", "Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). " + Product.Name +
                 " puts them into your game and clears its cache when a module asks for it; for other players it packs them into a ZIP.", "client");
             clientCard.Add(clientState);
@@ -431,7 +437,7 @@ namespace CoAInstaller
             poll.Tick += (s, e) => RefreshStatus();
         }
 
-        Card journeyCard, auctionCard, classicCard;
+        Card journeyCard, auctionCard, classicCard, racesCard;
 
         /// <summary>The setup pages of the modules made for AFK Realm are only there when the module is installed.</summary>
         void ShowModuleCards()
@@ -440,6 +446,7 @@ namespace CoAInstaller
             journeyCard.Tag = Directory.Exists(Path.Combine(dir, "mod-world-journey")) ? null : "hidden";
             auctionCard.Tag = Directory.Exists(Path.Combine(dir, "mod-playerbots-auctions")) ? null : "hidden";
             classicCard.Tag = Directory.Exists(Path.Combine(dir, "mod-classic-classes")) ? null : "hidden";
+            racesCard.Tag = Directory.Exists(Path.Combine(dir, "mod-custom-races")) ? null : "hidden";
             if (current == "modules") Show("modules");
         }
 

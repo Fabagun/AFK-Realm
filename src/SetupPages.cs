@@ -395,6 +395,163 @@ namespace CoAInstaller
         }
     }
 
+    // ==================================================================================== Custom races
+
+    /// <summary>
+    /// mod-custom-races: which races of the game client can be played, and the stock race each leans on. The races come
+    /// from the module's races.json; those the player's game client does not carry are greyed out. A race without a
+    /// race number of its own takes one of the free numbers (CustomRaces.&lt;race&gt;.Id) when it is chosen, and keeps
+    /// it while it is switched off, so that its characters get it back; "Free its number" gives it up.
+    /// </summary>
+    class RacesSetup : SetupDialog
+    {
+        class Race { public string Key, Name, Base, Looks, About; public int Id, Source; }
+
+        readonly List<Race> pool = new List<Race>();
+        readonly List<int> slots = new List<int>();
+        readonly List<string> bases = new List<string>();
+        readonly Label usage = new Label { AutoSize = true, Font = Ui.Bold, ForeColor = Ui.Text, BackColor = Ui.Surface, Margin = new Padding(0, 4, 0, 8) };
+
+        public RacesSetup(Install i) : base(i, "mod_custom_races.conf", "Custom races", "mod-custom-races  ·  modules\\mod_custom_races.conf", "accounts", "CustomRaces.Enable", "Custom races on")
+        {
+            ReadPool();
+            var inClient = ClientRaces();
+
+            Tab("Races");
+            var head = Card("Which races can be played", "The game client of Conquest of Azeroth carries the models, skins and hair of races no player can choose. " +
+                "Switch on the ones you want: each starts like its base race - where that race starts, with its quests, stats, racial abilities and faction - " +
+                "and keeps its own looks. Races are bits of a 32-bit mask, so " + slots.Count + " races without a number of their own can be on at once.", "accounts");
+            head.Add(usage);
+            OnChange(UpdateUsage);
+
+            foreach (var looks in new[] { "armor", "male", "untested", "noarmor" })
+            {
+                var group = pool.Where(r => r.Looks == looks).ToList();
+                if (group.Count == 0) continue;
+                string title = looks == "armor" ? "Show armour, male and female" : looks == "male" ? "Male only - the game has no female model" :
+                    looks == "noarmor" ? "Show no armour - their model has no places for it" : "Not tried yet";
+                var card = Card(title, null);
+                foreach (var r in group) AddRace(card, r, inClient == null || inClient.Contains(r.Source));
+            }
+
+            var after = Card("After a change", null, "client");
+            after.Add(Small("The race choice of the game shows the races of the client patch. After a change, open Modules › Game client and choose Install: " +
+                Product.Name + " builds the patch anew. The other players need the new ZIP. A race switched off keeps its characters as their base race until " +
+                "it is on again; changing the base race of a race with characters may move them to the other faction.", after.Inner));
+            Start();
+        }
+
+        void ReadPool()
+        {
+            string file = Path.Combine(ModuleCatalog.ModulesDir(inst), "mod-custom-races", "races.json");
+            try
+            {
+                var data = new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(File.ReadAllText(file)) as Dictionary<string, object>;
+                foreach (var s in (object[])data["slots"]) slots.Add(Convert.ToInt32(s));
+                foreach (var b in (object[])data["bases"]) bases.Add(Convert.ToString(b));
+                foreach (Dictionary<string, object> r in (object[])data["races"])
+                    pool.Add(new Race { Key = (string)r["key"], Name = (string)r["name"], Base = (string)r["base"], Looks = (string)r["looks"],
+                        About = (string)r["about"], Id = Convert.ToInt32(r["id"]), Source = Convert.ToInt32(r["source"]) });
+            }
+            catch (Exception ex) { Shown += (s, e) => Ui.Error(this, "The races of mod-custom-races could not be read (" + file + "): " + ex.Message); }
+        }
+
+        /// <summary>The races of the game client's ChrRaces.dbc, or null when there is no game folder to look in.</summary>
+        static HashSet<int> ClientRaces()
+        {
+            try
+            {
+                string client = ClientAddons.ClientFolder;
+                if (client == null || !ClientAddons.IsClientFolder(client)) return null;
+                string source;
+                var bytes = ClientPatch.FromClient(client, "DBFilesClient\\ChrRaces.dbc", out source);
+                if (bytes == null) return null;
+                var t = DbcTable.Parse(bytes, "ChrRaces.dbc");
+                return new HashSet<int>(t.Records.Select(r => (int)t.Field(r, 0)));
+            }
+            catch { return null; }
+        }
+
+        List<string> Chosen() { return Raw("CustomRaces.Races", "").Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries).ToList(); }
+
+        int IdOf(Race r) { if (r.Id > 0) return r.Id; int n; return int.TryParse(Raw("CustomRaces." + r.Key + ".Id", "0"), out n) ? n : 0; }
+
+        int FreeSlot()
+        {
+            var used = new HashSet<int>(pool.Where(r => r.Id == 0).Select(IdOf));
+            foreach (int s in slots) if (!used.Contains(s)) return s;
+            return 0;
+        }
+
+        void UpdateUsage()
+        {
+            int used = pool.Count(r => r.Id == 0 && IdOf(r) > 0);
+            int on = Chosen().Count;
+            usage.Text = on + (on == 1 ? " race" : " races") + " on  ·  " + used + " of " + slots.Count + " free race numbers in use";
+            usage.ForeColor = used >= slots.Count ? Ui.Warn : Ui.Text;
+        }
+
+        void AddRace(Card card, Race r, bool present)
+        {
+            var row = Ui.Row(); row.BackColor = Ui.Surface;
+            var toggle = new Toggle(r.Name) { BackColor = Ui.Surface, Enabled = present };
+            toggle.Wrap(220);
+            toggle.Width = 230;
+            var basePick = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130, Font = Ui.Base, Margin = new Padding(4, 3, 8, 0), Enabled = present };
+            foreach (var b in bases) basePick.Items.Add(b);
+            var number = new Label { AutoSize = false, Width = 150, Height = 30, Font = Ui.Small, ForeColor = Ui.Muted, TextAlign = ContentAlignment.MiddleLeft, BackColor = Ui.Surface };
+            var free = Ui.Ghost("Free its number");
+            free.Visible = r.Id == 0;
+            row.Controls.Add(toggle); row.Controls.Add(new Label { Text = "leans on", Font = Ui.Small, ForeColor = Ui.Muted, AutoSize = true, Margin = new Padding(0, 9, 0, 0), BackColor = Ui.Surface });
+            row.Controls.Add(basePick); row.Controls.Add(number); row.Controls.Add(free);
+            card.Add(row);
+            card.Add(Small(present ? r.About : "Your game client does not carry this race.", card.Inner - 40, 46));
+
+            Action show = () =>
+            {
+                int id = IdOf(r);
+                number.Text = r.Id > 0 ? "race number " + r.Id + " (its own)" : id > 0 ? "race number " + id : "no race number yet";
+                free.Enabled = r.Id == 0 && id > 0 && !toggle.Checked;
+            };
+            AddLoader(() =>
+            {
+                toggle.Checked = Chosen().Any(k => k.Equals(r.Key, StringComparison.OrdinalIgnoreCase));
+                int at = bases.FindIndex(b => b.Equals(Raw("CustomRaces." + r.Key + ".Base", r.Base), StringComparison.OrdinalIgnoreCase));
+                basePick.SelectedIndex = at < 0 ? Math.Max(0, bases.IndexOf(r.Base)) : at;
+                show();
+            });
+            OnChange(show);
+            toggle.CheckedChanged += (s, e) =>
+            {
+                if (Loading) return;
+                var chosen = Chosen().Where(k => !k.Equals(r.Key, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (toggle.Checked)
+                {
+                    if (r.Id == 0 && IdOf(r) == 0)
+                    {
+                        int slot = FreeSlot();
+                        if (slot == 0)
+                        {
+                            Ui.Error(this, "All " + slots.Count + " free race numbers are taken. Free the number of a race you do not want any more " +
+                                "(switch it off, then \"Free its number\") to make room for the " + r.Name + ".");
+                            toggle.Checked = false;
+                            return;
+                        }
+                        Set("CustomRaces." + r.Key + ".Id", slot.ToString());
+                    }
+                    chosen.Add(r.Key);
+                }
+                Set("CustomRaces.Races", string.Join(" ", chosen));
+            };
+            basePick.SelectedIndexChanged += (s, e) => { if (!Loading && basePick.SelectedIndex >= 0) Set("CustomRaces." + r.Key + ".Base", bases[basePick.SelectedIndex]); };
+            free.Click += (s, e) =>
+            {
+                if (!Ui.Confirm(this, "Give up the race number of the " + r.Name + "? Its characters stay their base race for good, and another race can take the number.")) return;
+                Set("CustomRaces." + r.Key + ".Id", "0");
+            };
+        }
+    }
+
     // ==================================================================================== World Journey
 
     /// <summary>The rules of mod-world-journey (src/JourneyRules.cpp), so the page can show where zones and dungeons land.</summary>

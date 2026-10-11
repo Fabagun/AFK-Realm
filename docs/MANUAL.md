@@ -332,9 +332,11 @@ What players got *through* a module while playing (items, spells) is not tracked
 
 *mod-classic-classes* (Classic classes) lets players and bots create the classic classes – Warrior, Paladin, Hunter, Rogue, Priest, Shaman, Mage, Warlock and Druid – next to the 21 classes of CoA. CoA itself plays them the way Ascension's Warcraft Reborn realms did (their Reborn spells, trainers, talents and summons), but only on a realm that offers nothing else; the module's two changes for the core let a CoA realm offer both. The Death Knight is left out: his spells begin at level 55. The module brings a client patch (see below) for the class choice of the character creation, and after it came, AFK Realm offers once to make the random bots anew, so that they come in the classic classes too.
 
+*mod-custom-races* (Custom races) makes the races the game client carries but no player can choose playable – Goblin, Zandalari Troll, Worgen, Kul Tiran, Vulpera, Pandaren, High Elf, Earthen, Drakkari Troll, Fel Orc, Broken, Vrykul, Tuskarr, Taunka, Forest and Ice Troll, Skeletons, Naga and more. None is on until you choose it. Each leans on a stock race of your choice: it starts where that race starts, gets its quests, racial abilities and faction, and keeps its own looks. Some have only a male model, one shows no armour; the setup page says which. Its client patch puts the races on the race choice of the character creation; switched off, a race's characters play its base race until it is on again.
+
 ### Setup pages of the modules by AFK Realm
 
-When *World Journey*, the *auction house bots* or the *classic classes* are installed, **Modules** shows a card for each with **Set up …**. The page reads the module's own config file and writes back only what you change, when you press **Save**; the changes take effect at the next start of the worldserver (*Restart server*). **Reset to defaults** puts every option on the page back to the module's value, **Open the file** opens the config file itself. Whoever prefers the file can keep editing it: the page always shows what is in it.
+When *World Journey*, the *auction house bots*, the *classic classes* or the *custom races* are installed, **Modules** shows a card for each with **Set up …**. The page reads the module's own config file and writes back only what you change, when you press **Save**; the changes take effect at the next start of the worldserver (*Restart server*). **Reset to defaults** puts every option on the page back to the module's value, **Open the file** opens the config file itself. Whoever prefers the file can keep editing it: the page always shows what is in it.
 
 ![World Journey setup](screenshots/25-world-journey.png)
 
@@ -356,6 +358,10 @@ When *World Journey*, the *auction house bots* or the *classic classes* are inst
 **Auction house bots** has seven tabs: *The bots* (who trades, trips to the auction house, pace, memory), *Selling* (qualities, kinds of items, deposit, vendor), *Prices*, *Buying*, *Crafting*, *Chat* (deals by chat and the bots' chatter) and *Trading Post*.
 
 ![Auction house bots setup](screenshots/29-auction-setup.png)
+
+**Custom races** lists the races of the module, grouped by how their model shows armour; a race your game client does not carry is greyed out. Switch a race on and pick the stock race it leans on (its start, quests, racial abilities and faction). Races are bits of a 32-bit mask, so the game knows race numbers up to 31: six races have a number of their own, the others take one of 15 free numbers when you switch them on – the page counts them and says so when all are taken. A race switched off keeps its number, so its characters get their race back; **Free its number** gives it up for another race (its characters stay their base race for good). After a change, build the client patch anew (*Game client → Install*).
+
+![Custom races](screenshots/36-custom-races.png)
 
 **Classic classes** has one page: which of the nine classic classes can be created. The random bots are created in the same ones. After a change, build the client patch anew (*Game client → Install*): the class choice of the game shows the classes the patch was built with; the server refuses the others either way.
 

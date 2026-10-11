@@ -330,6 +330,26 @@ namespace CoAInstaller
             return BitConverter.ToUInt32(record, field * 4);
         }
 
+        /// <summary>A text at the end of the table's strings (or where it is already); its offset, for a text field.</summary>
+        public uint AddString(string text)
+        {
+            var bytes = Encoding.UTF8.GetBytes(text + "\0");
+            for (int i = 0; i + bytes.Length <= Strings.Length; i++)
+            {
+                if (i > 0 && Strings[i - 1] != 0) continue;
+                int k = 0;
+                while (k < bytes.Length && Strings[i + k] == bytes[k]) k++;
+                if (k == bytes.Length) return (uint)i;
+            }
+            if (Strings.Length == 0) { Strings = new byte[] { 0 }; }
+            uint at = (uint)Strings.Length;
+            var grown = new byte[Strings.Length + bytes.Length];
+            Buffer.BlockCopy(Strings, 0, grown, 0, Strings.Length);
+            Buffer.BlockCopy(bytes, 0, grown, Strings.Length, bytes.Length);
+            Strings = grown;
+            return at;
+        }
+
         /// <summary>Writes a field of a row, in the width the table stores its fields in.</summary>
         public void SetField(byte[] record, int field, uint value)
         {
