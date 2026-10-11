@@ -27,7 +27,7 @@ namespace CoAInstaller
         static string RecordFile(Install inst) { return Path.Combine(inst.Root, "Dependencies", "client-patch.txt"); }
 
         internal class FileSpec { public string Module, From, To; public List<Dictionary<string, object>> Fills; }
-        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows; }
+        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows; public long? IdShift; }
 
         public class Plan
         {
@@ -281,6 +281,7 @@ namespace CoAInstaller
                 foreach (var fill in f.Fills) bytes = Fill(inst, bytes, fill);
                 files[f.To] = bytes;
             }
+            IdShifts(client, plan, files);
             foreach (var group in plan.Edits.GroupBy(e => e.File, StringComparer.OrdinalIgnoreCase))
             {
                 byte[] bytes;
@@ -505,6 +506,68 @@ namespace CoAInstaller
         /// the id). The fields keep the width the table stores them in. Example: the skins and hair of a race of the
         /// client, copied to the number a module gives that race.
         /// </summary>
+        /// <summary>
+        /// Ids of copied rows that tables share: the HD tables of the Ascension client pair with their plain ones by id
+        /// (HDCharSections row 8500 is the HD version of CharSections row 8500). copyRows with "idGroup" (a name) and
+        /// "idKey" (what the copies are for, such as the new race) gives the copies the same new ids in every table of
+        /// the group: each key gets a block of ids above the highest id of all tables in the group, its rows keep their
+        /// distance to each other, and the HD copy of a row has the id of its plain copy.
+        /// </summary>
+        static void IdShifts(string client, Plan plan, SortedDictionary<string, byte[]> files)
+        {
+            var groups = new Dictionary<string, List<EditSpec>>(StringComparer.OrdinalIgnoreCase);
+            object v;
+            foreach (var e in plan.Edits)
+                if (e.CopyRows != null && e.CopyRows.TryGetValue("idGroup", out v) && Convert.ToString(v).Length > 0)
+                {
+                    List<EditSpec> list;
+                    if (!groups.TryGetValue(Convert.ToString(v), out list)) groups[Convert.ToString(v)] = list = new List<EditSpec>();
+                    list.Add(e);
+                }
+            var tables = new Dictionary<string, DbcTable>(StringComparer.OrdinalIgnoreCase);
+            Func<string, DbcTable> table = name =>
+            {
+                DbcTable t;
+                if (tables.TryGetValue(name, out t)) return t;
+                byte[] bytes; string source;
+                if (!files.TryGetValue(name, out bytes)) bytes = FromClient(client, name, out source);
+                if (bytes == null) throw new InvalidOperationException("The game client has no " + name + ".");
+                return tables[name] = DbcTable.Parse(bytes, name);
+            };
+            foreach (var g in groups.Values)
+            {
+                long next = g.Select(e => e.File).Distinct(StringComparer.OrdinalIgnoreCase).Select(table)
+                    .Max(t => t.Records.Count == 0 ? 0L : t.Records.Max(r => (long)t.Field(r, 0))) + 1;
+                // the ids the copies of each key are made from, over all tables of the group
+                var spans = new List<KeyValuePair<string, long[]>>();
+                foreach (var e in g)
+                {
+                    var t = table(e.File);
+                    var match = new Dictionary<int, uint>();
+                    var d = e.CopyRows.TryGetValue("match", out v) ? v as Dictionary<string, object> : null;
+                    if (d != null) foreach (var kv in d) match[int.Parse(kv.Key)] = Convert.ToUInt32(kv.Value);
+                    string key = e.CopyRows.TryGetValue("idKey", out v) ? Convert.ToString(v) : "";
+                    var ids = t.Records.Where(r => match.All(m => t.Field(r, m.Key) == m.Value)).Select(r => (long)t.Field(r, 0)).ToList();
+                    if (ids.Count == 0) continue;
+                    int at = spans.FindIndex(s => s.Key == key);
+                    if (at < 0) spans.Add(new KeyValuePair<string, long[]>(key, new[] { ids.Min(), ids.Max() }));
+                    else spans[at] = new KeyValuePair<string, long[]>(key, new[] { Math.Min(spans[at].Value[0], ids.Min()), Math.Max(spans[at].Value[1], ids.Max()) });
+                }
+                var shift = new Dictionary<string, long>();
+                foreach (var s in spans)
+                {
+                    shift[s.Key] = next - s.Value[0];
+                    next += s.Value[1] - s.Value[0] + 1;
+                }
+                if (next > uint.MaxValue) throw new InvalidOperationException("Too many rows to copy into " + g[0].File + ".");
+                foreach (var e in g)
+                {
+                    long n;
+                    if (shift.TryGetValue(e.CopyRows.TryGetValue("idKey", out v) ? Convert.ToString(v) : "", out n)) e.IdShift = n;
+                }
+            }
+        }
+
         static byte[] CopyRows(byte[] bytes, EditSpec edit, string file)
         {
             var table = DbcTable.Parse(bytes, file);
@@ -518,7 +581,7 @@ namespace CoAInstaller
                 return result;
             };
             var match = fields("match"); var set = fields("set");
-            bool newId = edit.CopyRows.TryGetValue("newId", out v) && v is bool && (bool)v;
+            bool newId = edit.IdShift.HasValue || (edit.CopyRows.TryGetValue("newId", out v) && v is bool && (bool)v);
             var key = ((edit.CopyRows.TryGetValue("key", out v) ? v as object[] : null) ?? new object[0]).Select(x => Convert.ToInt32(x)).ToArray();
             if (key.Length == 0) key = Enumerable.Range(newId ? 1 : 0, Math.Max(0, table.Fields - (newId ? 1 : 0))).ToArray();
             if (match.Count == 0 || set.Count == 0 || match.Keys.Concat(set.Keys).Concat(key).Any(f => f < 0 || f >= table.Fields))
@@ -531,7 +594,8 @@ namespace CoAInstaller
                 var copy = (byte[])row.Clone();
                 foreach (var f in set) table.SetField(copy, f.Key, f.Value);
                 if (!have.Add(keyOf(copy))) continue;
-                if (newId) table.SetField(copy, 0, next++);
+                if (edit.IdShift.HasValue) table.SetField(copy, 0, (uint)(table.Field(row, 0) + edit.IdShift.Value));
+                else if (newId) table.SetField(copy, 0, next++);
                 table.Records.Add(copy);
             }
             return table.ToBytes();
