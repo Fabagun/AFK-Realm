@@ -548,21 +548,7 @@ namespace CoAInstaller
             put("FemaleDisplay", r.FemaleDisplay.ToString());
             put("MaleOnly", r.MaleOnly ? "1" : "0");
             if (Raw("CustomRaces." + r.Key + ".Base", "").Length == 0) putText("Base", DefaultBase(r));
-            putText("HelmetPrefix", HelmetPrefix(r));
-        }
-
-        static readonly Dictionary<string, string> BasePrefixes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "Human", "Hu" }, { "Orc", "Or" }, { "Dwarf", "Dw" }, { "NightElf", "Ni" }, { "Undead", "Sc" }, { "Tauren", "Ta" },
-            { "Gnome", "Gn" }, { "Troll", "Tr" }, { "BloodElf", "Be" }, { "Draenei", "Dr" },
-        };
-
-        /// <summary>The helmets a race wears: its own when the client has them, otherwise those of its base race.</summary>
-        string HelmetPrefix(ClientRace r)
-        {
-            if (r.HasHelmets) return r.Prefix;
-            string p;
-            return BasePrefixes.TryGetValue(Raw("CustomRaces." + r.Key + ".Base", DefaultBase(r)), out p) ? p : "Hu";
+            put("OwnHelmets", r.HasHelmets ? "1" : "0");
         }
 
         /// <summary>A race described before, as the client has it now (it may have changed with an update of the game).</summary>
