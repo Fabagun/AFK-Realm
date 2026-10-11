@@ -414,12 +414,15 @@ namespace CoAInstaller
         readonly List<string> bases = new List<string>();
         readonly List<ClientRace> races = new List<ClientRace>();
         readonly List<int> slots = new List<int>();
+        readonly HashSet<string> helmetPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string folder;
         readonly Label usage = new Label { AutoSize = true, Font = Ui.Bold, ForeColor = Ui.Text, BackColor = Ui.Surface, Margin = new Padding(0, 4, 0, 8) };
 
         public RacesSetup(Install i) : base(i, "mod_custom_races.conf", "Custom races", "mod-custom-races  ·  modules\\mod_custom_races.conf", "accounts", "CustomRaces.Enable", "Custom races on")
         {
             ReadKnown();
             string problem = ReadClient();
+            ReadFolder();
 
             Tab("Races");
             var head = Card("Which races can be played", "These are the races your game client carries a body for, read from the client itself. " +
@@ -429,8 +432,28 @@ namespace CoAInstaller
             else head.Add(usage);
             OnChange(UpdateUsage);
 
+            var fold = Card("Races from other clients", "Races of other game clients and repacks, gathered into a race folder: one folder per race with its " +
+                "models, textures and rows (race.json). They are offered below like the races of your client; where your client has the same race, you choose " +
+                "whose looks it gets. Their files go into the game as an archive of their own for each race (Data\\patch-ZY<number>.MPQ).", "client");
+            var where = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(fold.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8),
+                Text = folder == null ? "No race folder chosen." : folder + "  ·  " + races.Count(r => r.Pack != null || r.Alt != null) + " races" };
+            fold.Add(where);
+            var choose = Ui.Secondary("Choose the race folder …");
+            choose.Click += (s, e) =>
+            {
+                using (var d = new FolderBrowserDialog { Description = "The race folder: one folder per race, each with a race.json", SelectedPath = folder ?? "" })
+                {
+                    if (d.ShowDialog(this) != DialogResult.OK) return;
+                    if (RaceImport.Read(d.SelectedPath).Count == 0) { Ui.Error(this, "This folder holds no races (no subfolders with a race.json)."); return; }
+                    Set("CustomRaces.ImportFolder", "\"" + d.SelectedPath + "\"");
+                    where.Text = d.SelectedPath + "  ·  save, then open this page again to see its races";
+                }
+            };
+            fold.Add(choose);
+
             var groups = new[]
             {
+                new { Id = "imported", Title = "From your race folder" },
                 new { Id = "armor", Title = "Show armour, male and female" },
                 new { Id = "male", Title = "Male only - the game has no female model" },
                 new { Id = "noarmor", Title = "Show no armour - their model has no places for it" },
@@ -489,15 +512,39 @@ namespace CoAInstaller
                 var scan = ClientRaces.Read(client, virtuals);
                 races.AddRange(scan.Races);
                 slots.AddRange(scan.FreeNumbers);
+                foreach (var h in scan.HelmetPrefixes) helmetPrefixes.Add(h);
                 return races.Count == 0 ? "Your game client has no races beyond the stock ones." : null;
             }
             catch (Exception ex) { return "The races of your game client could not be read: " + ex.Message; }
         }
 
+        /// <summary>The races of the race folder: new ones, and other looks for races this client has.</summary>
+        void ReadFolder()
+        {
+            folder = Raw("CustomRaces.ImportFolder", "");
+            if (folder.Length == 0)
+            {
+                string guess = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "AFK-Rassen");
+                folder = Directory.Exists(guess) ? guess : null;
+            }
+            if (folder == null || !Directory.Exists(folder)) { folder = null; return; }
+            foreach (var p in RaceImport.Read(folder))
+            {
+                var same = races.FirstOrDefault(r => r.Pack == null && r.Key.Equals(p.Key, StringComparison.OrdinalIgnoreCase));
+                if (same != null) { same.Alt = p; continue; }
+                races.Add(new ClientRace { Key = p.Key, Name = p.Name, Prefix = p.Prefix, File = p.File, MaleOnly = p.MaleOnly, Pack = p });
+            }
+        }
+
         Known KnownOf(ClientRace r) { Known k; return known.TryGetValue(r.Key, out k) ? k : null; }
+
+        bool UsesFolder(ClientRace r) { return r.Pack != null || (r.Alt != null && Raw("CustomRaces." + r.Key + ".Import", "0") == "1"); }
+
+        RaceImport.Pack PackOf(ClientRace r) { return r.Pack ?? (UsesFolder(r) ? r.Alt : null); }
 
         string GroupOf(ClientRace r)
         {
+            if (r.Pack != null) return "imported";
             var k = KnownOf(r);
             if (k != null && k.Rating == "poor") return "poor";
             if (k != null && k.Looks.Length > 0) return r.MaleOnly && k.Looks == "armor" ? "male" : k.Looks;
@@ -538,17 +585,51 @@ namespace CoAInstaller
         {
             Action<string, string> put = (name, value) => { if (Raw("CustomRaces." + r.Key + "." + name, null) != value) Set("CustomRaces." + r.Key + "." + name, value); };
             Action<string, string> putText = (name, value) => { if (Raw("CustomRaces." + r.Key + "." + name, null) != value) Set("CustomRaces." + r.Key + "." + name, "\"" + value.Replace("\"", "") + "\""); };
-            put("Source", r.Source.ToString());
-            put("Id", id.ToString());
-            put("Copy", r.OwnNumber ? "0" : "1");
-            putText("Name", r.Name);
-            putText("Prefix", r.Prefix);
-            putText("File", r.File);
-            put("MaleDisplay", r.MaleDisplay.ToString());
-            put("FemaleDisplay", r.FemaleDisplay.ToString());
-            put("MaleOnly", r.MaleOnly ? "1" : "0");
+            var pack = PackOf(r);
+            if (pack != null)
+            {
+                // from the race folder: its rows and files; its model gets new display numbers
+                put("Source", "0");
+                put("Id", id.ToString());
+                put("Copy", "0");
+                put("Import", "1");
+                putText("Name", pack.Name);
+                putText("Prefix", pack.Prefix);
+                putText("File", pack.File.Length > 0 ? pack.File : pack.Key);
+                put("MaleDisplay", id > 0 ? (RaceImport.DisplayBase + id * 2).ToString() : "0");
+                put("FemaleDisplay", id > 0 ? (RaceImport.DisplayBase + id * 2 + 1).ToString() : "0");
+                put("MaleOnly", pack.MaleOnly ? "1" : "0");
+                put("OwnHelmets", helmetPrefixes.Count == 0 || helmetPrefixes.Contains(pack.Prefix) ? "1" : "0");
+            }
+            else
+            {
+                put("Source", r.Source.ToString());
+                put("Id", id.ToString());
+                put("Copy", r.OwnNumber ? "0" : "1");
+                put("Import", "0");
+                putText("Name", r.Name);
+                putText("Prefix", r.Prefix);
+                putText("File", r.File);
+                put("MaleDisplay", r.MaleDisplay.ToString());
+                put("FemaleDisplay", r.FemaleDisplay.ToString());
+                put("MaleOnly", r.MaleOnly ? "1" : "0");
+                put("OwnHelmets", r.HasHelmets ? "1" : "0");
+            }
             if (Raw("CustomRaces." + r.Key + ".Base", "").Length == 0) putText("Base", DefaultBase(r));
-            put("OwnHelmets", r.HasHelmets ? "1" : "0");
+            // its icon: from its folder, or from the icons of the race folder (_Icons)
+            string icon = null;
+            if (pack != null)
+            {
+                var f = pack.Files.FirstOrDefault(x => x.StartsWith("Interface\\Icons\\", StringComparison.OrdinalIgnoreCase));
+                if (f != null) icon = Path.Combine(pack.Dir, "files", f.Replace('\\', Path.DirectorySeparatorChar));
+            }
+            if ((icon == null || !File.Exists(icon)) && folder != null) icon = Path.Combine(folder, "_Icons", "CoA_Race_" + r.Key + ".blp");
+            if (icon != null && File.Exists(icon))
+            {
+                putText("IconFile", icon);
+                putText("Icon", "Interface\\Icons\\CoA_Race_" + r.Key);
+            }
+            else { putText("IconFile", ""); putText("Icon", ""); }
         }
 
         /// <summary>A race described before, as the client has it now (it may have changed with an update of the game).</summary>
@@ -581,9 +662,24 @@ namespace CoAInstaller
             row.Controls.Add(toggle); row.Controls.Add(new Label { Text = "leans on", Font = Ui.Small, ForeColor = Ui.Muted, AutoSize = true, Margin = new Padding(0, 9, 0, 0), BackColor = Ui.Surface });
             row.Controls.Add(basePick); row.Controls.Add(number); row.Controls.Add(free);
             card.Add(row);
-            string about = k != null && k.About.Length > 0 ? k.About : "A race of your game client" + (r.Virtual ? "" : " (row " + r.Source + " of its race table)") + ".";
+            string about = r.Pack != null ? "From your race folder (" + (r.Pack.Source.Length > 0 ? r.Pack.Source : "another client") + ", " + (r.Pack.Bytes / 1000000) + " MB)." +
+                    (r.Pack.Missing > 0 ? " " + r.Pack.Missing + " of its files are missing; the choices that need them are left out." : "")
+                : k != null && k.About.Length > 0 ? k.About : "A race of your game client" + (r.Virtual ? "" : " (row " + r.Source + " of its race table)") + ".";
             if (k != null && k.Note.Length > 0) about += " " + k.Note;
             card.Add(Small(about, card.Inner - 40, 46));
+            if (r.Alt != null)
+            {
+                var alt = new Toggle("Looks from the race folder (" + (r.Alt.Source.Length > 0 ? r.Alt.Source : "another client") + ", " + (r.Alt.Bytes / 1000000) + " MB) instead of your client") { BackColor = Ui.Surface, Margin = new Padding(46, 0, 0, 8) };
+                alt.Wrap(card.Inner - 80);
+                card.Add(alt);
+                AddLoader(() => alt.Checked = Raw("CustomRaces." + r.Key + ".Import", "0") == "1");
+                alt.CheckedChanged += (s, e) =>
+                {
+                    if (Loading) return;
+                    Set("CustomRaces." + r.Key + ".Import", alt.Checked ? "1" : "0");
+                    if (Raw("CustomRaces." + r.Key + ".Source", "").Length > 0 || alt.Checked) Describe(r, IdOf(r) > 0 ? IdOf(r) : r.OwnNumber ? r.Source : 0);
+                };
+            }
 
             Action show = () =>
             {

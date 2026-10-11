@@ -27,7 +27,7 @@ namespace CoAInstaller
         static string RecordFile(Install inst) { return Path.Combine(inst.Root, "Dependencies", "client-patch.txt"); }
 
         internal class FileSpec { public string Module, From, To; public List<Dictionary<string, object>> Fills; }
-        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows; public long? IdShift; }
+        internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows, ImportRace, SectionRules, AddFile; public long? IdShift; }
 
         public class Plan
         {
@@ -36,6 +36,7 @@ namespace CoAInstaller
             public bool ClearCache;
             internal List<FileSpec> Files = new List<FileSpec>();
             internal List<EditSpec> Edits = new List<EditSpec>();
+            internal List<RaceImport.Wanted> Imports = new List<RaceImport.Wanted>();
             public bool Empty { get { return Files.Count == 0 && Edits.Count == 0; } }
         }
 
@@ -82,9 +83,20 @@ namespace CoAInstaller
                         CloneRows = e.TryGetValue("cloneRows", out v) ? v as Dictionary<string, object> : null,
                         FillRows = e.TryGetValue("fillRows", out v) ? v as Dictionary<string, object> : null,
                         SetRows = e.TryGetValue("setRows", out v) ? v as Dictionary<string, object> : null,
-                        CopyRows = e.TryGetValue("copyRows", out v) ? v as Dictionary<string, object> : null };
+                        CopyRows = e.TryGetValue("copyRows", out v) ? v as Dictionary<string, object> : null,
+                        ImportRace = e.TryGetValue("importRace", out v) ? v as Dictionary<string, object> : null,
+                        SectionRules = e.TryGetValue("sectionRules", out v) ? v as Dictionary<string, object> : null,
+                        AddFile = e.TryGetValue("addFile", out v) ? v as Dictionary<string, object> : null };
+                    if (edit.ImportRace != null)
+                    {
+                        // a race from another client: its rows go into this patch, its files into an archive of its own
+                        var pack = RaceImport.Find(Text(edit.ImportRace, "folder"), Text(edit.ImportRace, "key"));
+                        int race;
+                        if (pack == null || !int.TryParse(Text(edit.ImportRace, "id"), out race) || race <= 0) continue;
+                        plan.Imports.Add(new RaceImport.Wanted { Race = race, Pack = pack });
+                    }
                     if ((edit.Line.Length > 0 && edit.InsertAfter.Length > 0) || edit.DropRows != null || edit.AddRows != null || edit.CloneRows != null ||
-                        edit.FillRows != null || edit.SetRows != null || edit.CopyRows != null)
+                        edit.FillRows != null || edit.SetRows != null || edit.CopyRows != null || edit.ImportRace != null || edit.SectionRules != null || edit.AddFile != null)
                         plan.Edits.Add(edit);
                 }
                 if (plan.Files.Count + plan.Edits.Count > before)
@@ -240,7 +252,7 @@ namespace CoAInstaller
             all.AddRange(archives(data));
             foreach (var sub in Directory.GetDirectories(data))
                 if (Regex.IsMatch(Path.GetFileName(sub), @"^[a-z]{2}[A-Z]{2}$")) all.AddRange(archives(sub));
-            return all.Where(p => !Path.GetFileName(p).Equals(ArchiveName, StringComparison.OrdinalIgnoreCase))
+            return all.Where(p => !Path.GetFileName(p).Equals(ArchiveName, StringComparison.OrdinalIgnoreCase) && !RaceImport.IsOurArchive(Path.GetFileName(p)))
                 .OrderBy(rank).ThenBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase).ToList();
         }
 
@@ -282,7 +294,7 @@ namespace CoAInstaller
                 files[f.To] = bytes;
             }
             IdShifts(client, plan, files);
-            foreach (var group in plan.Edits.GroupBy(e => e.File, StringComparer.OrdinalIgnoreCase))
+            foreach (var group in plan.Edits.Where(e => e.ImportRace == null && e.SectionRules == null && e.AddFile == null).GroupBy(e => e.File, StringComparer.OrdinalIgnoreCase))
             {
                 byte[] bytes;
                 string source = "this server's modules";
@@ -300,8 +312,50 @@ namespace CoAInstaller
                 files[group.Key] = bytes;
                 if (notes != null) notes.Add(group.Key + " (from " + source + ")");
             }
-            if (files.Count > 0) files[StampName] = Encoding.UTF8.GetBytes(Stamp(files));
+            // imported races, then the rules of the character creation for every added race
+            Func<string, byte[]> load = name =>
+            {
+                byte[] b; string src;
+                if (files.TryGetValue(name, out b)) return b;
+                b = FromClient(client, name, out src);
+                if (b != null && notes != null) notes.Add(name + " (from " + src + ")");
+                return b;
+            };
+            Action<string, byte[]> save = (name, b) => files[name] = b;
+            // files of the user's race folder (the icon of a race): taken as they are, when they exist
+            foreach (var e in plan.Edits.Where(e => e.AddFile != null))
+            {
+                string from = Text(e.AddFile, "from");
+                if (from.Length > 0 && File.Exists(from) && new FileInfo(from).Length < 16 << 20) files[e.File] = File.ReadAllBytes(from);
+            }
+            foreach (var e in plan.Edits.Where(e => e.ImportRace != null))
+            {
+                var pack = RaceImport.Find(Text(e.ImportRace, "folder"), Text(e.ImportRace, "key"));
+                int race, baseRace;
+                if (pack == null) throw new InvalidOperationException("The race folder has no race \"" + Text(e.ImportRace, "key") + "\" (module " + e.Module + ").");
+                if (!int.TryParse(Text(e.ImportRace, "id"), out race) || race <= 0) continue;
+                if (!int.TryParse(Text(e.ImportRace, "base"), out baseRace)) baseRace = BaseRaceId(Text(e.ImportRace, "base"));
+                string name = Text(e.ImportRace, "name");
+                RaceImport.AddRace(load, save, pack, race, baseRace, name.Length > 0 ? name : pack.Name);
+            }
+            foreach (var e in plan.Edits.Where(e => e.SectionRules != null))
+            {
+                int race;
+                if (!int.TryParse(Text(e.SectionRules, "race"), out race) || race <= 0) continue;
+                RaceImport.SectionRules(load, save, race, Text(e.SectionRules, "maleOnly") == "1");
+            }
+            if (files.Count > 0) files[StampName] = Encoding.UTF8.GetBytes(Stamp(files) + string.Concat(plan.Imports.Select(w => "race " + w.Race + " " + w.Pack.Key + "\r\n")));
             return files;
+        }
+
+        static int BaseRaceId(string name)
+        {
+            switch ((name ?? "").Replace(" ", "").ToLowerInvariant())
+            {
+                case "orc": return 2; case "dwarf": return 3; case "nightelf": return 4; case "undead": case "scourge": return 5;
+                case "tauren": return 6; case "gnome": return 7; case "troll": return 8; case "bloodelf": return 10; case "draenei": return 11;
+                default: return 1;
+            }
         }
 
         static byte[] Fill(Install inst, byte[] bytes, Dictionary<string, object> fill)
@@ -696,7 +750,8 @@ namespace CoAInstaller
             {
                 var files = Build(inst, client, plan, null);
                 string wanted = Encoding.UTF8.GetString(files[StampName]);
-                return installed == null ? PatchState.Missing : installed == wanted ? PatchState.Current : PatchState.Outdated;
+                if (installed == null) return PatchState.Missing;
+                return installed == wanted && RaceImport.Current(client, plan.Imports) ? PatchState.Current : PatchState.Outdated;
             }
             catch (Exception ex) { problem = ex.Message; return PatchState.Outdated; }
         }
@@ -734,6 +789,7 @@ namespace CoAInstaller
                 try { File.Delete(temp); } catch { }
                 throw new InvalidOperationException("Data\\" + ArchiveName + " is in use. Close the game and its launcher first.");
             }
+            notes.AddRange(RaceImport.Sync(client, plan.Imports));
             Directory.CreateDirectory(Path.GetDirectoryName(RecordFile(inst)));
             File.WriteAllLines(RecordFile(inst), new[] { ArchiveName }.Concat(plan.Modules), new UTF8Encoding(false));
             return "the client patch Data\\" + ArchiveName + " built for " + string.Join(", ", plan.Modules) + (notes.Count > 0 ? " (changes " + string.Join(", ", notes) + ")" : "");
@@ -750,6 +806,12 @@ namespace CoAInstaller
                 zip.CreateEntryFromFile(temp, "Data/" + ArchiveName, CompressionLevel.Optimal);
             }
             finally { try { File.Delete(temp); } catch { } }
+            foreach (var w in plan.Imports)
+            {
+                string race = RaceImport.BuildTemp(w);
+                try { zip.CreateEntryFromFile(race, "Data/" + RaceImport.ArchiveName(w.Race), CompressionLevel.Fastest); }
+                finally { try { File.Delete(race); } catch { } }
+            }
         }
     }
 }

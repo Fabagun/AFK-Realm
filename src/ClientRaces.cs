@@ -16,7 +16,9 @@ namespace CoAInstaller
         public bool MaleOnly;
         public bool Virtual;                // made from the row of another race, under its own name (the High Elf)
         public bool HasHelmets;             // the client has helmet models for its prefix (Item\ObjectComponents\Head\*_<prefix><sex>.m2)
-        public bool OwnNumber { get { return Source < 32 && !Virtual; } }
+        public RaceImport.Pack Pack;        // a race of the user's race folder, not of this client
+        public RaceImport.Pack Alt;         // the same race in the race folder, for a race this client has too
+        public bool OwnNumber { get { return Pack == null && Source < 32 && !Virtual; } }
     }
 
     /// <summary>

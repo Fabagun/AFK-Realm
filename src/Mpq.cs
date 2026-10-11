@@ -231,6 +231,84 @@ namespace CoAInstaller
 
         public void Dispose() { stream.Dispose(); }
 
+        /// <summary>
+        /// Writes an archive of format 1 from files on disk (streamed, stored whole) and a few files in memory, with a
+        /// (listfile). For the archives of imported races, which hold hundreds of megabytes.
+        /// </summary>
+        public static void WriteFromFiles(string path, IDictionary<string, string> sources, IDictionary<string, byte[]> extra)
+        {
+            var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in sources.Keys) names.Add(k.Replace('/', '\\'));
+            foreach (var k in extra.Keys) names.Add(k.Replace('/', '\\'));
+            var list = new StringBuilder();
+            foreach (var name in names) list.Append(name).Append("\r\n");
+            var memory = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in extra) memory[kv.Key.Replace('/', '\\')] = kv.Value;
+            memory["(listfile)"] = Encoding.ASCII.GetBytes(list.ToString());
+            names.Add("(listfile)");
+            var disk = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in sources) disk[kv.Key.Replace('/', '\\')] = kv.Value;
+
+            int hashCount = 16;
+            while (hashCount < names.Count * 2) hashCount *= 2;
+            var hashTable = new uint[hashCount * 4];
+            for (int i = 0; i < hashTable.Length; i++) hashTable[i] = 0xFFFFFFFF;
+            var blockTable = new uint[names.Count * 4];
+            using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
+            using (var w = new BinaryWriter(fs))
+            {
+                const int headerSize = 32;
+                fs.Position = headerSize;
+                int block = 0;
+                var buffer = new byte[1 << 20];
+                foreach (var name in names)
+                {
+                    long offset = fs.Position;
+                    long length;
+                    byte[] data;
+                    if (memory.TryGetValue(name, out data)) { w.Write(data); length = data.Length; }
+                    else
+                    {
+                        using (var input = File.OpenRead(disk[name]))
+                        {
+                            int n;
+                            while ((n = input.Read(buffer, 0, buffer.Length)) > 0) fs.Write(buffer, 0, n);
+                            length = input.Length;
+                        }
+                    }
+                    if (fs.Position > uint.MaxValue) throw new InvalidOperationException("The archive " + System.IO.Path.GetFileName(path) + " would be larger than 4 GB.");
+                    blockTable[block * 4] = (uint)offset;
+                    blockTable[block * 4 + 1] = (uint)length;
+                    blockTable[block * 4 + 2] = (uint)length;
+                    blockTable[block * 4 + 3] = FileExists;
+                    uint index = MpqCrypt.Hash(name, MpqCrypt.TableOffset) & (uint)(hashCount - 1);
+                    while (hashTable[index * 4 + 3] != 0xFFFFFFFF) index = (index + 1) & (uint)(hashCount - 1);
+                    hashTable[index * 4] = MpqCrypt.Hash(name, MpqCrypt.HashA);
+                    hashTable[index * 4 + 1] = MpqCrypt.Hash(name, MpqCrypt.HashB);
+                    hashTable[index * 4 + 2] = 0;
+                    hashTable[index * 4 + 3] = (uint)block;
+                    block++;
+                }
+                uint hashPos = (uint)fs.Position;
+                MpqCrypt.Encrypt(hashTable, MpqCrypt.Hash("(hash table)", MpqCrypt.FileKey));
+                foreach (var v in hashTable) w.Write(v);
+                uint blockPos = (uint)fs.Position;
+                MpqCrypt.Encrypt(blockTable, MpqCrypt.Hash("(block table)", MpqCrypt.FileKey));
+                foreach (var v in blockTable) w.Write(v);
+                uint size = (uint)fs.Position;
+                fs.Position = 0;
+                w.Write(0x1A51504Du);
+                w.Write((uint)headerSize);
+                w.Write(size);
+                w.Write((ushort)0);
+                w.Write((ushort)3);
+                w.Write(hashPos);
+                w.Write(blockPos);
+                w.Write((uint)hashCount);
+                w.Write((uint)names.Count);
+            }
+        }
+
         /// <summary>Writes an archive of format 1 with the given files stored whole, and a (listfile).</summary>
         public static void Write(string path, IDictionary<string, byte[]> files)
         {
