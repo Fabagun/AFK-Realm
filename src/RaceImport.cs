@@ -39,49 +39,80 @@ namespace CoAInstaller
             return Regex.IsMatch(fileName ?? "", "^" + ArchivePrefix + @"\d\d\.mpq$", RegexOptions.IgnoreCase);
         }
 
+        /// <summary>
+        /// A race of the race folder. Its race.json can be large (tens of megabytes for a race with many skins), so what
+        /// the setup page and the checks need of it - names, files, sizes - is kept in a small race.info.json beside it,
+        /// made the first time and again when race.json changes; race.json itself is read only when a patch is built.
+        /// </summary>
         public class Pack
         {
             public string Key, Dir;
-            public Dictionary<string, object> Data;
-            public string Name { get { return Str(Data, "name"); } }
-            public string Prefix { get { return Str(Data, "prefix"); } }
-            /// <summary>The race's file name: the folder of its model (Character\\VoidElf\\...), not the file name of the row
-            /// it had in its client, which a client may have reused (Ashen's Void Elf sits in the row of the Fel Orc).</summary>
-            public string File
+            internal Dictionary<string, object> Info;
+            Dictionary<string, object> data;
+            public Dictionary<string, object> Data
             {
                 get
                 {
-                    var models = Data.ContainsKey("models") ? Data["models"] as Dictionary<string, object> : null;
-                    var m = models == null ? null : models.Values.OfType<Dictionary<string, object>>().FirstOrDefault();
-                    var parts = (m == null ? "" : Str(m, "path")).Split('\\');
-                    if (parts.Length > 2 && parts[0].Equals("Character", StringComparison.OrdinalIgnoreCase)) return parts[1];
-                    return Key;
+                    if (data == null)
+                        data = new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.DeserializeObject(System.IO.File.ReadAllText(Path.Combine(Dir, "race.json"), Encoding.UTF8)) as Dictionary<string, object>
+                            ?? new Dictionary<string, object>();
+                    return data;
                 }
+                internal set { data = value; }
             }
-            public string Icon { get { return Str(Data, "icon"); } }
-            public List<string> Files { get { return List(Data, "files").Select(Convert.ToString).ToList(); } }
+            public string Name { get { return Str(Info, "name"); } }
+            public string Prefix { get { return Str(Info, "prefix"); } }
+            /// <summary>The race's file name: the folder of its model (Character\VoidElf\...), not the file name of the row
+            /// it had in its client, which a client may have reused (Ashen's Void Elf sits in the row of the Fel Orc).</summary>
+            public string File { get { string f = Str(Info, "file"); return f.Length > 0 ? f : Key; } }
+            public string Icon { get { return Str(Info, "icon"); } }
+            public List<string> Files { get { return List(Info, "files").Select(Convert.ToString).ToList(); } }
             public List<object[]> Rows(string name) { return List(Data, name).OfType<object[]>().ToList(); }
-            public bool HasSex(int sex) { return Rows("sections").Any(r => Num(r[2]) == sex && Num(r[3]) == 0); }
-            public bool MaleOnly { get { return !HasSex(1); } }
+            public bool MaleOnly { get { object v; return !(Info.TryGetValue("female", out v) && v is bool && (bool)v); } }
+            /// <summary>The side it had in its client: 0 Alliance, 1 Horde, 2 unknown.</summary>
+            public int Side { get { object v; return Info.TryGetValue("side", out v) && v != null ? Convert.ToInt32(v) : 2; } }
             public string Source
             {
                 get
                 {
-                    var s = Data.ContainsKey("source") ? Data["source"] as Dictionary<string, object> : null;
-                    string c = s == null ? "" : Str(s, "client");
+                    string c = Str(Info, "client");
                     switch (c.ToLowerInvariant()) { case "cc": return "CoA Custom"; case "ashen": return "Ashen Order"; case "fta": return "From the Ashes"; default: return c; }
                 }
             }
-            public int Missing { get { return List(Data, "missing").Length; } }
-            public long Bytes { get { return Files.Sum(f => { var p = Path.Combine(Dir, "files", f.Replace('\\', Path.DirectorySeparatorChar)); return File_Exists(p) ? new FileInfo(p).Length : 0; }); } }
-            static bool File_Exists(string p) { return System.IO.File.Exists(p); }
+            public int Missing { get { object v; return Info.TryGetValue("missing", out v) && v != null ? Convert.ToInt32(v) : 0; } }
+            public long Bytes { get { object v; return Info.TryGetValue("bytes", out v) && v != null ? Convert.ToInt64(v) : 0; } }
         }
 
         static string Str(Dictionary<string, object> d, string k) { object v; return d != null && d.TryGetValue(k, out v) && v != null ? Convert.ToString(v) : ""; }
-        static object[] List(Dictionary<string, object> d, string k) { object v; return d != null && d.TryGetValue(k, out v) ? (v as object[]) ?? new object[0] : new object[0]; }
+        static object[] List(Dictionary<string, object> d, string k) { object v; return d != null && d.TryGetValue(k, out v) ? (v as object[]) ?? (v is System.Collections.ArrayList ? ((System.Collections.ArrayList)v).ToArray() : new object[0]) : new object[0]; }
         static uint Num(object v) { return v == null ? 0 : v is string ? 0 : Convert.ToUInt32(Convert.ToInt64(v) & 0xFFFFFFFF); }
 
-        /// <summary>The races of a race folder, by their key.</summary>
+        const string InfoName = "race.info.json";
+        const int InfoVersion = 1;
+
+        /// <summary>What the page needs of a race, from its full race.json.</summary>
+        static Dictionary<string, object> MakeInfo(string dir, Dictionary<string, object> data, string stamp)
+        {
+            var models = data.ContainsKey("models") ? data["models"] as Dictionary<string, object> : null;
+            var m = models == null ? null : models.Values.OfType<Dictionary<string, object>>().FirstOrDefault();
+            var parts = (m == null ? "" : Str(m, "path")).Split('\\');
+            string file = parts.Length > 2 && parts[0].Equals("Character", StringComparison.OrdinalIgnoreCase) ? parts[1] : "";
+            var source = data.ContainsKey("source") ? data["source"] as Dictionary<string, object> : null;
+            var files = List(data, "files").Select(Convert.ToString).ToList();
+            long bytes = files.Sum(f => { var p = Path.Combine(dir, "files", f.Replace('\\', Path.DirectorySeparatorChar)); return System.IO.File.Exists(p) ? new FileInfo(p).Length : 0; });
+            bool female = List(data, "sections").OfType<object[]>().Any(r => r.Length > 3 && Num(r[2]) == 1 && Num(r[3]) == 0);
+            object side; data.TryGetValue("side", out side);
+            return new Dictionary<string, object>
+            {
+                { "version", InfoVersion }, { "stamp", stamp }, { "key", Str(data, "key") }, { "name", Str(data, "name") }, { "prefix", Str(data, "prefix") },
+                { "file", file }, { "icon", Str(data, "icon") }, { "client", source == null ? "" : Str(source, "client") }, { "side", side ?? 2 },
+                { "female", female }, { "missing", List(data, "missing").Length }, { "bytes", bytes }, { "files", files },
+            };
+        }
+
+        static readonly Dictionary<string, Pack> cache = new Dictionary<string, Pack>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>The races of a race folder, by their key. Read once per change of their race.json.</summary>
         public static List<Pack> Read(string folder)
         {
             var packs = new List<Pack>();
@@ -90,11 +121,32 @@ namespace CoAInstaller
             foreach (var dir in Directory.GetDirectories(folder).OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
             {
                 string file = Path.Combine(dir, "race.json");
-                if (!File.Exists(file)) continue;
+                if (!System.IO.File.Exists(file)) continue;
+                var fi = new FileInfo(file);
+                string stamp = fi.Length + "/" + fi.LastWriteTimeUtc.Ticks;
+                Pack pack;
+                lock (cache)
+                    if (cache.TryGetValue(dir, out pack) && Str(pack.Info, "stamp") == stamp) { packs.Add(pack); continue; }
                 try
                 {
-                    var data = json.DeserializeObject(File.ReadAllText(file, Encoding.UTF8)) as Dictionary<string, object>;
-                    if (data != null) packs.Add(new Pack { Key = Str(data, "key"), Dir = dir, Data = data });
+                    Dictionary<string, object> info = null, data = null;
+                    string infoFile = Path.Combine(dir, InfoName);
+                    try
+                    {
+                        if (System.IO.File.Exists(infoFile)) info = json.DeserializeObject(System.IO.File.ReadAllText(infoFile, Encoding.UTF8)) as Dictionary<string, object>;
+                    }
+                    catch { info = null; }
+                    if (info == null || Str(info, "stamp") != stamp || Str(info, "version") != InfoVersion.ToString())
+                    {
+                        data = json.DeserializeObject(System.IO.File.ReadAllText(file, Encoding.UTF8)) as Dictionary<string, object>;
+                        if (data == null) continue;
+                        info = MakeInfo(dir, data, stamp);
+                        try { System.IO.File.WriteAllText(infoFile, json.Serialize(info), new UTF8Encoding(false)); } catch { }
+                    }
+                    pack = new Pack { Key = Str(info, "key"), Dir = dir, Info = info };
+                    if (data != null) pack.Data = data;
+                    lock (cache) cache[dir] = pack;
+                    packs.Add(pack);
                 }
                 catch { }
             }
@@ -391,7 +443,10 @@ namespace CoAInstaller
         }
 
         /// <summary>Builds the archives the imported races need and removes those of races no longer chosen.</summary>
-        public static List<string> Sync(string client, List<Wanted> wanted)
+        public static List<string> Sync(string client, List<Wanted> wanted) { return Sync(client, wanted, null); }
+
+        /// <summary>The same, reporting each race and how far its archive is (text, step, steps).</summary>
+        public static List<string> Sync(string client, List<Wanted> wanted, Action<string, int, int> progress)
         {
             var notes = new List<string>();
             string data = Path.Combine(client, "Data");
@@ -408,7 +463,10 @@ namespace CoAInstaller
                     if (File.Exists(p)) files[f] = p;
                 }
                 string temp = path + ".new";
-                MpqArchive.WriteFromFiles(temp, files, new Dictionary<string, byte[]> { { StampName, Encoding.UTF8.GetBytes(stamp) } });
+                string what = "Writing the files of the " + w.Pack.Name + " (Data\\" + ArchiveName(w.Race) + ")";
+                if (progress != null) progress(what + " …", 0, files.Count + 2);
+                MpqArchive.WriteFromFiles(temp, files, new Dictionary<string, byte[]> { { StampName, Encoding.UTF8.GetBytes(stamp) } },
+                    progress == null ? null : (Action<int, int>)((done, all) => progress(what + ": " + done + " of " + all + " files", done, all)));
                 try
                 {
                     if (File.Exists(path)) File.Replace(temp, path, null); else File.Move(temp, path);

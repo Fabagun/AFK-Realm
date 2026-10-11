@@ -448,7 +448,8 @@ namespace CoAInstaller
                 using (var d = new FolderBrowserDialog { Description = "The race folder: one folder per race, each with a race.json", SelectedPath = folder ?? "" })
                 {
                     if (d.ShowDialog(this) != DialogResult.OK) return;
-                    if (RaceImport.Read(d.SelectedPath).Count == 0) { Ui.Error(this, "This folder holds no races (no subfolders with a race.json)."); return; }
+                    string chosen = d.SelectedPath;
+                    if (Busy.Run(this, "Reading the race folder …", report => RaceImport.Read(chosen).Count) == 0) { Ui.Error(this, "This folder holds no races (no subfolders with a race.json)."); return; }
                     Set("CustomRaces.ImportFolder", "\"" + d.SelectedPath + "\"");
                     where.Text = d.SelectedPath + "  ·  save, then open this page again to see its races";
                 }
@@ -558,6 +559,35 @@ namespace CoAInstaller
             Shown += (s, e) => Refresh();
         }
 
+        /// <summary>Reads, before the page opens and in the background, what it shows: the races of the game client and
+        /// those of the race folder (both kept for the page, which then opens at once).</summary>
+        public static void Preload(Install inst)
+        {
+            var virtuals = new Dictionary<string, KeyValuePair<int, string>>();
+            try
+            {
+                string file = Path.Combine(ModuleCatalog.ModulesDir(inst), "mod-custom-races", "races.json");
+                var data = new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(File.ReadAllText(file)) as Dictionary<string, object>;
+                foreach (var kv in (Dictionary<string, object>)data["known"])
+                {
+                    object virt;
+                    var r = (Dictionary<string, object>)kv.Value;
+                    if (r.TryGetValue("virtual", out virt) && virt is Dictionary<string, object>)
+                    {
+                        var v = (Dictionary<string, object>)virt;
+                        virtuals[kv.Key] = new KeyValuePair<int, string>(Convert.ToInt32(v["source"]), Convert.ToString(v["name"]));
+                    }
+                }
+            }
+            catch { }
+            string client = ClientAddons.ClientFolder;
+            if (client != null && ClientAddons.IsClientFolder(client))
+                try { ClientRaces.Read(client, virtuals); } catch { }
+            string folder = ClientPatch.ConfValue(inst, "mod_custom_races.conf", "CustomRaces.ImportFolder") ?? "";
+            if (folder.Length == 0) folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "AFK-Rassen");
+            try { RaceImport.Read(folder); } catch { }
+        }
+
         void ReadKnown()
         {
             string file = Path.Combine(ModuleCatalog.ModulesDir(inst), "mod-custom-races", "races.json");
@@ -651,7 +681,7 @@ namespace CoAInstaller
         string Side(string guess, ClientRace r)
         {
             if (r.Pack == null) return guess;
-            object v; int side = r.Pack.Data.TryGetValue("side", out v) ? Convert.ToInt32(v) : 2;
+            int side = r.Pack.Side;
             var horde = new HashSet<string> { "Orc", "Undead", "Tauren", "Troll", "BloodElf" };
             if (side == 0 && horde.Contains(guess)) return guess == "BloodElf" ? "NightElf" : guess == "Troll" ? "Dwarf" : "Human";
             if (side == 1 && !horde.Contains(guess)) return guess == "Draenei" || guess == "NightElf" ? "BloodElf" : guess == "Dwarf" ? "Troll" : "Orc";

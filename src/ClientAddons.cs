@@ -205,13 +205,16 @@ namespace CoAInstaller
         }
 
         /// <summary>A ZIP for other players: the add-ons in Interface\AddOns, to be unpacked into the game folder, and a note on what to do.</summary>
-        public static void Export(string file, List<ClientAddon> addons, Install inst, string client, ClientPatch.Plan patch)
+        public static void Export(string file, List<ClientAddon> addons, Install inst, string client, ClientPatch.Plan patch) { Export(file, addons, inst, client, patch, null); }
+
+        public static void Export(string file, List<ClientAddon> addons, Install inst, string client, ClientPatch.Plan patch, Action<string, int, int> progress)
         {
             if (File.Exists(file)) File.Delete(file);
             bool withPatch = patch != null && !patch.Empty && client != null;
             using (var zip = ZipFile.Open(file, ZipArchiveMode.Create))
             {
-                if (withPatch) ClientPatch.AddToZip(zip, inst, client, patch);
+                if (withPatch) ClientPatch.AddToZip(zip, inst, client, patch, progress);
+                if (progress != null) progress("Adding the add-ons …", 0, 0);
                 foreach (var addon in addons)
                     foreach (var path in Directory.GetFiles(addon.Source, "*", SearchOption.AllDirectories))
                         zip.CreateEntryFromFile(path, "Interface/AddOns/" + addon.Name + "/" + path.Substring(addon.Source.Length).TrimStart('\\', '/').Replace('\\', '/'), CompressionLevel.Optimal);
@@ -320,11 +323,13 @@ namespace CoAInstaller
 
             Controls.Add(listPanel); Controls.Add(under); Controls.Add(bottom); Controls.Add(top);
             folder.Text = ClientAddons.ClientFolder ?? "";
-            folder.Leave += (s, e) => Refresh_();
+            folder.Leave += (s, e) => { if (folder.Text.Trim() != checkedFolder && Visible) Refresh_(); };
             install.Click += (s, e) => Install_();
             export.Click += (s, e) => Export_();
             Shown += (s, e) => Refresh_();
         }
+
+        string checkedFolder;
 
         static bool IsFolder(string dir) { return ClientAddons.IsClientFolder((dir ?? "").Trim().TrimEnd('\\')); }
         string Client { get { var d = folder.Text.Trim().TrimEnd('\\'); return ClientAddons.IsClientFolder(d) ? d : null; } }
@@ -332,10 +337,18 @@ namespace CoAInstaller
         void Refresh_()
         {
             string client = Client;
-            try { addons = ClientAddons.Find(inst, client); leftovers = ClientAddons.Leftovers(inst, addons, client); }
-            catch (Exception ex) { addons = new List<ClientAddon>(); leftovers = new List<string>(); state.Text = "The modules could not be read: " + ex.Message; }
-            try { patch = ClientPatch.Collect(inst); patchState = ClientPatch.StateOf(inst, client, patch, out patchProblem); }
-            catch (Exception ex) { patch = new ClientPatch.Plan(); patchState = PatchState.None; patchProblem = ex.Message; }
+            checkedFolder = folder.Text.Trim();
+            string readError = null;
+            // reading the client and building the patch to compare takes a while with races of the race folder
+            Busy.Run(this, "Checking what your game needs …", report =>
+            {
+                try { addons = ClientAddons.Find(inst, client); leftovers = ClientAddons.Leftovers(inst, addons, client); }
+                catch (Exception ex) { addons = new List<ClientAddon>(); leftovers = new List<string>(); readError = "The modules could not be read: " + ex.Message; }
+                patchProblem = null;
+                try { patch = ClientPatch.Collect(inst); patchState = ClientPatch.StateOf(inst, client, patch, out patchProblem); }
+                catch (Exception ex) { patch = new ClientPatch.Plan(); patchState = PatchState.None; patchProblem = ex.Message; }
+            });
+            if (readError != null) state.Text = readError;
             list.BeginUpdate(); list.Items.Clear();
             foreach (var a in addons)
             {
@@ -392,17 +405,22 @@ namespace CoAInstaller
             try
             {
                 bool clear = clearCache.Visible && clearCache.Checked;
-                string done = ClientAddons.Install(inst, client, addons, leftovers, false);
-                try
+                string done = Busy.Run(this, "Installing into your game …", report =>
                 {
-                    string patched = ClientPatch.Install(inst, client, patch);
-                    if (patched.Length > 0) done = (done + "\n" + patched).Trim();
-                }
-                finally
-                {
-                    string cache = System.IO.Path.Combine(client, "Cache");
-                    if (clear && Directory.Exists(cache)) { Directory.Delete(cache, true); done += "\nthe client's cache cleared"; }
-                }
+                    report("Copying the add-ons …");
+                    string result = ClientAddons.Install(inst, client, addons, leftovers, false);
+                    try
+                    {
+                        string patched = ClientPatch.Install(inst, client, patch, (t, a, b) => report(t, a, b));
+                        if (patched.Length > 0) result = (result + "\n" + patched).Trim();
+                    }
+                    finally
+                    {
+                        string cache = System.IO.Path.Combine(client, "Cache");
+                        if (clear && Directory.Exists(cache)) { report("Clearing the game's cache …"); Directory.Delete(cache, true); result += "\nthe client's cache cleared"; }
+                    }
+                    return result;
+                });
                 ClientAddons.ClientFolder = client;
                 Refresh_();
                 MessageBox.Show(this, "Done:\n\n" + done, Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -423,7 +441,8 @@ namespace CoAInstaller
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 try
                 {
-                    ClientAddons.Export(d.FileName, addons, inst, Client, patch);
+                    string file = d.FileName, client = Client;
+                    Busy.Run(this, "Making the ZIP for the other players …", report => ClientAddons.Export(file, addons, inst, client, patch, (t, a, b) => report(t, a, b)));
                     MessageBox.Show(this, "Saved: " + d.FileName + "\n\nGive it to the other players: they unpack it into their game folder (it says how inside).",
                         Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }

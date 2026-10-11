@@ -82,7 +82,40 @@ namespace CoAInstaller
         public static string KeyOf(string name) { return Regex.Replace(name ?? "", "[^A-Za-z0-9]", ""); }
 
         /// <summary>The races of the client in the given folder. virtuals: races made from another row (key -> source, name).</summary>
+        static readonly Dictionary<string, Scan> scans = new Dictionary<string, Scan>();
+
+        /// <summary>The archives of a client as a key: they and their sizes and times (a read again only when they change).</summary>
+        public static string ArchivesKey(string client)
+        {
+            var sb = new StringBuilder(client ?? "");
+            foreach (var path in ClientPatch.ClientArchives(client))
+            {
+                var fi = new FileInfo(path);
+                sb.Append('|').Append(fi.Name).Append(':').Append(fi.Length).Append(':').Append(fi.LastWriteTimeUtc.Ticks);
+            }
+            return sb.ToString();
+        }
+
         public static Scan Read(string client, IDictionary<string, KeyValuePair<int, string>> virtuals)
+        {
+            string key = ArchivesKey(client) + "#" + string.Join(",", (virtuals ?? new Dictionary<string, KeyValuePair<int, string>>()).Select(v => v.Key + "=" + v.Value.Key + "/" + v.Value.Value));
+            Scan cached;
+            lock (scans) if (scans.TryGetValue(key, out cached)) return Copy(cached);
+            var made = ReadNow(client, virtuals);
+            lock (scans) { scans.Clear(); scans[key] = made; }
+            return Copy(made);
+        }
+
+        /// <summary>A copy the setup page may change (it adds races of the race folder to its list).</summary>
+        static Scan Copy(Scan s)
+        {
+            return new Scan { Races = s.Races.Select(r => new ClientRace { Source = r.Source, Key = r.Key, Name = r.Name, Prefix = r.Prefix, File = r.File,
+                MaleDisplay = r.MaleDisplay, FemaleDisplay = r.FemaleDisplay, MaleOnly = r.MaleOnly, Virtual = r.Virtual, HasHelmets = r.HasHelmets }).ToList(),
+                FreeNumbers = s.FreeNumbers.ToList(), MoreNumbers = s.MoreNumbers.ToList(), ModelsChecked = s.ModelsChecked,
+                HelmetPrefixes = new HashSet<string>(s.HelmetPrefixes, StringComparer.OrdinalIgnoreCase) };
+        }
+
+        static Scan ReadNow(string client, IDictionary<string, KeyValuePair<int, string>> virtuals)
         {
             var scan = new Scan();
             using (var archives = new Archives(client))

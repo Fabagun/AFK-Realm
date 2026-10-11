@@ -97,20 +97,45 @@ namespace CoAInstaller
         readonly Label clientState = Ui.Hint("");
 
         /// <summary>Shows whether the game has every add-on of the installed modules.</summary>
-        string ShowClientState()
+        /// It reads the game client (and may build the client patch to compare), so it runs in the background; then() gets
+        /// what is open.
+        void ShowClientState(Action<string> then = null)
         {
-            string pending = ClientAddons.Pending(inst);
-            clientState.Text = pending.Length == 0 ? "" : "Not everything the installed modules bring for the game client is in your game yet.";
-            clientState.ForeColor = Ui.Warn;
-            NavItem item;
-            if (nav.TryGetValue("modules", out item)) { item.Badge = pending.Length == 0 ? null : "!"; item.Invalidate(); }
-            return pending;
+            clientState.Text = "Checking the game client …";
+            clientState.ForeColor = Ui.Muted;
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                string pending = ClientAddons.Pending(inst);
+                Action apply = () =>
+                {
+                    clientState.Text = pending.Length == 0 ? "" : "Not everything the installed modules bring for the game client is in your game yet.";
+                    clientState.ForeColor = Ui.Warn;
+                    NavItem item;
+                    if (nav.TryGetValue("modules", out item)) { item.Badge = pending.Length == 0 ? null : "!"; item.Invalidate(); }
+                    if (then != null) then(pending);
+                };
+                // When AFK Realm starts, the page is shown before its window exists: the answer waits for the window.
+                try
+                {
+                    if (IsHandleCreated) BeginInvoke(apply);
+                    else
+                    {
+                        EventHandler once = null;
+                        once = (s, e) => { HandleCreated -= once; BeginInvoke(apply); };
+                        HandleCreated += once;
+                        if (IsHandleCreated) { HandleCreated -= once; BeginInvoke(apply); }
+                    }
+                }
+                catch (ObjectDisposedException) { }
+                catch (InvalidOperationException) { }
+            });
         }
 
         /// <summary>After a module brought, changed or lost an add-on, the game client dialog opens by itself (once for each new state).</summary>
-        void OfferClient()
+        void OfferClient() { ShowClientState(Offer); }
+
+        void Offer(string pending)
         {
-            string pending = ShowClientState();
             // The same state is offered only once, also across starts; the line above the button keeps saying what is open.
             string offered = Path.Combine(inst.Root, "Dependencies", "client-offered.txt");
             bool offerClient;
@@ -133,14 +158,7 @@ namespace CoAInstaller
                 }
                 if (bots.Count > 0) OfferBotReset(bots);
             };
-            // When AFK Realm starts, the page is shown before its window exists: the offer waits for the window.
-            if (IsHandleCreated) BeginInvoke(offer);
-            else
-            {
-                EventHandler once = null;
-                once = (s, e) => { HandleCreated -= once; BeginInvoke(offer); };
-                HandleCreated += once;
-            }
+            BeginInvoke(offer);
         }
 
         // ---- the frame: side bar, status bar and the section shown
@@ -345,7 +363,11 @@ namespace CoAInstaller
                 "where it starts, its quests, racial abilities and faction.", "accounts");
             racesCard.Stripe = Ui.Accent;
             var racesBtn = racesCard.Add(Ui.Primary("Set up the races …"));
-            racesBtn.Click += (s, e) => OpenSetup(new RacesSetup(inst));
+            racesBtn.Click += (s, e) =>
+            {
+                Busy.Run(this, "Reading the races of your game client and your race folder …", report => RacesSetup.Preload(inst));
+                OpenSetup(new RacesSetup(inst));
+            };
 
             var clientCard = Section("modules", "Game client", "Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). " + Product.Name +
                 " puts them into your game and clears its cache when a module asks for it; for other players it packs them into a ZIP.", "client");

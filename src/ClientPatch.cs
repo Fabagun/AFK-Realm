@@ -288,7 +288,7 @@ namespace CoAInstaller
         }
 
         /// <summary>The value of an option of a server config file (the .conf, or its .dist), or null.</summary>
-        static string ConfValue(Install inst, string conf, string key)
+        internal static string ConfValue(Install inst, string conf, string key)
         {
             foreach (var path in new[] { Path.Combine(inst.ConfigDir, "modules", conf), Path.Combine(inst.ConfigDir, conf),
                                          Path.Combine(inst.ConfigDir, "modules", conf + ".dist"), Path.Combine(inst.ConfigDir, conf + ".dist") })
@@ -845,6 +845,40 @@ namespace CoAInstaller
             return notes;
         }
 
+        // The patch a set of inputs gives, so that the client patch is not built just to see whether it changed.
+        static readonly Dictionary<string, string> wantedStamps = new Dictionary<string, string>();
+
+        static void Stat(StringBuilder sb, string path)
+        {
+            var fi = new FileInfo(path);
+            sb.Append('|').Append(path).Append(':');
+            if (fi.Exists) sb.Append(fi.Length).Append(':').Append(fi.LastWriteTimeUtc.Ticks);
+        }
+
+        /// <summary>Everything the build of the patch reads, by size and time: the client's archives, the settings of the
+        /// modules, their files and manifests, and the race folder.</summary>
+        static string InputsKey(Install inst, string client, Plan plan)
+        {
+            var sb = new StringBuilder(ClientRaces.ArchivesKey(client));
+            foreach (var dir in new[] { Path.Combine(inst.ConfigDir, "modules"), inst.ConfigDir })
+                if (Directory.Exists(dir))
+                    foreach (var f in Directory.GetFiles(dir, "*.conf*").OrderBy(f => f, StringComparer.OrdinalIgnoreCase)) Stat(sb, f);
+            string modules = ModuleCatalog.ModulesDir(inst);
+            if (Directory.Exists(modules))
+                foreach (var d in Directory.GetDirectories(modules).OrderBy(d => d, StringComparer.OrdinalIgnoreCase)) Stat(sb, Path.Combine(d, ModuleCatalog.ManifestName));
+            foreach (var f in plan.Files) Stat(sb, f.From);
+            foreach (var e in plan.Edits)
+            {
+                sb.Append('|').Append(e.Module).Append(':').Append(e.File);
+                if (e.ImportRace != null) sb.Append(":import");
+                object from;
+                if (e.AddFile != null && e.AddFile.TryGetValue("from", out from) && from is string && ((string)from).Length > 0) Stat(sb, (string)from);
+            }
+            foreach (var w in plan.Imports) { sb.Append('|').Append(w.Race); Stat(sb, Path.Combine(w.Pack.Dir, "race.json")); }
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+                return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString())));
+        }
+
         /// <summary>Whether the client has the patch the modules want. Building it reads the client, which takes a moment.</summary>
         public static PatchState StateOf(Install inst, string client, Plan plan, out string problem)
         {
@@ -855,8 +889,15 @@ namespace CoAInstaller
             if (installed == "") { problem = Foreign; return PatchState.Outdated; }
             try
             {
-                var files = Build(inst, client, plan, null);
-                string wanted = Encoding.UTF8.GetString(files[StampName]);
+                string key = InputsKey(inst, client, plan), wanted;
+                lock (wantedStamps)
+                    if (!wantedStamps.TryGetValue(key, out wanted)) wanted = null;
+                if (wanted == null)
+                {
+                    var files = Build(inst, client, plan, null);
+                    wanted = Encoding.UTF8.GetString(files[StampName]);
+                    lock (wantedStamps) { wantedStamps.Clear(); wantedStamps[key] = wanted; }
+                }
                 if (installed == null) return PatchState.Missing;
                 CheckRootFiles(plan);
                 return installed == wanted && RaceImport.Current(client, plan.Imports) && RootFilesCurrent(inst, client, plan) ? PatchState.Current : PatchState.Outdated;
@@ -867,8 +908,12 @@ namespace CoAInstaller
         static bool WasOurs(Install inst) { return File.Exists(RecordFile(inst)); }
 
         /// <summary>Builds the patch and puts it into the game folder, or takes it out when no module needs it any more.</summary>
-        public static string Install(Install inst, string client, Plan plan)
+        public static string Install(Install inst, string client, Plan plan) { return Install(inst, client, plan, null); }
+
+        /// <summary>The same, reporting what it does (text, step, steps; 0 steps: no measure).</summary>
+        public static string Install(Install inst, string client, Plan plan, Action<string, int, int> progress)
         {
+            if (progress == null) progress = (t, a, b) => { };
             string path = Path.Combine(client, "Data", ArchiveName);
             string installed = InstalledStamp(client);
             if (plan.Empty)
@@ -886,7 +931,9 @@ namespace CoAInstaller
             if (installed == "") throw new InvalidOperationException(Foreign);
             CheckRootFiles(plan);
             var notes = new List<string>();
+            progress("Building the client patch from your game client …", 0, 0);
             var files = Build(inst, client, plan, notes);
+            progress("Writing Data\\" + ArchiveName + " …", 0, 0);
             string temp = path + ".new";
             MpqArchive.Write(temp, files);
             try
@@ -899,7 +946,9 @@ namespace CoAInstaller
                 try { File.Delete(temp); } catch { }
                 throw new InvalidOperationException("Data\\" + ArchiveName + " is in use. Close the game and its launcher first.");
             }
-            notes.AddRange(RaceImport.Sync(client, plan.Imports));
+            lock (wantedStamps) { wantedStamps.Clear(); wantedStamps[InputsKey(inst, client, plan)] = Encoding.UTF8.GetString(files[StampName]); }
+            notes.AddRange(RaceImport.Sync(client, plan.Imports, progress));
+            progress("Placing the files next to the game …", 0, 0);
             notes.AddRange(SyncRootFiles(inst, client, plan));
             Directory.CreateDirectory(Path.GetDirectoryName(RecordFile(inst)));
             File.WriteAllLines(RecordFile(inst), new[] { ArchiveName }.Concat(plan.Modules), new UTF8Encoding(false));
@@ -907,8 +956,12 @@ namespace CoAInstaller
         }
 
         /// <summary>Puts the patch into a ZIP for other players, as Data\patch-Y.MPQ.</summary>
-        public static void AddToZip(ZipArchive zip, Install inst, string client, Plan plan)
+        public static void AddToZip(ZipArchive zip, Install inst, string client, Plan plan) { AddToZip(zip, inst, client, plan, null); }
+
+        public static void AddToZip(ZipArchive zip, Install inst, string client, Plan plan, Action<string, int, int> progress)
         {
+            if (progress == null) progress = (t, a, b) => { };
+            progress("Building the client patch from your game client …", 0, 0);
             var files = Build(inst, client, plan, null);
             string temp = Path.GetTempFileName();
             try
@@ -919,8 +972,10 @@ namespace CoAInstaller
             finally { try { File.Delete(temp); } catch { } }
             CheckRootFiles(plan);
             foreach (var r in plan.RootFiles) zip.CreateEntryFromFile(r.From, r.To, CompressionLevel.Optimal);
+            int n = 0;
             foreach (var w in plan.Imports)
             {
+                progress("Packing the files of the " + w.Pack.Name + " into the ZIP …", n++, plan.Imports.Count);
                 string race = RaceImport.BuildTemp(w);
                 try { zip.CreateEntryFromFile(race, "Data/" + RaceImport.ArchiveName(w.Race), CompressionLevel.Fastest); }
                 finally { try { File.Delete(race); } catch { } }

@@ -273,6 +273,12 @@ namespace CoAInstaller
         /// </summary>
         public static void WriteFromFiles(string path, IDictionary<string, string> sources, IDictionary<string, byte[]> extra)
         {
+            WriteFromFiles(path, sources, extra, null);
+        }
+
+        /// <summary>The same, saying after each file how many of how many are written.</summary>
+        public static void WriteFromFiles(string path, IDictionary<string, string> sources, IDictionary<string, byte[]> extra, Action<int, int> progress)
+        {
             var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var k in sources.Keys) names.Add(k.Replace('/', '\\'));
             foreach (var k in extra.Keys) names.Add(k.Replace('/', '\\'));
@@ -324,6 +330,7 @@ namespace CoAInstaller
                     hashTable[index * 4 + 2] = 0;
                     hashTable[index * 4 + 3] = (uint)block;
                     block++;
+                    if (progress != null && (block % 25 == 0 || block == names.Count)) progress(block, names.Count);
                 }
                 uint hashPos = (uint)fs.Position;
                 MpqCrypt.Encrypt(hashTable, MpqCrypt.Hash("(hash table)", MpqCrypt.FileKey));
