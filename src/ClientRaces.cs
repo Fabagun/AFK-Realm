@@ -15,6 +15,7 @@ namespace CoAInstaller
         public uint MaleDisplay, FemaleDisplay;
         public bool MaleOnly;
         public bool Virtual;                // made from the row of another race, under its own name (the High Elf)
+        public bool HasHelmets;             // the client has helmet models for its prefix (Item\ObjectComponents\Head\*_<prefix><sex>.m2)
         public bool OwnNumber { get { return Source < 32 && !Virtual; } }
     }
 
@@ -33,6 +34,7 @@ namespace CoAInstaller
             public List<ClientRace> Races = new List<ClientRace>();
             public List<int> FreeNumbers = new List<int>();      // race numbers below 32 no row has
             public bool ModelsChecked;
+            public HashSet<string> HelmetPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         sealed class Archives : IDisposable
@@ -49,6 +51,17 @@ namespace CoAInstaller
                 return null;
             }
             public bool Has(string name) { return list.Any(a => a.Contains(name)); }
+            /// <summary>The names the archives list of themselves ((listfile)).</summary>
+            public IEnumerable<string> Listed()
+            {
+                foreach (var a in list)
+                {
+                    byte[] bytes;
+                    try { bytes = a.Read("(listfile)"); } catch { continue; }
+                    if (bytes == null) continue;
+                    foreach (var line in Encoding.UTF8.GetString(bytes).Split('\n')) yield return line.Trim();
+                }
+            }
             /// <summary>The base archives of the game (common, expansion, lichking) are there: a missing model is missing.</summary>
             public bool Complete { get { return list.Any(a => Regex.IsMatch(System.IO.Path.GetFileName(a.Path), @"^(common|common-2|expansion|lichking)\.mpq$", RegexOptions.IgnoreCase)); } }
             public void Dispose() { foreach (var a in list) a.Dispose(); }
@@ -102,6 +115,17 @@ namespace CoAInstaller
                     return archives.Has(file);
                 };
 
+                // Helmets are a model for each race and sex, named after the race's prefix: a race of the client without its
+                // own shows a placeholder for every helmet, and wears those of another race instead.
+                var helmet = new Regex(@"^item[\\/]objectcomponents[\\/]head[\\/].*_([a-z]{2})[mf]\.m2$", RegexOptions.IgnoreCase);
+                foreach (var name in archives.Listed())
+                {
+                    var m = helmet.Match(name);
+                    if (m.Success) scan.HelmetPrefixes.Add(m.Groups[1].Value);
+                }
+                if (!scan.ModelsChecked || scan.HelmetPrefixes.Count == 0)
+                    foreach (var p in new[] { "Hu", "Or", "Dw", "Ni", "Sc", "Ta", "Gn", "Tr", "Be", "Dr", "Go" }) scan.HelmetPrefixes.Add(p);
+
                 // Skins of each race and sex: a sex with hardly any has no body of its own.
                 var skins = new Dictionary<int, int>();
                 var sections = archives.Read("DBFilesClient\\CharSections.dbc");
@@ -122,6 +146,7 @@ namespace CoAInstaller
                     var row = rows[id];
                     var r = new ClientRace { Source = id, Key = key, Name = name, Prefix = Str(races, row, 6), File = Str(races, row, 11),
                         MaleDisplay = races.Field(row, 4), FemaleDisplay = races.Field(row, 5) };
+                    r.HasHelmets = scan.HelmetPrefixes.Contains(r.Prefix);
                     r.MaleOnly = r.FemaleDisplay == r.MaleDisplay || r.FemaleDisplay == 0 || !hasModel(r.FemaleDisplay) || skinsOf(id, 1) < 10;
                     return r;
                 };
