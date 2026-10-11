@@ -230,7 +230,28 @@ namespace CoAInstaller
             }
             // without HD rows of its own, the race's rows are its HD rows too: its textures are laid out as HD textures
             var hdIds = new HashSet<uint>(hd.Records.Select(x => hd.Field(x, 0)));
-            foreach (var r in hdRows.Count > 0 ? hdRows : plain)
+            // A plain row without an HD row of its own, in a race that has HD rows: its texture is laid out for the old
+            // model and lands askew on the HD one (eyes and mouth in the wrong place: the first skin colours of CoA
+            // Custom's Undead Gnome). It takes the HD row of the same style in the nearest colour, else of the nearest style.
+            var hdUse = new List<object[]>(hdRows);
+            if (hdRows.Count > 0)
+            {
+                var hdKeys = new HashSet<string>(hdRows.Select(key));
+                foreach (var r in plain)
+                {
+                    if (hdKeys.Contains(key(r))) continue;
+                    var near = hdRows.Where(h => Num(h[2]) == Num(r[2]) && Num(h[3]) == Num(r[3]))
+                        .OrderBy(h => Num(h[8]) == Num(r[8]) ? 0 : 1)
+                        .ThenBy(h => Math.Abs((long)Num(h[9]) - Num(r[9])))
+                        .ThenBy(h => Math.Abs((long)Num(h[8]) - Num(r[8]))).FirstOrDefault();
+                    if (near == null) continue;
+                    var copy = (object[])near.Clone();
+                    copy[8] = r[8]; copy[9] = r[9];
+                    hdUse.Add(copy);
+                    hdKeys.Add(key(copy));
+                }
+            }
+            foreach (var r in hdRows.Count > 0 ? hdUse : plain)
             {
                 string k = key(r);
                 uint id;
