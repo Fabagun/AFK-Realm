@@ -414,6 +414,9 @@ namespace CoAInstaller
         readonly List<string> bases = new List<string>();
         readonly List<ClientRace> races = new List<ClientRace>();
         readonly List<int> slots = new List<int>();
+        readonly List<int> moreSlots = new List<int>();          // 32 to 63, with the 64-race patch of the client
+        bool More { get { return Raw("CustomRaces.MoreRaces", "0") == "1"; } }
+        List<int> Slots { get { return More ? slots.Concat(moreSlots).ToList() : slots; } }
         readonly HashSet<string> helmetPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string folder;
         readonly Label usage = new Label { AutoSize = true, Font = Ui.Bold, ForeColor = Ui.Text, BackColor = Ui.Surface, Margin = new Padding(0, 4, 0, 8) };
@@ -427,7 +430,8 @@ namespace CoAInstaller
             Tab("Races");
             var head = Card("Which races can be played", "These are the races your game client carries a body for, read from the client itself. " +
                 "Switch on the ones you want: each starts like its base race - where that race starts, with its quests, stats, racial abilities and faction - " +
-                "and keeps its own looks." + (slots.Count > 0 ? " Races are bits of a 32-bit mask, so " + slots.Count + " races without a number of their own can be on at once." : ""), "accounts");
+                "and keeps its own looks." + (slots.Count > 0 ? " The game client knows race numbers up to 31, so " + slots.Count + " races without a number of their own can be on at once - " +
+                (slots.Count + moreSlots.Count) + " with the 64-race patch below." : ""), "accounts");
             if (problem != null) head.Add(Small(problem, head.Inner));
             else head.Add(usage);
             OnChange(UpdateUsage);
@@ -450,10 +454,87 @@ namespace CoAInstaller
                 }
             };
             fold.Add(choose);
+            var make = Ui.Secondary("Create race packs from a client …");
+            make.Click += (s, e) =>
+            {
+                string target = folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "AFK-Rassen");
+                string mine = ClientAddons.ClientFolder;
+                if (mine != null && !ClientAddons.IsClientFolder(mine)) mine = null;
+                using (var d = new RacePackDialog(target, mine))
+                {
+                    d.ShowDialog(this);
+                    if (d.Made == 0) return;
+                    if (Raw("CustomRaces.ImportFolder", "") != target) Set("CustomRaces.ImportFolder", "\"" + target + "\"");
+                    where.Text = target + "  ·  save, then open this page again to see the new races";
+                }
+            };
+            fold.Add(make);
+
+            // more than 31 races: the 64-race patch of the game client (a DLL of the user's own, from CoA Custom)
+            var more = Card("More than 31 races", "The game client knows race numbers up to 31. With a 64-race patch (dinput8.dll next to Ascension.exe, as " +
+                "CoA Custom ships it) it knows numbers up to 63, and " + (moreSlots.Count > 0 ? moreSlots.Count.ToString() : "up to 32") + " more races can be on at once. " + Product.Name + " puts the patch next to " +
+                "your game when you install the client patch, and into the ZIP for the other players; switched off, it takes it away again. A race above 32 does " +
+                "what its base race may do (it has no bit of its own in the race masks of quests and items). The server needs its core rebuilt for this once.", "client");
+            var dllNote = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(more.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
+            Func<string> dll = () =>
+            {
+                string f = Raw("CustomRaces.MoreRacesFile", "");
+                if (f.Length == 0 && folder != null && File.Exists(Path.Combine(folder, "_Client", "dinput8.dll"))) f = Path.Combine(folder, "_Client", "dinput8.dll");
+                return f;
+            };
+            Action showDll = () =>
+            {
+                string f = dll();
+                dllNote.Text = f.Length == 0 ? "No 64-race patch chosen. Making race packs from CoA Custom keeps its patch in your race folder (_Client\\dinput8.dll)." :
+                    File.Exists(f) ? "Patch: " + f : "Patch not found: " + f;
+            };
+            var moreToggle = new Toggle("Race numbers above 31 (64-race patch)") { BackColor = Ui.Surface };
+            moreToggle.Wrap(more.Inner - 40);
+            more.Add(moreToggle);
+            more.Add(dllNote);
+            var pickDll = Ui.Secondary("Choose the patch (dinput8.dll) …");
+            pickDll.Click += (s, e) =>
+            {
+                using (var d = new OpenFileDialog { Filter = "64-race patch (dinput8.dll)|dinput8.dll|DLL files (*.dll)|*.dll", Title = "The 64-race patch of the game client" })
+                {
+                    if (d.ShowDialog(this) != DialogResult.OK) return;
+                    if (!RacePacker.IsRacePatch(d.FileName)) { Ui.Error(this, "This DLL is not a 64-race patch of the game client."); return; }
+                    Set("CustomRaces.MoreRacesFile", "\"" + d.FileName + "\"");
+                    showDll();
+                }
+            };
+            more.Add(pickDll);
+            AddLoader(() => { moreToggle.Checked = More; showDll(); });
+            moreToggle.CheckedChanged += (s, e) =>
+            {
+                if (Loading) return;
+                if (moreToggle.Checked)
+                {
+                    string f = dll();
+                    if (f.Length == 0 || !File.Exists(f))
+                    {
+                        Ui.Error(this, "Choose the 64-race patch first (dinput8.dll of CoA Custom), or make race packs from CoA Custom: that keeps its patch in your race folder.");
+                        moreToggle.Checked = false;
+                        return;
+                    }
+                    if (Raw("CustomRaces.MoreRacesFile", "") != f) Set("CustomRaces.MoreRacesFile", "\"" + f + "\"");
+                    Set("CustomRaces.MoreRaces", "1");
+                }
+                else
+                {
+                    var above = races.Where(r => IdOf(r) > 31 && Chosen().Any(c => c.Equals(r.Key, StringComparison.OrdinalIgnoreCase))).Select(r => r.Name).ToList();
+                    if (above.Count > 0 && !Ui.Confirm(this, string.Join(", ", above) + (above.Count == 1 ? " has a race number" : " have race numbers") +
+                        " above 31 and will stay off without the patch; their characters play their base race until it is on again. Switch it off?"))
+                    {
+                        moreToggle.Checked = true;
+                        return;
+                    }
+                    Set("CustomRaces.MoreRaces", "0");
+                }
+            };
 
             var groups = new[]
             {
-                new { Id = "imported", Title = "From your race folder" },
                 new { Id = "armor", Title = "Show armour, male and female" },
                 new { Id = "male", Title = "Male only - the game has no female model" },
                 new { Id = "noarmor", Title = "Show no armour - their model has no places for it" },
@@ -512,6 +593,7 @@ namespace CoAInstaller
                 var scan = ClientRaces.Read(client, virtuals);
                 races.AddRange(scan.Races);
                 slots.AddRange(scan.FreeNumbers);
+                moreSlots.AddRange(scan.MoreNumbers);
                 foreach (var h in scan.HelmetPrefixes) helmetPrefixes.Add(h);
                 return races.Count == 0 ? "Your game client has no races beyond the stock ones." : null;
             }
@@ -544,10 +626,10 @@ namespace CoAInstaller
 
         string GroupOf(ClientRace r)
         {
-            if (r.Pack != null) return "imported";
             var k = KnownOf(r);
             if (k != null && k.Rating == "poor") return "poor";
-            if (k != null && k.Looks.Length > 0) return r.MaleOnly && k.Looks == "armor" ? "male" : k.Looks;
+            if (k != null && (k.Looks == "armor" || k.Looks == "male")) return r.MaleOnly ? "male" : "armor";   // the race folder may have a woman the client lacks
+            if (k != null && k.Looks.Length > 0) return k.Looks;
             return r.MaleOnly ? "male" : "untested";
         }
 
@@ -588,7 +670,7 @@ namespace CoAInstaller
         int FreeSlot()
         {
             var used = new HashSet<int>(races.Where(r => !r.OwnNumber).Select(IdOf));
-            foreach (int s in slots) if (!used.Contains(s)) return s;
+            foreach (int s in Slots) if (!used.Contains(s)) return s;
             return 0;
         }
 
@@ -657,8 +739,8 @@ namespace CoAInstaller
         {
             int used = races.Count(r => !r.OwnNumber && IdOf(r) > 0);
             int on = Chosen().Count(k => races.Any(r => r.Key.Equals(k, StringComparison.OrdinalIgnoreCase)));
-            usage.Text = on + (on == 1 ? " race" : " races") + " on  ·  " + used + " of " + slots.Count + " free race numbers in use";
-            usage.ForeColor = used >= slots.Count ? Ui.Warn : Ui.Text;
+            usage.Text = on + (on == 1 ? " race" : " races") + " on  ·  " + used + " of " + Slots.Count + " free race numbers in use";
+            usage.ForeColor = used >= Slots.Count ? Ui.Warn : Ui.Text;
         }
 
         void AddRace(Card card, ClientRace r)
@@ -721,7 +803,7 @@ namespace CoAInstaller
                         id = FreeSlot();
                         if (id == 0)
                         {
-                            Ui.Error(this, "All " + slots.Count + " free race numbers are taken. Free the number of a race you do not want any more " +
+                            Ui.Error(this, "All " + Slots.Count + " free race numbers are taken" + (More ? "" : " (switch on the 64-race patch for more)") + ". Free the number of a race you do not want any more " +
                                 "(switch it off, then \"Free its number\") to make room for the " + r.Name + ".");
                             toggle.Checked = false;
                             return;

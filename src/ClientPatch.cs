@@ -26,6 +26,10 @@ namespace CoAInstaller
 
         static string RecordFile(Install inst) { return Path.Combine(inst.Root, "Dependencies", "client-patch.txt"); }
 
+        /// <summary>A file next to the game's exe (a DLL the game loads), taken from a file of the user's own (a module
+        /// never ships one).</summary>
+        internal class RootFile { public string Module, From, To; }
+
         internal class FileSpec { public string Module, From, To; public List<Dictionary<string, object>> Fills; }
         internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows, ImportRace, SectionRules, AddFile; public long? IdShift; }
 
@@ -37,6 +41,7 @@ namespace CoAInstaller
             internal List<FileSpec> Files = new List<FileSpec>();
             internal List<EditSpec> Edits = new List<EditSpec>();
             internal List<RaceImport.Wanted> Imports = new List<RaceImport.Wanted>();
+            internal List<RootFile> RootFiles = new List<RootFile>();
             public bool Empty { get { return Files.Count == 0 && Edits.Count == 0; } }
         }
 
@@ -72,6 +77,13 @@ namespace CoAInstaller
                     if (!source.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(source) || !SafeClientPath(to)) continue;
                     plan.Files.Add(new FileSpec { Module = module, From = source, To = to.Replace('/', '\\'), Fills = Dicts(f.TryGetValue("fill", out v) ? v : null) });
                 }
+                foreach (var f in List(patch, "rootFiles"))
+                {
+                    if (!When(inst, f)) continue;
+                    string to = Text(f, "to");
+                    if (!Regex.IsMatch(to, @"^[A-Za-z0-9_.-]+\.dll$")) continue;          // a DLL by its name, next to the exe only
+                    plan.RootFiles.Add(new RootFile { Module = module, To = to, From = Convert.ToString(f.TryGetValue("from", out v) ? Settings(inst, v) : "") });
+                }
                 foreach (var e in Expand(inst, List(patch, "edits")))
                 {
                     string target = Text(e, "file");
@@ -100,7 +112,7 @@ namespace CoAInstaller
                         edit.FillRows != null || edit.SetRows != null || edit.CopyRows != null || edit.ImportRace != null || edit.SectionRules != null || edit.AddFile != null)
                         plan.Edits.Add(edit);
                 }
-                if (plan.Files.Count + plan.Edits.Count > before)
+                if (plan.Files.Count + plan.Edits.Count + plan.RootFiles.Count(r => r.Module == module) > before)
                 {
                     plan.Modules.Add(module);
                     string why = clientPart.TryGetValue("why", out v) ? Convert.ToString(v) : "";
@@ -235,7 +247,11 @@ namespace CoAInstaller
         }
 
         /// <summary>The archives of the client, the one that wins last: the game reads the patches after its base archives.</summary>
-        internal static List<string> ClientArchives(string client)
+        internal static List<string> ClientArchives(string client) { return ClientArchives(client, false); }
+
+        /// <summary>The archives of a game client in the order the game reads them. other: a client AFK Realm did not
+        /// patch (its patch-Y is its own).</summary>
+        internal static List<string> ClientArchives(string client, bool other)
         {
             string data = Path.Combine(client, "Data");
             Func<string, int> rank = path =>
@@ -253,7 +269,7 @@ namespace CoAInstaller
             all.AddRange(archives(data));
             foreach (var sub in Directory.GetDirectories(data))
                 if (Regex.IsMatch(Path.GetFileName(sub), @"^[a-z]{2}[A-Z]{2}$")) all.AddRange(archives(sub));
-            return all.Where(p => !Path.GetFileName(p).Equals(ArchiveName, StringComparison.OrdinalIgnoreCase) && !RaceImport.IsOurArchive(Path.GetFileName(p)))
+            return all.Where(p => other || (!Path.GetFileName(p).Equals(ArchiveName, StringComparison.OrdinalIgnoreCase) && !RaceImport.IsOurArchive(Path.GetFileName(p))))
                 .OrderBy(rank).ThenBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase).ToList();
         }
 
@@ -742,12 +758,99 @@ namespace CoAInstaller
 
         const string Foreign = "Data\\" + ArchiveName + " in the game folder was not made by " + Product.Name + ". Rename or remove it, then install again.";
 
+        // ---------------------------------------------------------------------------- files next to the exe
+
+        static string RootRecord(Install inst) { return Path.Combine(inst.Root, "Dependencies", "client-root-files.txt"); }
+
+        static string Hash(string path)
+        {
+            using (var sha = System.Security.Cryptography.SHA1.Create())
+            using (var f = File.OpenRead(path))
+                return BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "");
+        }
+
+        static void CheckRootFiles(Plan plan)
+        {
+            foreach (var r in plan.RootFiles)
+                if (string.IsNullOrEmpty(r.From) || !File.Exists(r.From))
+                    throw new InvalidOperationException(r.Module + " wants " + r.To + " next to the game, from " + (string.IsNullOrEmpty(r.From) ? "a file not chosen yet" : r.From) +
+                        ", which is not there. Open its setup page and choose the file again, or switch that option off.");
+        }
+
+        /// <summary>The files next to the exe put there before: name -> hash.</summary>
+        static Dictionary<string, string> RootPlaced(Install inst)
+        {
+            var placed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(RootRecord(inst)))
+                foreach (var line in File.ReadAllLines(RootRecord(inst)))
+                {
+                    var parts = line.Split('\t');
+                    if (parts.Length == 2) placed[parts[0]] = parts[1];
+                }
+            return placed;
+        }
+
+        static bool RootFilesCurrent(Install inst, string client, Plan plan)
+        {
+            var placed = RootPlaced(inst);
+            foreach (var r in plan.RootFiles)
+            {
+                string dest = Path.Combine(client, r.To);
+                if (!File.Exists(dest) || Hash(dest) != Hash(r.From)) return false;
+            }
+            // one placed before and no longer wanted is still there
+            foreach (var p in placed)
+                if (!plan.RootFiles.Any(r => r.To.Equals(p.Key, StringComparison.OrdinalIgnoreCase)) && File.Exists(Path.Combine(client, p.Key)) && Hash(Path.Combine(client, p.Key)) == p.Value)
+                    return false;
+            return true;
+        }
+
+        /// <summary>Puts the wanted files next to the exe and takes back those no longer wanted. A file of the same name
+        /// that was there before is kept as &lt;name&gt;.afk-backup and comes back when ours goes.</summary>
+        static List<string> SyncRootFiles(Install inst, string client, Plan plan)
+        {
+            var notes = new List<string>();
+            var placed = RootPlaced(inst);
+            var now = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var r in plan.RootFiles)
+                {
+                    string dest = Path.Combine(client, r.To), want = Hash(r.From);
+                    if (File.Exists(dest) && Hash(dest) == want) { now[r.To] = want; continue; }
+                    string mine;
+                    if (File.Exists(dest) && !(placed.TryGetValue(r.To, out mine) && Hash(dest) == mine) && !File.Exists(dest + ".afk-backup"))
+                        File.Move(dest, dest + ".afk-backup");
+                    File.Copy(r.From, dest, true);
+                    now[r.To] = want;
+                    notes.Add(r.To + " placed next to the game");
+                }
+                foreach (var p in placed)
+                {
+                    if (now.ContainsKey(p.Key)) continue;
+                    string dest = Path.Combine(client, p.Key);
+                    if (File.Exists(dest) && Hash(dest) == p.Value)
+                    {
+                        File.Delete(dest);
+                        if (File.Exists(dest + ".afk-backup")) File.Move(dest + ".afk-backup", dest);
+                        notes.Add(p.Key + " taken away");
+                    }
+                }
+            }
+            catch (IOException ex) { throw new InvalidOperationException("A file next to the game could not be changed (" + ex.Message + "). Close the game and its launcher first."); }
+            catch (UnauthorizedAccessException ex) { throw new InvalidOperationException("A file next to the game could not be changed (" + ex.Message + ")."); }
+            Directory.CreateDirectory(Path.GetDirectoryName(RootRecord(inst)));
+            if (now.Count == 0) { if (File.Exists(RootRecord(inst))) File.Delete(RootRecord(inst)); }
+            else File.WriteAllLines(RootRecord(inst), now.Select(p => p.Key + "\t" + p.Value), new UTF8Encoding(false));
+            return notes;
+        }
+
         /// <summary>Whether the client has the patch the modules want. Building it reads the client, which takes a moment.</summary>
         public static PatchState StateOf(Install inst, string client, Plan plan, out string problem)
         {
             problem = null;
             string installed = client == null ? null : InstalledStamp(client);
-            if (plan.Empty) return !string.IsNullOrEmpty(installed) && WasOurs(inst) ? PatchState.Leftover : PatchState.None;
+            if (plan.Empty) return (!string.IsNullOrEmpty(installed) && WasOurs(inst)) || (client != null && !RootFilesCurrent(inst, client, plan)) ? PatchState.Leftover : PatchState.None;
             if (client == null) return PatchState.Missing;
             if (installed == "") { problem = Foreign; return PatchState.Outdated; }
             try
@@ -755,7 +858,8 @@ namespace CoAInstaller
                 var files = Build(inst, client, plan, null);
                 string wanted = Encoding.UTF8.GetString(files[StampName]);
                 if (installed == null) return PatchState.Missing;
-                return installed == wanted && RaceImport.Current(client, plan.Imports) ? PatchState.Current : PatchState.Outdated;
+                CheckRootFiles(plan);
+                return installed == wanted && RaceImport.Current(client, plan.Imports) && RootFilesCurrent(inst, client, plan) ? PatchState.Current : PatchState.Outdated;
             }
             catch (Exception ex) { problem = ex.Message; return PatchState.Outdated; }
         }
@@ -769,16 +873,18 @@ namespace CoAInstaller
             string installed = InstalledStamp(client);
             if (plan.Empty)
             {
+                var gone = SyncRootFiles(inst, client, plan);
                 if (!string.IsNullOrEmpty(installed) && WasOurs(inst))
                 {
                     try { File.Delete(path); }
                     catch (IOException) { throw new InvalidOperationException("Data\\" + ArchiveName + " is in use. Close the game and its launcher first."); }
                     File.Delete(RecordFile(inst));
-                    return "the client patch removed (no module needs it any more)";
+                    return "the client patch removed (no module needs it any more)" + (gone.Count > 0 ? ", " + string.Join(", ", gone) : "");
                 }
-                return "";
+                return string.Join(", ", gone);
             }
             if (installed == "") throw new InvalidOperationException(Foreign);
+            CheckRootFiles(plan);
             var notes = new List<string>();
             var files = Build(inst, client, plan, notes);
             string temp = path + ".new";
@@ -794,6 +900,7 @@ namespace CoAInstaller
                 throw new InvalidOperationException("Data\\" + ArchiveName + " is in use. Close the game and its launcher first.");
             }
             notes.AddRange(RaceImport.Sync(client, plan.Imports));
+            notes.AddRange(SyncRootFiles(inst, client, plan));
             Directory.CreateDirectory(Path.GetDirectoryName(RecordFile(inst)));
             File.WriteAllLines(RecordFile(inst), new[] { ArchiveName }.Concat(plan.Modules), new UTF8Encoding(false));
             return "the client patch Data\\" + ArchiveName + " built for " + string.Join(", ", plan.Modules) + (notes.Count > 0 ? " (changes " + string.Join(", ", notes) + ")" : "");
@@ -810,6 +917,8 @@ namespace CoAInstaller
                 zip.CreateEntryFromFile(temp, "Data/" + ArchiveName, CompressionLevel.Optimal);
             }
             finally { try { File.Delete(temp); } catch { } }
+            CheckRootFiles(plan);
+            foreach (var r in plan.RootFiles) zip.CreateEntryFromFile(r.From, r.To, CompressionLevel.Optimal);
             foreach (var w in plan.Imports)
             {
                 string race = RaceImport.BuildTemp(w);

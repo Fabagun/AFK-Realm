@@ -57,6 +57,15 @@ namespace CoAInstaller
             }
         }
 
+        /// <summary>Decrypts the whole 32-bit words of a part of a byte array in place (a trailing rest stays as it is).</summary>
+        public static void Decrypt(byte[] bytes, int from, int count, uint key)
+        {
+            var words = new uint[count / 4];
+            Buffer.BlockCopy(bytes, from, words, 0, words.Length * 4);
+            Decrypt(words, key);
+            Buffer.BlockCopy(words, 0, bytes, from, words.Length * 4);
+        }
+
         public static void Encrypt(uint[] data, uint key)
         {
             uint seed = 0xEEEEEEEE;
@@ -73,7 +82,7 @@ namespace CoAInstaller
 
     class MpqArchive : IDisposable
     {
-        const uint FileExists = 0x80000000, FileCompress = 0x00000200, FileImplode = 0x00000100, FileEncrypted = 0x00010000,
+        const uint FileExists = 0x80000000, FileCompress = 0x00000200, FileImplode = 0x00000100, FileEncrypted = 0x00010000, FileFixKey = 0x00020000,
             FileSingleUnit = 0x01000000, FileSectorCrc = 0x04000000, FileDeleteMarker = 0x02000000;
 
         struct HashEntry { public uint A, B; public ushort Locale; public uint Block; }
@@ -167,6 +176,14 @@ namespace CoAInstaller
             return block >= 0 && (blocks[block].Flags & FileExists) != 0 && (blocks[block].Flags & FileDeleteMarker) == 0;
         }
 
+        /// <summary>The unpacked size of a file, or -1.</summary>
+        public long SizeOf(string name)
+        {
+            int block = Find(name);
+            if (block < 0 || (blocks[block].Flags & FileExists) == 0 || (blocks[block].Flags & FileDeleteMarker) != 0) return -1;
+            return blocks[block].Size;
+        }
+
         public byte[] Read(string name)
         {
             int index = Find(name);
@@ -174,25 +191,44 @@ namespace CoAInstaller
             var block = blocks[index];
             if ((block.Flags & FileExists) == 0 || (block.Flags & FileDeleteMarker) != 0) return null;
             string label = name + " in " + System.IO.Path.GetFileName(Path);
-            if ((block.Flags & FileEncrypted) != 0) throw new InvalidDataException(label + " is encrypted; AFK Realm cannot read it.");
             if ((block.Flags & FileImplode) != 0) throw new InvalidDataException(label + " is packed with PKWARE implode; AFK Realm cannot read it.");
 
             stream.Position = start + block.Offset;
             var packed = new byte[block.Packed];
             ReadExactly(packed);
-            if ((block.Flags & FileCompress) == 0) return Fit(packed, block.Size);
-            if ((block.Flags & FileSingleUnit) != 0) return block.Packed < block.Size ? Decompress(packed, 0, (int)block.Packed, (int)block.Size, label) : Fit(packed, block.Size);
+            bool encrypted = (block.Flags & FileEncrypted) != 0;
+            uint key = 0;
+            if (encrypted)
+            {
+                // the key comes from the file's own name, without its folder
+                key = MpqCrypt.Hash(name.Substring(name.Replace('/', '\\').LastIndexOf('\\') + 1), MpqCrypt.FileKey);
+                if ((block.Flags & FileFixKey) != 0) key = (key + (uint)block.Offset) ^ block.Size;
+            }
+            if ((block.Flags & FileSingleUnit) != 0 || (block.Flags & (FileCompress | FileImplode)) == 0)
+            {
+                if ((block.Flags & FileSingleUnit) == 0)
+                {
+                    // stored in sectors without compression
+                    if (encrypted) for (int s0 = 0; s0 * sectorSize < packed.Length; s0++) MpqCrypt.Decrypt(packed, s0 * sectorSize, Math.Min(sectorSize, packed.Length - s0 * sectorSize), key + (uint)s0);
+                    return Fit(packed, block.Size);
+                }
+                if (encrypted) MpqCrypt.Decrypt(packed, 0, packed.Length, key);
+                if ((block.Flags & FileCompress) == 0) return Fit(packed, block.Size);
+                return block.Packed < block.Size ? Decompress(packed, 0, (int)block.Packed, (int)block.Size, label) : Fit(packed, block.Size);
+            }
 
             int sectors = (int)((block.Size + sectorSize - 1) / sectorSize);
             int entries = sectors + 1 + ((block.Flags & FileSectorCrc) != 0 ? 1 : 0);
             var offsets = new uint[entries];
             Buffer.BlockCopy(packed, 0, offsets, 0, Math.Min(packed.Length, entries * 4));
+            if (encrypted) MpqCrypt.Decrypt(offsets, key - 1);
             var output = new byte[block.Size];
             for (int s = 0; s < sectors; s++)
             {
                 int from = (int)offsets[s], to = (int)offsets[s + 1];
                 int want = (int)Math.Min(sectorSize, block.Size - (long)s * sectorSize);
                 if (from < 0 || to > packed.Length || to < from) throw new InvalidDataException(label + " is damaged.");
+                if (encrypted) MpqCrypt.Decrypt(packed, from, to - from, key + (uint)s);
                 byte[] sector = to - from < want ? Decompress(packed, from, to - from, want, label) : Slice(packed, from, want);
                 Buffer.BlockCopy(sector, 0, output, s * sectorSize, Math.Min(sector.Length, want));
             }

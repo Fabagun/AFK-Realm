@@ -35,6 +35,7 @@ namespace CoAInstaller
         {
             public List<ClientRace> Races = new List<ClientRace>();
             public List<int> FreeNumbers = new List<int>();      // race numbers below 32 no row has
+            public List<int> MoreNumbers = new List<int>();      // race numbers 32 to 63 no row has (with the 64-race patch)
             public bool ModelsChecked;
             public HashSet<string> HelmetPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
@@ -91,6 +92,7 @@ namespace CoAInstaller
                 var races = DbcTable.Parse(bytes, "ChrRaces.dbc");
                 var rows = races.Records.ToDictionary(r => (int)races.Field(r, 0));
                 for (int n = 1; n < 32; n++) if (!rows.ContainsKey(n)) scan.FreeNumbers.Add(n);
+                for (int n = 32; n < 64; n++) if (!rows.ContainsKey(n)) scan.MoreNumbers.Add(n);
 
                 // Models: display -> model -> its file in the archives (only when the client's base archives are there).
                 scan.ModelsChecked = archives.Complete;
