@@ -366,7 +366,9 @@ namespace CoAInstaller
             racesBtn.Click += (s, e) =>
             {
                 Busy.Run(this, "Reading the races of your game client and your race folder …", report => RacesSetup.Preload(inst));
+                var before = PlayableCustomRaces();
                 OpenSetup(new RacesSetup(inst));
+                OfferBotsForRaces(before);
             };
 
             var clientCard = Section("modules", "Game client", "Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). " + Product.Name +
@@ -655,6 +657,28 @@ namespace CoAInstaller
                 });
         }
         /// <summary>A module that changes what the random bots are made of asks once, after it came, for new bots.</summary>
+        /// <summary>The races mod-custom-races makes playable now (its settings), by key.</summary>
+        HashSet<string> PlayableCustomRaces()
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string enable = ClientPatch.ConfValue(inst, "mod_custom_races.conf", "CustomRaces.Enable") ?? "1";
+            if (enable.Trim() == "0") return set;
+            foreach (var key in (ClientPatch.ConfValue(inst, "mod_custom_races.conf", "CustomRaces.Races") ?? "").Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries))
+                set.Add(key);
+            return set;
+        }
+
+        /// <summary>Races just added on the races page: the random bots keep the races they have, so new races only
+        /// come with new bots. Offers to make the random bots anew.</summary>
+        void OfferBotsForRaces(HashSet<string> before)
+        {
+            var added = PlayableCustomRaces().Where(r => !before.Contains(r)).ToList();
+            if (added.Count == 0 || !File.Exists(Path.Combine(inst.ConfigDir, "modules", "playerbots.conf"))) return;
+            ResetBots((added.Count == 1 ? "A new race is playable: " : "New races are playable: ") + string.Join(", ", added) + ".\n\n" +
+                "The random bots keep the races they were made with; only new bots can be of the new " + (added.Count == 1 ? "race" : "races") +
+                ". To see them among the bots soon, make the random bots anew.\n\n");
+        }
+
         void OfferBotReset(List<KeyValuePair<string, string>> modules)
         {
             ModuleBots.MarkOffered(inst, modules.Select(m => m.Key));
