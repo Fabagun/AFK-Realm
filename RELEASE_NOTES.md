@@ -1,6 +1,10 @@
-# AFK Realm 0.9.3 – preview
+# AFK Realm 0.9.4 – preview
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 0.9.4
+
+- **Switch between servers with one click.** The top of the side bar now shows the server you are looking at, by its server name. Click it for the list of every server you have opened in AFK Realm – your real server, a test copy, a friend's – and switch with one click. The same menu adds an existing server folder, starts a new install, or takes a server off the list (its folder stays). A server you switch away from keeps running; stop it before you start another one on the same ports.
 
 ## New in 0.9.3
 
