@@ -46,6 +46,22 @@ namespace CoAInstaller
             }
             catch { }
 
+            // races a module added (mod-custom-races writes their rows into chrraces_dbc): their names and sides
+            var raceNames = new Dictionary<int, string>();
+            var raceSide = new Dictionary<int, int>();
+            try
+            {
+                foreach (var row in MySql.Query(inst, login, "SELECT ID, Name_Lang_enUS, Alliance FROM acore_world.chrraces_dbc;"))
+                {
+                    var f = row.Split('\t');
+                    int id, side;
+                    if (f.Length < 3 || !int.TryParse(f[0], out id)) continue;
+                    if (f[1].Length > 0 && f[1] != "NULL") raceNames[id] = f[1];
+                    if (int.TryParse(f[2], out side)) raceSide[id] = side;
+                }
+            }
+            catch { }
+
             var players = MySql.Query(inst, login, "SELECT COUNT(*) FROM acore_characters.characters c JOIN acore_auth.account a ON a.id = c.account " +
                 "WHERE c.online = 1 AND NOT (" + bot + ");");
             if (players.Count > 0) int.TryParse(players[0], out s.Players);
@@ -65,13 +81,16 @@ namespace CoAInstaller
 
                 s.Counted++;
                 levelSum += level;
-                if (AllianceRaces.Contains(race)) s.Alliance++;
-                else if (HordeRaces.Contains(race)) s.Horde++;
+                int side;
+                if (AllianceRaces.Contains(race) || (raceSide.TryGetValue(race, out side) && side == 0)) s.Alliance++;
+                else if (HordeRaces.Contains(race) || (raceSide.TryGetValue(race, out side) && side == 1)) s.Horde++;
 
                 string className;
                 if (!classNames.TryGetValue(cls, out className)) className = cls < ClassNames.Length ? ClassNames[cls] : "Class " + N(cls);
                 Add(s.Classes, className);
-                Add(s.Races, race < RaceNames.Length && RaceNames[race].Length > 0 ? RaceNames[race] : "Race " + N(race));
+                string raceName;
+                if (!raceNames.TryGetValue(race, out raceName)) raceName = race < RaceNames.Length && RaceNames[race].Length > 0 ? RaceNames[race] : "Race " + N(race);
+                Add(s.Races, raceName);
                 s.Levels[Math.Min(LevelBands.Length - 1, Math.Max(0, level >= 80 ? 8 : level / 10))]++;
                 if (zone > 0) Add(s.Zones, GameData.ZoneName(inst, zone));
             }
