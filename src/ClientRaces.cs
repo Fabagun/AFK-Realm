@@ -1,0 +1,149 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+
+namespace CoAInstaller
+{
+    /// <summary>A race of the game client that mod-custom-races can make playable.</summary>
+    class ClientRace
+    {
+        public int Source;                  // its row in ChrRaces.dbc
+        public string Key, Name, Prefix, File;
+        public uint MaleDisplay, FemaleDisplay;
+        public bool MaleOnly;
+        public bool Virtual;                // made from the row of another race, under its own name (the High Elf)
+        public bool OwnNumber { get { return Source < 32 && !Virtual; } }
+    }
+
+    /// <summary>
+    /// The races of a game client: read from its ChrRaces.dbc, as the game reads it (the archive it reads last wins),
+    /// without the patch AFK Realm builds. A race counts when it is none of the stock races (nor a copy of one under the
+    /// same name, as the HD rows of the CoA client are) and the client has its model. A race whose female has no skins
+    /// is male only.
+    /// </summary>
+    static class ClientRaces
+    {
+        public static readonly int[] Stock = { 1, 2, 3, 4, 5, 6, 7, 8, 10, 11 };
+
+        public class Scan
+        {
+            public List<ClientRace> Races = new List<ClientRace>();
+            public List<int> FreeNumbers = new List<int>();      // race numbers below 32 no row has
+            public bool ModelsChecked;
+        }
+
+        sealed class Archives : IDisposable
+        {
+            readonly List<MpqArchive> list = new List<MpqArchive>();   // the one the game reads last first
+            public Archives(string client)
+            {
+                foreach (var path in Enumerable.Reverse(ClientPatch.ClientArchives(client)))
+                    try { list.Add(new MpqArchive(path)); } catch { }
+            }
+            public byte[] Read(string name)
+            {
+                foreach (var a in list) if (a.Contains(name)) return a.Read(name);
+                return null;
+            }
+            public bool Has(string name) { return list.Any(a => a.Contains(name)); }
+            /// <summary>The base archives of the game (common, expansion, lichking) are there: a missing model is missing.</summary>
+            public bool Complete { get { return list.Any(a => Regex.IsMatch(System.IO.Path.GetFileName(a.Path), @"^(common|common-2|expansion|lichking)\.mpq$", RegexOptions.IgnoreCase)); } }
+            public void Dispose() { foreach (var a in list) a.Dispose(); }
+        }
+
+        static string Str(DbcTable t, byte[] row, int field)
+        {
+            uint at = t.Field(row, field);
+            if (at >= t.Strings.Length) return "";
+            int end = (int)at;
+            while (end < t.Strings.Length && t.Strings[end] != 0) end++;
+            return Encoding.UTF8.GetString(t.Strings, (int)at, end - (int)at);
+        }
+
+        public static string KeyOf(string name) { return Regex.Replace(name ?? "", "[^A-Za-z0-9]", ""); }
+
+        /// <summary>The races of the client in the given folder. virtuals: races made from another row (key -> source, name).</summary>
+        public static Scan Read(string client, IDictionary<string, KeyValuePair<int, string>> virtuals)
+        {
+            var scan = new Scan();
+            using (var archives = new Archives(client))
+            {
+                var bytes = archives.Read("DBFilesClient\\ChrRaces.dbc");
+                if (bytes == null) throw new InvalidOperationException("The game client has no ChrRaces.dbc. Is this the game folder of Conquest of Azeroth?");
+                var races = DbcTable.Parse(bytes, "ChrRaces.dbc");
+                var rows = races.Records.ToDictionary(r => (int)races.Field(r, 0));
+                for (int n = 1; n < 32; n++) if (!rows.ContainsKey(n)) scan.FreeNumbers.Add(n);
+
+                // Models: display -> model -> its file in the archives (only when the client's base archives are there).
+                scan.ModelsChecked = archives.Complete;
+                Dictionary<uint, uint> displayModel = null; Dictionary<uint, string> modelFile = null;
+                if (scan.ModelsChecked)
+                {
+                    try
+                    {
+                        var di = DbcTable.Parse(archives.Read("DBFilesClient\\CreatureDisplayInfo.dbc"), "CreatureDisplayInfo.dbc");
+                        var md = DbcTable.Parse(archives.Read("DBFilesClient\\CreatureModelData.dbc"), "CreatureModelData.dbc");
+                        displayModel = new Dictionary<uint, uint>();
+                        foreach (var r in di.Records) displayModel[di.Field(r, 0)] = di.Field(r, 1);
+                        modelFile = new Dictionary<uint, string>();
+                        foreach (var r in md.Records) modelFile[md.Field(r, 0)] = Str(md, r, 2);
+                    }
+                    catch { scan.ModelsChecked = false; }
+                }
+                Func<uint, bool> hasModel = display =>
+                {
+                    if (!scan.ModelsChecked) return true;
+                    uint model; string file;
+                    if (!displayModel.TryGetValue(display, out model) || !modelFile.TryGetValue(model, out file) || file.Length == 0) return false;
+                    file = Regex.Replace(file, @"\.(mdx|mdl)$", ".m2", RegexOptions.IgnoreCase);
+                    return archives.Has(file);
+                };
+
+                // Skins of each race and sex: a sex with hardly any has no body of its own.
+                var skins = new Dictionary<int, int>();
+                var sections = archives.Read("DBFilesClient\\CharSections.dbc");
+                if (sections != null)
+                {
+                    var cs = DbcTable.Parse(sections, "CharSections.dbc");
+                    foreach (var r in cs.Records)
+                    {
+                        int k = (int)cs.Field(r, 1) * 2 + (int)cs.Field(r, 2);
+                        int c; skins.TryGetValue(k, out c); skins[k] = c + 1;
+                    }
+                }
+                Func<int, int, int> skinsOf = (race, sex) => { int c; return skins.TryGetValue(race * 2 + sex, out c) ? c : 0; };
+
+                var stockNames = new HashSet<string>(Stock.Where(rows.ContainsKey).Select(id => Str(races, rows[id], 14)), StringComparer.OrdinalIgnoreCase);
+                Func<int, string, string, ClientRace> make = (id, key, name) =>
+                {
+                    var row = rows[id];
+                    var r = new ClientRace { Source = id, Key = key, Name = name, Prefix = Str(races, row, 6), File = Str(races, row, 11),
+                        MaleDisplay = races.Field(row, 4), FemaleDisplay = races.Field(row, 5) };
+                    r.MaleOnly = r.FemaleDisplay == r.MaleDisplay || r.FemaleDisplay == 0 || !hasModel(r.FemaleDisplay) || skinsOf(id, 1) < 10;
+                    return r;
+                };
+                foreach (var id in rows.Keys.OrderBy(i => i))
+                {
+                    if (Stock.Contains(id)) continue;
+                    string name = Str(races, rows[id], 14).Trim();
+                    if (name.Length == 0 || stockNames.Contains(name) || KeyOf(name).Length == 0) continue;     // a copy of a stock race
+                    if (!hasModel(races.Field(rows[id], 4))) continue;                                         // no body
+                    string key = KeyOf(name);
+                    if (scan.Races.Any(r => r.Key.Equals(key, StringComparison.OrdinalIgnoreCase))) key += id;
+                    scan.Races.Add(make(id, key, name));
+                }
+                foreach (var v in virtuals ?? new Dictionary<string, KeyValuePair<int, string>>())
+                {
+                    if (!rows.ContainsKey(v.Value.Key) || scan.Races.Any(r => r.Key.Equals(v.Key, StringComparison.OrdinalIgnoreCase))) continue;
+                    var made = make(v.Value.Key, v.Key, v.Value.Value);
+                    made.Virtual = true;
+                    scan.Races.Add(made);
+                }
+            }
+            return scan;
+        }
+    }
+}

@@ -71,7 +71,7 @@ namespace CoAInstaller
                     if (!source.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(source) || !SafeClientPath(to)) continue;
                     plan.Files.Add(new FileSpec { Module = module, From = source, To = to.Replace('/', '\\'), Fills = Dicts(f.TryGetValue("fill", out v) ? v : null) });
                 }
-                foreach (var e in List(patch, "edits"))
+                foreach (var e in Expand(inst, List(patch, "edits")))
                 {
                     string target = Text(e, "file");
                     if (!SafeClientPath(target) || !When(inst, e)) continue;
@@ -119,6 +119,8 @@ namespace CoAInstaller
                 if (d.ContainsKey("setting"))
                 {
                     string text = ConfValue(inst, Text(d, "conf"), Text(d, "setting"));
+                    object isText;
+                    if (d.TryGetValue("text", out isText) && isText is bool && (bool)isText) return text ?? Text(d, "default");
                     long n;
                     if (text != null && long.TryParse(text.Trim(), out n)) return n;
                     object def;
@@ -129,6 +131,43 @@ namespace CoAInstaller
             }
             var list = v as object[];
             if (list != null) for (int i = 0; i < list.Length; i++) list[i] = Settings(inst, list[i]);
+            return v;
+        }
+
+        /// <summary>
+        /// Edits written once for many: an edit with "forEach" ({conf, key}) stands for one edit per word of that setting,
+        /// with "{each}" replaced by the word everywhere in it (texts and names). Example: the same changes for every race
+        /// a realm chose, each with its own settings ("CustomRaces.{each}.Id").
+        /// </summary>
+        static IEnumerable<Dictionary<string, object>> Expand(Install inst, IEnumerable<Dictionary<string, object>> items)
+        {
+            foreach (var item in items)
+            {
+                object v;
+                var each = item.TryGetValue("forEach", out v) ? v as Dictionary<string, object> : null;
+                if (each == null) { yield return item; continue; }
+                foreach (var word in Words(ConfValue(inst, Text(each, "conf"), Text(each, "key")) ?? Text(each, "default")))
+                {
+                    var copy = (Dictionary<string, object>)Subst(item, "{each}", word);
+                    copy.Remove("forEach");
+                    yield return copy;
+                }
+            }
+        }
+
+        static object Subst(object v, string token, string value)
+        {
+            var text = v as string;
+            if (text != null) return text.Replace(token, value);
+            var d = v as Dictionary<string, object>;
+            if (d != null)
+            {
+                var copy = new Dictionary<string, object>();
+                foreach (var kv in d) copy[kv.Key.Replace(token, value)] = Subst(kv.Value, token, value);
+                return copy;
+            }
+            var list = v as object[];
+            if (list != null) return list.Select(x => Subst(x, token, value)).ToArray();
             return v;
         }
 
@@ -183,7 +222,7 @@ namespace CoAInstaller
         }
 
         /// <summary>The archives of the client, the one that wins last: the game reads the patches after its base archives.</summary>
-        static List<string> ClientArchives(string client)
+        internal static List<string> ClientArchives(string client)
         {
             string data = Path.Combine(client, "Data");
             Func<string, int> rank = path =>
@@ -268,6 +307,27 @@ namespace CoAInstaller
         {
             string marker = Text(fill, "marker"), template = Text(fill, "line");
             if (marker.Length == 0 || template.Length == 0) return bytes;
+            object v;
+            var each = fill.TryGetValue("forEach", out v) ? v as Dictionary<string, object> : null;
+            if (each != null)
+            {
+                // One line per word of a setting: "{each}" is the word, "{conf:KEY}" the value of setting KEY (with "{each}"
+                // in it), for inside a Lua string.
+                Func<string, string> luaText = t => (t ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", " ");
+                string conf = Text(each, "conf");
+                var made = new List<string>();
+                foreach (var word in Words(ConfValue(inst, conf, Text(each, "key")) ?? Text(each, "default")))
+                {
+                    string one = template.Replace("{each}", word);
+                    one = Regex.Replace(one, @"\{conf:([^}]+)\}", m => luaText(ConfValue(inst, conf, m.Groups[1].Value) ?? ""));
+                    made.Add(one);
+                }
+                string all = Encoding.UTF8.GetString(bytes);
+                var parts = all.Split('\n');
+                for (int i = 0; i < parts.Length; i++)
+                    if (parts[i].Contains(marker)) parts[i] = string.Join("\n", made) + (made.Count == 0 ? "-- " + marker : "") + (parts[i].EndsWith("\r") ? "\r" : "");
+                return Encoding.UTF8.GetBytes(string.Join("\n", parts));
+            }
             string value = ConfValue(inst, Text(fill, "conf"), Text(fill, "key")) ?? Text(fill, "default");
             var numbers = Regex.Matches(value, @"\d+").Cast<Match>().Select(m => int.Parse(m.Value)).Distinct().OrderBy(n => n);
             string set = "{ " + string.Join(", ", numbers.Select(n => "[" + n + "] = true")) + " }";
