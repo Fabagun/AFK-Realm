@@ -92,8 +92,9 @@ namespace CoAInstaller
                         // a race from another client: its rows go into this patch, its files into an archive of its own
                         var pack = RaceImport.Find(Text(edit.ImportRace, "folder"), Text(edit.ImportRace, "key"));
                         int race;
-                        if (pack == null || !int.TryParse(Text(edit.ImportRace, "id"), out race) || race <= 0) continue;
-                        plan.Imports.Add(new RaceImport.Wanted { Race = race, Pack = pack });
+                        if (!int.TryParse(Text(edit.ImportRace, "id"), out race) || race <= 0) continue;
+                        if (pack != null) plan.Imports.Add(new RaceImport.Wanted { Race = race, Pack = pack });
+                        // without its folder the build says so (Build), instead of leaving the race out unseen
                     }
                     if ((edit.Line.Length > 0 && edit.InsertAfter.Length > 0) || edit.DropRows != null || edit.AddRows != null || edit.CloneRows != null ||
                         edit.FillRows != null || edit.SetRows != null || edit.CopyRows != null || edit.ImportRace != null || edit.SectionRules != null || edit.AddFile != null)
@@ -332,7 +333,10 @@ namespace CoAInstaller
             {
                 var pack = RaceImport.Find(Text(e.ImportRace, "folder"), Text(e.ImportRace, "key"));
                 int race, baseRace;
-                if (pack == null) throw new InvalidOperationException("The race folder has no race \"" + Text(e.ImportRace, "key") + "\" (module " + e.Module + ").");
+                if (pack == null)
+                    throw new InvalidOperationException(Text(e.ImportRace, "folder").Length == 0
+                        ? "The race " + Text(e.ImportRace, "key") + " comes from a race folder, but no race folder is set (module " + e.Module + "). Open its setup page and save it."
+                        : "The race folder " + Text(e.ImportRace, "folder") + " has no race \"" + Text(e.ImportRace, "key") + "\" (module " + e.Module + ").");
                 if (!int.TryParse(Text(e.ImportRace, "id"), out race) || race <= 0) continue;
                 if (!int.TryParse(Text(e.ImportRace, "base"), out baseRace)) baseRace = BaseRaceId(Text(e.ImportRace, "base"));
                 string name = Text(e.ImportRace, "name");

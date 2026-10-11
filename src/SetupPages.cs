@@ -560,8 +560,20 @@ namespace CoAInstaller
             foreach (var pair in new[] { new[] { "troll", "Troll" }, new[] { "orc", "Orc" }, new[] { "dwar", "Dwarf" }, new[] { "gnom", "Gnome" },
                 new[] { "tauren", "Tauren" }, new[] { "taunka", "Tauren" }, new[] { "skelet", "Undead" }, new[] { "undead", "Undead" }, new[] { "scourge", "Undead" },
                 new[] { "night", "NightElf" }, new[] { "blood", "BloodElf" }, new[] { "elf", "BloodElf" }, new[] { "draenei", "Draenei" } })
-                if (n.Contains(pair[0])) return pair[1];
-            return "Human";
+                if (n.Contains(pair[0])) return Side(pair[1], r);
+            return Side("Human", r);
+        }
+
+        /// <summary>For a race of the race folder: a base race of the side it had in its client (an Eredar of the Horde
+        /// leans on a Horde race).</summary>
+        string Side(string guess, ClientRace r)
+        {
+            if (r.Pack == null) return guess;
+            object v; int side = r.Pack.Data.TryGetValue("side", out v) ? Convert.ToInt32(v) : 2;
+            var horde = new HashSet<string> { "Orc", "Undead", "Tauren", "Troll", "BloodElf" };
+            if (side == 0 && horde.Contains(guess)) return guess == "BloodElf" ? "NightElf" : guess == "Troll" ? "Dwarf" : "Human";
+            if (side == 1 && !horde.Contains(guess)) return guess == "Draenei" || guess == "NightElf" ? "BloodElf" : guess == "Dwarf" ? "Troll" : "Orc";
+            return guess;
         }
 
         List<string> Chosen() { return Raw("CustomRaces.Races", "").Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries).ToList(); }
@@ -635,6 +647,8 @@ namespace CoAInstaller
         /// <summary>A race described before, as the client has it now (it may have changed with an update of the game).</summary>
         void Refresh()
         {
+            // the race folder found by itself (Downloads\AFK-Rassen) is written, so the client patch finds it too
+            if (folder != null && Raw("CustomRaces.ImportFolder", "").Length == 0) Set("CustomRaces.ImportFolder", "\"" + folder + "\"");
             foreach (var r in races)
                 if (Raw("CustomRaces." + r.Key + ".Source", "").Length > 0) Describe(r, IdOf(r));
         }

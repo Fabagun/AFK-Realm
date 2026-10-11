@@ -375,7 +375,19 @@ namespace CoAInstaller
     {
         public int Fields, RecordSize;
         public List<byte[]> Records = new List<byte[]>();
-        public byte[] Strings = new byte[0];
+        byte[] strings = new byte[0];
+        readonly List<byte> pending = new List<byte>();
+        Dictionary<string, uint> index;
+        /// <summary>The string block. Texts added with AddString are appended to it on first use.</summary>
+        public byte[] Strings
+        {
+            get
+            {
+                if (pending.Count > 0) { var grown = new byte[strings.Length + pending.Count]; Buffer.BlockCopy(strings, 0, grown, 0, strings.Length); pending.CopyTo(grown, strings.Length); strings = grown; pending.Clear(); }
+                return strings;
+            }
+            set { strings = value ?? new byte[0]; pending.Clear(); index = null; }
+        }
 
         public static DbcTable Parse(byte[] data, string label)
         {
@@ -411,20 +423,27 @@ namespace CoAInstaller
         /// <summary>A text at the end of the table's strings (or where it is already); its offset, for a text field.</summary>
         public uint AddString(string text)
         {
-            var bytes = Encoding.UTF8.GetBytes(text + "\0");
-            for (int i = 0; i + bytes.Length <= Strings.Length; i++)
+            if (index == null)
             {
-                if (i > 0 && Strings[i - 1] != 0) continue;
-                int k = 0;
-                while (k < bytes.Length && Strings[i + k] == bytes[k]) k++;
-                if (k == bytes.Length) return (uint)i;
+                // every text of the block by its offset (a text starts at 0 or after a NUL); the first offset wins
+                index = new Dictionary<string, uint>();
+                var block = Strings;
+                int start = 0;
+                for (int i = 0; i < block.Length; i++)
+                    if (block[i] == 0)
+                    {
+                        string t = Encoding.UTF8.GetString(block, start, i - start);
+                        if (!index.ContainsKey(t) && (start > 0 || t.Length > 0)) index[t] = (uint)start;
+                        start = i + 1;
+                    }
             }
-            if (Strings.Length == 0) { Strings = new byte[] { 0 }; }
-            uint at = (uint)Strings.Length;
-            var grown = new byte[Strings.Length + bytes.Length];
-            Buffer.BlockCopy(Strings, 0, grown, 0, Strings.Length);
-            Buffer.BlockCopy(bytes, 0, grown, Strings.Length, bytes.Length);
-            Strings = grown;
+            uint at;
+            if (index.TryGetValue(text, out at)) return at;
+            if (strings.Length + pending.Count == 0) pending.Add(0);
+            at = (uint)(strings.Length + pending.Count);
+            pending.AddRange(Encoding.UTF8.GetBytes(text));
+            pending.Add(0);
+            index[text] = at;
             return at;
         }
 

@@ -177,12 +177,13 @@ namespace CoAInstaller
                 cs.Records.Add(Section(cs, r, next++, race));
             }
             // without HD rows of its own, the race's rows are its HD rows too: its textures are laid out as HD textures
+            var hdIds = new HashSet<uint>(hd.Records.Select(x => hd.Field(x, 0)));
             foreach (var r in hdRows.Count > 0 ? hdRows : plain)
             {
                 string k = key(r);
                 uint id;
                 if (!idOf.TryGetValue(k, out id)) { id = next++; idOf[k] = id; }
-                if (hd.Records.Any(x => hd.Field(x, 0) == id)) continue;
+                if (!hdIds.Add(id)) continue;
                 hd.Records.Add(Section(hd, r, id, race));
             }
             save("DBFilesClient\\CharSections.dbc", cs.ToBytes());
