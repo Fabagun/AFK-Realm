@@ -831,7 +831,58 @@ namespace CoAInstaller
         public static string LastInstall
         {
             get { try { return File.Exists(File_) ? File.ReadAllText(File_).Trim() : null; } catch { return null; } }
-            set { try { Directory.CreateDirectory(Path.GetDirectoryName(File_)); File.WriteAllText(File_, value ?? ""); } catch { } }
+            set { try { Directory.CreateDirectory(Path.GetDirectoryName(File_)); File.WriteAllText(File_, value ?? ""); } catch { } if (!string.IsNullOrEmpty(value)) Remember(value, null); }
+        }
+
+        /// <summary>A server AFK Realm knows: its folder and the name its realm had when last seen.</summary>
+        public class KnownServer { public string Root, Name; }
+
+        static string KnownFile { get { return Path.Combine(Path.GetDirectoryName(File_), "servers.txt"); } }
+
+        /// <summary>Every server opened in AFK Realm, in the order they were first opened.</summary>
+        public static List<KnownServer> KnownServers
+        {
+            get
+            {
+                var list = new List<KnownServer>();
+                try
+                {
+                    if (File.Exists(KnownFile))
+                        foreach (var line in File.ReadAllLines(KnownFile))
+                        {
+                            var f = line.Split('\t');
+                            if (f[0].Trim().Length > 0 && !list.Any(k => k.Root.Equals(f[0].Trim(), StringComparison.OrdinalIgnoreCase)))
+                                list.Add(new KnownServer { Root = f[0].Trim(), Name = f.Length > 1 ? f[1].Trim() : "" });
+                        }
+                }
+                catch { }
+                return list;
+            }
+        }
+
+        static void Save(List<KnownServer> list)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(KnownFile));
+                File.WriteAllLines(KnownFile, list.Select(k => k.Root + "\t" + (k.Name ?? "")), new System.Text.UTF8Encoding(false));
+            }
+            catch { }
+        }
+
+        /// <summary>Adds a server to the list, or gives it its realm's name (null: keeps the name it has).</summary>
+        public static void Remember(string root, string name)
+        {
+            var list = KnownServers;
+            var k = list.FirstOrDefault(x => x.Root.Equals(root, StringComparison.OrdinalIgnoreCase));
+            if (k == null) list.Add(k = new KnownServer { Root = root, Name = "" });
+            if (name != null) k.Name = name;
+            Save(list);
+        }
+
+        public static void Forget(string root)
+        {
+            Save(KnownServers.Where(x => !x.Root.Equals(root, StringComparison.OrdinalIgnoreCase)).ToList());
         }
         static string WindowsFile { get { return Path.Combine(Path.GetDirectoryName(File_), "show-server-windows.txt"); } }
         /// <summary>Whether authserver and worldserver open their own console windows (off: their logs are shown in AFK Realm only).</summary>

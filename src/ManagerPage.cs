@@ -227,7 +227,9 @@ namespace CoAInstaller
             foreach (var n in nav.Values) navList.Controls.Add(n);
             var foot = new Label { Dock = DockStyle.Bottom, Height = 54, ForeColor = Color.FromArgb(150, 145, 175), Font = Ui.Small, BackColor = Ui.Sidebar,
                 Padding = new Padding(20, 0, 10, 14), TextAlign = ContentAlignment.BottomLeft, Text = Product.Name + " " + Product.Version + "\n" + inst.Root, AutoEllipsis = true };
-            sidebar.Controls.Add(navList); sidebar.Controls.Add(foot);
+            serverPick = new ServerPicker(inst);
+            serverPick.Click += (s, e) => ServerMenu();
+            sidebar.Controls.Add(navList); sidebar.Controls.Add(foot); sidebar.Controls.Add(serverPick);
 
             // --- status bar: the three parts of the server, the main buttons, updates and what is going on
             var pills = Ui.Row(); pills.Location = new Point(28, 16); pills.BackColor = Ui.Canvas;
@@ -462,6 +464,62 @@ namespace CoAInstaller
         }
 
         Card journeyCard, auctionCard, classicCard, racesCard;
+        ServerPicker serverPick;
+
+        /// <summary>The servers AFK Realm knows, to switch between them, and the ways to add one.</summary>
+        void ServerMenu()
+        {
+            var menu = new ContextMenuStrip { Font = Ui.Base, ShowImageMargin = false };
+            foreach (var k in Settings.KnownServers)
+            {
+                var other = new Install(k.Root);
+                bool here = k.Root.Equals(inst.Root, StringComparison.OrdinalIgnoreCase);
+                var item = new ToolStripMenuItem((here ? "✓  " : "     ") + ServerPicker.NameOf(k) + "   —   " + k.Root) { Enabled = !here && other.IsInstalled };
+                if (!other.IsInstalled && !here) item.Text += "   (not found)";
+                string root = k.Root;
+                item.Click += (s, e) => SwitchTo(root);
+                menu.Items.Add(item);
+            }
+            menu.Items.Add(new ToolStripSeparator());
+            var add = new ToolStripMenuItem("Add an existing server …");
+            add.Click += (s, e) =>
+            {
+                using (var d = new FolderBrowserDialog { Description = "Choose the server folder (the one containing \"Server\", \"DB\" and \"Dependencies\")." })
+                {
+                    if (d.ShowDialog(this) != DialogResult.OK) return;
+                    if (!new Install(d.SelectedPath).IsInstalled) { Ui.Error(this, "No finished server was found in this folder."); return; }
+                    Settings.Remember(new Install(d.SelectedPath).Root, null);
+                    SwitchTo(new Install(d.SelectedPath).Root);
+                }
+            };
+            var fresh = new ToolStripMenuItem("Install a new server …");
+            fresh.Click += (s, e) => Main.Navigate(new FolderPage(Main), true);
+            var forget = new ToolStripMenuItem("Remove from this list");
+            foreach (var k in Settings.KnownServers.Where(k => !k.Root.Equals(inst.Root, StringComparison.OrdinalIgnoreCase)))
+            {
+                string root = k.Root;
+                var f = new ToolStripMenuItem(ServerPicker.NameOf(k) + "   —   " + k.Root);
+                f.Click += (s, e) => Settings.Forget(root);
+                forget.DropDownItems.Add(f);
+            }
+            forget.Enabled = forget.DropDownItems.Count > 0;
+            menu.Items.Add(add); menu.Items.Add(fresh); menu.Items.Add(forget);
+            menu.Show(serverPick, new Point(0, serverPick.Height));
+        }
+
+        void SwitchTo(string root)
+        {
+            var target = new Install(root);
+            if (!target.IsInstalled) { Ui.Error(this, "No finished server was found in " + root + "."); return; }
+            if (ctl.World != null || ctl.Auth != null)
+            {
+                if (!Ui.Confirm(this, "This server is running and keeps running. " + Product.Name + " then looks after the other server: the scheduled restart of this one " +
+                    "pauses until you switch back.\n\nTwo servers cannot run at the same time on the same ports: stop this one before you start the other.\n\nSwitch anyway?")) return;
+            }
+            Main.Target = target;
+            Settings.LastInstall = target.Root;
+            Main.Navigate(new ManagerPage(Main), true);
+        }
 
         /// <summary>The setup pages of the modules made for AFK Realm are only there when the module is installed.</summary>
         void ShowModuleCards()
@@ -966,7 +1024,7 @@ namespace CoAInstaller
         {
             if (ctl.Db == null) { realm.Text = realm.Text.Length > 0 ? realm.Text : ""; return; }
             try { realm.Text = Accounts.GetRealmAddress(inst); } catch { }
-            try { realmName.Text = Accounts.GetRealmName(inst); } catch { }
+            try { realmName.Text = Accounts.GetRealmName(inst); Settings.Remember(inst.Root, realmName.Text); serverPick.Invalidate(); } catch { }
         }
         void ApplyRealmName()
         {

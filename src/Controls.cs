@@ -619,6 +619,46 @@ namespace CoAInstaller
         }
     }
 
+    /// <summary>The server shown, at the top of the side bar: its name and folder. A click opens the list of servers.</summary>
+    class ServerPicker : Control
+    {
+        readonly Install inst;
+        bool hover;
+        public ServerPicker(Install inst)
+        {
+            this.inst = inst;
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            Dock = DockStyle.Top; Height = 74; Cursor = Cursors.Hand; Font = Ui.Base;
+            MouseEnter += (s, e) => { hover = true; Invalidate(); };
+            MouseLeave += (s, e) => { hover = false; Invalidate(); };
+        }
+
+        /// <summary>A server's name: its realm's name when known, else the name of its folder.</summary>
+        public static string NameOf(Settings.KnownServer k)
+        {
+            return !string.IsNullOrEmpty(k.Name) ? k.Name : System.IO.Path.GetFileName(k.Root.TrimEnd('\\')) ?? k.Root;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.Clear(Ui.Sidebar);
+            Draw.Smooth(g);
+            var r = new RectangleF(10, 12, Width - 20, Height - 18);
+            using (var p = Draw.Round(r, 10)) using (var b = new SolidBrush(hover ? Ui.SidebarActive : Ui.SidebarHover)) g.FillPath(b, p);
+            var k = Settings.KnownServers.FirstOrDefault(x => x.Root.Equals(inst.Root, StringComparison.OrdinalIgnoreCase)) ?? new Settings.KnownServer { Root = inst.Root };
+            int count = Settings.KnownServers.Count;
+            TextRenderer.DrawText(g, NameOf(k), Ui.Bold, new Rectangle(22, 18, Width - 60, 22), Color.White, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(g, count > 1 ? "Switch server  ·  " + count + " servers" : "Servers …", Ui.Small, new Rectangle(22, 40, Width - 60, 20),
+                Color.FromArgb(170, 165, 200), TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            using (var pen = new Pen(Color.FromArgb(196, 190, 220), 1.6f))
+            {
+                float x = Width - 34, y = Height / 2f + 2;
+                g.DrawLines(pen, new[] { new PointF(x, y - 3), new PointF(x + 5, y + 2), new PointF(x + 10, y - 3) });
+            }
+        }
+    }
+
     /// <summary>Several choices side by side, one of them chosen (like tabs or presets).</summary>
     class Segmented : Control
     {

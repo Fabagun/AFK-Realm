@@ -59,6 +59,8 @@ When the installation is finished, three things are left to do in the server man
 
 The **Server management** has a side bar on the left with its parts: **Server** (scheduled restart, map data), **Settings** (server settings, server name, playing with others), **Modules** (modules, their setup pages, the game client), **Game master**, **Accounts**, **Database** (database editor, backups) and **Maintenance** (updates, repair, bot reset, folders). A small mark beside *Modules* or *Maintenance* says that something waits there, for example an update or an add-on for your game.
 
+**Several servers.** The top of the side bar shows the server you are looking at, by its server name. Click it for the list of every server you have opened in AFK Realm and switch to another with one click – a test copy next to your real server, say. *Add an existing server …* adds a server folder to the list, *Install a new server …* starts the installation of another one, and *Remove from this list* takes a server off the list (its folder is not touched). A server you switch away from keeps running; AFK Realm then looks after the one shown, and the scheduled restart of the other waits until you switch back. Two servers cannot run at the same time on the same ports: stop one before you start the other.
+
 The bar at the top stays the same on every part. It shows the three parts of the server:
 
 | Part | What it does |
