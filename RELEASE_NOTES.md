@@ -1,6 +1,15 @@
-# AFK Realm 0.9.0 – preview
+# AFK Realm 0.9.1 – preview
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 0.9.1
+
+- **New races: Goblins, Worgen, Pandaren, Vulpera, Tuskarr and more.** A new module under *Modules by AFK Realm*, *mod-custom-races*, makes the races your game client carries but no player can choose playable – for you and for the bots. Which races there are is read from your own game client: in the CoA client 22 races, plus the High Elf, made from the Blood Elf. None is on until you choose it on the new setup page (*Modules → Custom races*). Each new race leans on a stock race of your choice: it starts where that race starts, gets its quests, stats, racial abilities and faction, and keeps its own looks. Switched off, a race's characters play their base race until it is on again; removed, the module takes everything back.
+- **What to expect.** This is a test version. Goblin, Worgen, Tuskarr and Taunka were played from the character creation into the world. Races without a female model are male only. Races without helmet models of their own keep their helmets hidden – the preview of the character creation still shows a placeholder on the head. Some models of the client have flaws of their own that no patch can mend: on the Vulpera, for example, some armour pieces stick out. Tell me which races look wrong to you.
+- After installing or changing the races: build the server, then *Modules → Game client → Install*, and give the other players a new ZIP.
+- **Classic classes:** the limit of the character creation is 30 classes per race, not 300 rows in all; *mod-classic-classes* follows it.
+- **A copied server folder builds again.** A test copy of your server stopped at the start of the build because CMake still knew the old place; the build now starts afresh there. And a build that fails while it is prepared no longer blames a module that was just added.
+- **Modules that remove what they wrote.** A module whose rows the server writes while it runs now takes them back when you remove it.
 
 ## New in 0.9.0
 
