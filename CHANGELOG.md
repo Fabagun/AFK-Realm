@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.3-preview (in progress)
+## 0.9.3-preview
 
 - Custom races: after new races were made playable on the races page, AFK Realm offers to make the random bots anew, since the bots keep the races they were made with and only new bots can be of the new races
 

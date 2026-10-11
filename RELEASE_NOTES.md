@@ -1,6 +1,10 @@
-# AFK Realm 0.9.2 – preview
+# AFK Realm 0.9.3 – preview
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 0.9.3
+
+- **New races for the bots too.** When you make new races playable on the races page, AFK Realm now asks whether to make the random bots anew. The bots keep the races they were made with, so only new bots can be of the new races. Not now? *Reset random bots …* under *Maintenance* does the same later.
 
 ## New in 0.9.2
 
