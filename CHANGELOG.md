@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.6-preview (in progress)
+## 0.9.6-preview
 
 - Setup pages: when a saved change needs the game client (new races, other classic classes, World Journey's map levels), the game client window opens right away – every time, not only once – and says the three steps: Install, restart the server, give the other players the new ZIP
 

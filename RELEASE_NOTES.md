@@ -1,6 +1,10 @@
-# AFK Realm 0.9.5 – preview
+# AFK Realm 0.9.6 – preview
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 0.9.6
+
+- **New races: clear steps after saving.** Saving the races page alone does not put the races into the game. Now the *Game client* window opens right away after every such change and says what to do: click **Install** (it builds the client patch into your game), restart the server, and give every other player the new ZIP (*Export as ZIP …*) – without it they do not see the new races. The same goes for the classic classes and World Journey's map levels.
 
 ## New in 0.9.5
 
