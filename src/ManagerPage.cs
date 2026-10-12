@@ -528,9 +528,27 @@ namespace CoAInstaller
 
         void OpenSetup(Form setup)
         {
+            bool races = setup is RacesSetup;
             using (setup)
                 if (setup.ShowDialog(this) == DialogResult.OK)
-                    OfferClient();      // a setting the client patch reads may have changed
+                    ShowClientState(pending => AfterSetup(pending, races));
+        }
+
+        /// <summary>
+        /// After a setup page was saved: when the game client needs the new state (new races, other classes, the map levels),
+        /// the game client window opens right away and says what to do - every time, not only once like the offer at the start.
+        /// </summary>
+        void AfterSetup(string pending, bool races)
+        {
+            if (pending.Length == 0) return;
+            try { File.WriteAllText(Path.Combine(inst.Root, "Dependencies", "client-offered.txt"), pending); } catch { }
+            bool running = ctl.World != null;
+            string why = (races ? L.T("Your races are saved, but the game does not show them yet.") : L.T("Your change is saved, but the game client does not have it yet.")) + "\n" +
+                L.T("1. Click \"Install\" below: it builds the client patch into your game.") + "\n" +
+                (running ? L.T("2. Restart the server so it reads the new settings.") : L.T("2. Start the server.")) + "\n" +
+                L.T("3. Give the other players the new ZIP (\"Export as ZIP …\" below): without it they do not see the change.");
+            using (var d = new ClientDialog(inst, why)) d.ShowDialog(this);
+            ShowClientState();
         }
 
         static FlowLayoutPanel StatusRow(string name, Label state)
