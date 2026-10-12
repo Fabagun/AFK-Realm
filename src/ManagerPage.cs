@@ -25,6 +25,7 @@ namespace CoAInstaller
         readonly Label nameNote = Ui.Hint("");
         readonly LinkLabel serverUpdate = UpdateLink(), toolUpdate = UpdateLink();
         Panel serverBanner, toolBanner;
+        List<string> patchWarnings = new List<string>();
         List<string> serverNews = new List<string>();                  // what the server update brings, one line per part
         DateTime? serverNewsLimited;
         readonly ToolTip bannerTip = new ToolTip { AutoPopDelay = 30000, InitialDelay = 300 };
@@ -277,6 +278,9 @@ namespace CoAInstaller
             serverBanner.VisibleChanged += (s, e) => fit();
             toolBanner.VisibleChanged += (s, e) => fit();
             serverUpdate.LinkClicked += (s, e) => RunEngine("Update", "Install the server update now?\n\n" +
+                (patchWarnings.Count > 0 ? "⚠ Checked beforehand: " + (patchWarnings.Count == 1 ? "a patch of a module does" : "some patches of modules do") +
+                    " not fit the new code:\n  " + string.Join("\n  ", patchWarnings) + "\nYou can update anyway - the server then runs without " +
+                    (patchWarnings.Count == 1 ? "that change" : "these changes") + " - or wait until the module is adapted.\n\n" : "") +
                 (serverNews.Count > 0 ? "New:\n  " + string.Join("\n  ", serverNews) + "\n" +
                     (serverNewsLimited != null ? "(GitHub counts the changes again from " + serverNewsLimited.Value.ToString("HH:mm") + ")\n" : "") + "\n" : "") +
                 "The current server is backed up first, then rebuilt with the newest code, which can take a while. A running server is stopped cleanly first.");
@@ -588,9 +592,11 @@ namespace CoAInstaller
                     {
                         if (r.Server.Count > 0)
                         {
-                            serverNews = r.Server; serverNewsLimited = r.LimitedUntil;
-                            serverUpdate.Text = "Server update available: " + NewsSummary(r.Server) + "  –  click to install";
+                            serverNews = r.Server; serverNewsLimited = r.LimitedUntil; patchWarnings = r.PatchWarnings;
+                            serverUpdate.Text = "Server update available: " + NewsSummary(r.Server) + "  –  click to install" +
+                                (r.PatchWarnings.Count > 0 ? "  ·  ⚠ " + r.PatchWarnings.Count + (r.PatchWarnings.Count == 1 ? " module patch would not fit" : " module patches would not fit") : "");
                             bannerTip.SetToolTip(serverUpdate, string.Join("\n", r.Server) +
+                                (r.PatchWarnings.Count > 0 ? "\n\n" + string.Join("\n", r.PatchWarnings) : "") +
                                 (r.LimitedUntil != null ? "\n(GitHub counts the changes again from " + r.LimitedUntil.Value.ToString("HH:mm") + ")" : ""));
                             serverBanner.Visible = true;
                             nav["maintenance"].Badge = "new"; nav["maintenance"].Invalidate();

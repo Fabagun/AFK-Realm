@@ -21,6 +21,7 @@ namespace CoAInstaller
             public string ToolVersion, ToolUrl;                           // newer AFK Realm release, if any
             public string ToolDownload, ToolSha256;                       // its exe (and checksum, when GitHub lists one)
             public DateTime? LimitedUntil;                                // the GitHub API refused: its hourly limit was reached
+            public readonly List<string> PatchWarnings = new List<string>(); // patches of modules that would not fit the update
         }
 
         public static Result Run(Install inst)
@@ -55,6 +56,8 @@ namespace CoAInstaller
                     }
             }
             catch { }
+            if (r.Server.Count > 0)
+                try { CheckPatches(inst, git, r); } catch { }
             try
             {
                 string json = Get("https://api.github.com/repos/" + Product.GitHubRepo + "/releases?per_page=10");
@@ -131,6 +134,115 @@ namespace CoAInstaller
             if (head != null) r.Server.Add(name + ": new version");
         }
 
+        // ------------------------------------------------------------------------------------------- patches
+
+        /// <summary>
+        /// Before an update: whether the patches of the installed modules - in the newest version of each module - fit
+        /// the newest CoA core and mod-playerbots. The update would build the server without a patch that does not, and
+        /// the feature it brings would be missing until the module's maker adapts it. Fetches the news of the
+        /// repositories (nothing in the folders changes) and tries each patch on copies of the files it changes.
+        /// </summary>
+        static void CheckPatches(Install inst, string git, Result r)
+        {
+            if (git == null) return;
+            string modules = Path.Combine(inst.SourceDir, "modules");
+            var targets = new Dictionary<string, string>
+            {
+                { "core", inst.SourceDir },
+                { "mod-playerbots", Path.Combine(modules, "mod-playerbots") },
+            };
+            var fetched = new Dictionary<string, bool>();
+            Func<string, bool> fetch = folder =>
+            {
+                bool ok;
+                if (fetched.TryGetValue(folder, out ok)) return ok;
+                string branch, revision;
+                ok = Directory.Exists(Path.Combine(folder, ".git")) && ReadHead(folder, out branch, out revision) &&
+                     RunGit(git, 180000, "-C", folder, "fetch", "--quiet", "origin", branch) != null;
+                fetched[folder] = ok;
+                return ok;
+            };
+            if (!Directory.Exists(modules)) return;
+            var json = new System.Web.Script.Serialization.JavaScriptSerializer();
+            foreach (var folder in Directory.GetDirectories(modules))
+            {
+                string name = Path.GetFileName(folder);
+                if (name.Equals("mod-playerbots", StringComparison.OrdinalIgnoreCase)) continue;
+                // the newest manifest and patches of the module, else those it has
+                bool newest = GitHubRepoOf(folder) != null && fetch(folder);
+                Func<string, string> read = path =>
+                {
+                    if (newest) { string t = RunGit(git, 20000, "-C", folder, "show", "FETCH_HEAD:" + path); if (t != null) return t; }
+                    string local = Path.Combine(folder, path.Replace('/', Path.DirectorySeparatorChar));
+                    return File.Exists(local) ? File.ReadAllText(local) : null;
+                };
+                string manifest = read(ModuleCatalog.ManifestName);
+                if (manifest == null) continue;
+                object v;
+                var data = json.DeserializeObject(manifest) as Dictionary<string, object>;
+                var patches = data != null && data.TryGetValue("patches", out v) ? v as object[] : null;
+                if (patches == null) continue;
+                foreach (var item in patches)
+                {
+                    var p = item as Dictionary<string, object>;
+                    if (p == null) continue;
+                    string target = p.ContainsKey("target") ? Convert.ToString(p["target"]) : "";
+                    string file = p.ContainsKey("file") ? Convert.ToString(p["file"]).Replace('\\', '/') : "";
+                    string label = p.ContainsKey("name") ? Convert.ToString(p["name"]) : file;
+                    string targetFolder;
+                    if (!targets.TryGetValue(target, out targetFolder) || !fetch(targetFolder)) continue;
+                    string patch = read(file);
+                    if (patch == null) continue;
+                    string fit = Fits(git, targetFolder, patch);
+                    if (fit == "broken")
+                        r.PatchWarnings.Add(name + ": \"" + label + "\" does not fit the new " + (target == "core" ? "CoA core" : "mod-playerbots") +
+                            ". The update would build the server without it until " + name + " is adapted.");
+                }
+            }
+        }
+
+        /// <summary>"fits", "upstream" (the change is in the code already) or "broken", tried on the files the patch
+        /// changes as the fetched head has them.</summary>
+        static string Fits(string git, string folder, string patch)
+        {
+            string temp = Path.Combine(Path.GetTempPath(), "afk-patch-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(temp);
+            try
+            {
+                foreach (Match m in Regex.Matches(patch, @"^diff --git a/(\S+) b/(\S+)", RegexOptions.Multiline))
+                {
+                    string path = m.Groups[1].Value;
+                    string content = RunGit(git, 20000, "-C", folder, "show", "FETCH_HEAD:" + path);
+                    if (content == null) continue;                          // a file the patch adds
+                    string to = Path.Combine(temp, path.Replace('/', Path.DirectorySeparatorChar));
+                    Directory.CreateDirectory(Path.GetDirectoryName(to));
+                    File.WriteAllText(to, content, new UTF8Encoding(false));
+                }
+                string file = Path.Combine(temp, ".patch");
+                File.WriteAllText(file, patch, new UTF8Encoding(false));
+                if (RunGitIn(git, temp, "apply", "--check", "--ignore-whitespace", ".patch")) return "fits";
+                if (RunGitIn(git, temp, "apply", "--check", "--reverse", "--ignore-whitespace", ".patch")) return "upstream";
+                return "broken";
+            }
+            finally { try { Directory.Delete(temp, true); } catch { } }
+        }
+
+        static bool RunGitIn(string git, string dir, params string[] args)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(git, string.Join(" ", Array.ConvertAll(args, a => "\"" + a + "\""))) { UseShellExecute = false, CreateNoWindow = true,
+                    RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = dir };
+                using (var p = Process.Start(psi))
+                {
+                    p.StandardOutput.ReadToEndAsync(); p.StandardError.ReadToEndAsync();
+                    if (!p.WaitForExit(30000)) { try { p.Kill(); } catch { } return false; }
+                    return p.ExitCode == 0;
+                }
+            }
+            catch { return false; }
+        }
+
         /// <summary>A refusal of the GitHub API because of its hourly limit: when it answers again.</summary>
         static void NoteLimit(Result r, WebException ex)
         {
@@ -159,7 +271,9 @@ namespace CoAInstaller
         }
 
         /// <summary>The output of a short git command, or null (no git, no network, no answer within 20 seconds).</summary>
-        static string RunGit(string git, params string[] args)
+        static string RunGit(string git, params string[] args) { return RunGit(git, 20000, args); }
+
+        static string RunGit(string git, int timeout, params string[] args)
         {
             if (git == null) return null;
             try
@@ -174,7 +288,7 @@ namespace CoAInstaller
                 {
                     var output = p.StandardOutput.ReadToEndAsync();
                     p.StandardError.ReadToEndAsync();
-                    if (!p.WaitForExit(20000)) { try { p.Kill(); } catch { } return null; }
+                    if (!p.WaitForExit(timeout)) { try { p.Kill(); } catch { } return null; }
                     return p.ExitCode == 0 ? output.Result : null;
                 }
             }
