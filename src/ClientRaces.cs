@@ -121,7 +121,7 @@ namespace CoAInstaller
             using (var archives = new Archives(client))
             {
                 var bytes = archives.Read("DBFilesClient\\ChrRaces.dbc");
-                if (bytes == null) throw new InvalidOperationException("The game client has no ChrRaces.dbc. Is this the game folder of Conquest of Azeroth?");
+                if (bytes == null) throw new InvalidOperationException(L.T("The game client has no ChrRaces.dbc. Is this the game folder of Conquest of Azeroth?"));
                 var races = DbcTable.Parse(bytes, "ChrRaces.dbc");
                 var rows = races.Records.ToDictionary(r => (int)races.Field(r, 0));
                 for (int n = 1; n < 32; n++) if (!rows.ContainsKey(n)) scan.FreeNumbers.Add(n);

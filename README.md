@@ -1,5 +1,7 @@
 <p align="center"><img src="assets/afk-realm.png" width="160" alt="AFK Realm logo"></p>
 
+<p align="center"><b>English</b> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a> · <a href="README.pt-BR.md">Português (Brasil)</a> · <a href="README.ru.md">Русский</a> · <a href="README.zh-Hans.md">简体中文</a></p>
+
 # AFK Realm
 
 *Go AFK, come back to your own server.*
@@ -25,6 +27,7 @@ Pre-built repacks go stale quickly. Building from source keeps you on the latest
 
 ## Features
 
+- **In your language**: English, Deutsch, Français, Español, Português (Brasil), Русский and 简体中文, chosen from Windows or with one click; more languages can be added as a file ([how](docs/MANUAL.md#15-languages))
 - **Guided installation**: pick a folder and a database password, then click *Install*
 - **Automatic dependencies**: Git, CMake, Visual Studio 2022 C++ Build Tools, OpenSSL 3, Boost 1.87, portable MySQL 8.4, Python and mpqcli, with checksums verified
 - **Always current**: every installation builds the newest CoA core and Playerbots
@@ -138,6 +141,8 @@ Before every build both trees are reset and the patches of all installed modules
 
 `client.patch` changes files of the game client. `files` are files of the module that go into the game (under `Interface\` or `DBFilesClient\`); a file can take values of server settings (`fill`, one or a list: the line with `marker` becomes `line`, with `{set}` replaced by the numbers of the setting as a Lua set, `{words}` by its words as a Lua list, `{text}` by the setting itself). A file or edit with `when` is only used when its conditions on server settings hold (`{conf, key, default}` with `has`: the setting lists a word, `in`/`notIn`: it is (not) one of a list, `is`: it is a word), and a number in an edit can come from a setting (`{"setting": key, "conf": file, "default": n}`, a text with `"text": true`). An edit or a fill with `forEach` (`{conf, key}`) stands for one per word of that setting, with `{each}` replaced by the word everywhere in it; in a fill line, `{conf:KEY}` is the value of setting KEY. `edits` change files of the game itself, which AFK Realm reads out of the player's own game archives (the one the game reads last wins): `insertAfter` adds a `line` to a text file after the line named, `dropRows` removes the rows of a DBC table whose `field` holds one of `values` and whose id is below `idBelow`, `addRows` adds every combination of the value lists in `cross` (one list per field) the table lacks, in the table's own field width, and stops at `maxRows` rows in all or `maxPerRace` rows with the same first field; `setRows` gives the rows whose fields in `match` (field number: value) hold those values the values in `set` (a value in quotes is a text, added to the table's strings); `copyRows` copies such rows with the fields in `set` changed (`newId`: a new id after the highest; `idGroup` with `idKey`: the same new ids in every table of the group, for tables that pair by id such as CharSections and HDCharSections; skipped when a row agrees in the `key` fields); `fillRows` fills rows whose numbers in `empty` are all 0 or below with the bytes in `copy` of a row that agrees at the `same` offsets (first one whose byte at `prefer.offset` is in the same of `prefer.groups`); `cloneRows` copies the rows whose bytes at the offsets in `match` hold those values, with the bytes in `set` changed and a new id, unless a row with the same bytes at the `key` offsets exists (with `replace`, that row takes the copy's bytes). The patches of all modules go into one archive, `Data\patch-Y.MPQ`, with a stamp of its contents; it is built anew when the result would differ, and removed when no module needs it (`Dependencies\client-patch.txt`). A module that writes rows while the server runs, which the record of its database changes cannot see, brings SQL that takes them back in `data/sql/remove/db-world` (or `db-characters`, `db-auth`); AFK Realm runs it when the module is removed, before it undoes the recorded changes. `bots.reset` makes AFK Realm offer once, after the module came, to make the random bots anew (`Dependencies\bot-reset-offered.txt`).
 
+`lang/<code>.json` (for example `lang/de.json`) carries the module's texts in another language: the same format as AFK Realm's own language files (`{"code": "de", "name": "Deutsch", "strings": {"English text": "translation", …}}`), with the English text as the key. AFK Realm shows the translation of a `name` or `why` of `afk-realm.json`, of the sections, descriptions and choices of the module's `conf/*.conf.dist` (as AFK Realm reads them, so take the keys from `python3 tools/lang.py --module <folder> keys`, which writes `lang/template.json`), of the races of `races.json` and of the zone names of `data/journey-ui.json`. `tools/lang.py --module <folder> check` lists what is missing.
+
 Folder layout after installation:
 
 ```
@@ -160,6 +165,10 @@ C:\CoA-Server\
 - **A module does not compile**: it was taken out again automatically and the server is unchanged; the first compiler error in `logs\install.log` names the problem. Many modules are written for the regular AzerothCore and do not fit CoA.
 - **Game master tools say "Stop and start the server once"**: the line to the server is set up when the server is started through AFK Realm; a server that was started earlier or with `START-SERVER.cmd` before the first such start does not have it yet.
 - **Friends cannot connect**: set the realm address under *Play with others*, restart the server, and make sure the VPN is connected on both PCs.
+
+## Translations
+
+The texts of AFK Realm are written in English in the code (`L.T("…")`) and translated in `lang/<code>.json`, which are built into the exe. `python3 tools/lang.py keys` writes `lang/template.json` with every text, `python3 tools/lang.py check` shows for each language what is missing, no longer used or has different `{0}` places. Corrections and new languages are welcome as a pull request.
 
 ## Building the exe yourself
 

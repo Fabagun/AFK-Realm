@@ -60,15 +60,15 @@ namespace CoAInstaller
 
             var foot = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 62, Padding = new Padding(14, 12, 14, 10), FlowDirection = FlowDirection.RightToLeft, BackColor = Ui.Surface, WrapContents = false };
             foot.Paint += (s, e) => { using (var pen = new Pen(Ui.Line)) e.Graphics.DrawLine(pen, 0, 0, foot.Width, 0); };
-            var save = Ui.Primary("Save");
-            var cancel = Ui.Secondary("Cancel");
-            var defaults = Ui.Ghost("Reset to defaults");
-            var file = Ui.Ghost("Open the file");
+            var save = Ui.Primary(L.T("Save"));
+            var cancel = Ui.Secondary(L.T("Cancel"));
+            var defaults = Ui.Ghost(L.T("Reset to defaults"));
+            var file = Ui.Ghost(L.T("Open the file"));
             save.Click += (s, e) => Save();
             cancel.Click += (s, e) => Close();
             defaults.Click += (s, e) =>
             {
-                if (!Ui.Confirm(this, "Set every option on this page back to the value the module comes with? Nothing is written until you save.")) return;
+                if (!Ui.Confirm(this, L.T("Set every option on this page back to the value the module comes with? Nothing is written until you save."))) return;
                 ResetDefaults(); Reload();
             };
             file.Click += (s, e) => { try { if (!File.Exists(conf.Path) && File.Exists(conf.Path + ".dist")) File.Copy(conf.Path + ".dist", conf.Path); Process.Start("notepad.exe", "\"" + conf.Path + "\""); } catch (Exception ex) { Ui.Error(this, ex.Message); } };
@@ -79,14 +79,14 @@ namespace CoAInstaller
             FormClosing += (s, e) =>
             {
                 if (DialogResult == DialogResult.OK || Unsaved() == 0) return;
-                var answer = MessageBox.Show(this, "Save your changes before closing?", Product.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                var answer = MessageBox.Show(this, L.T("Save your changes before closing?"), Product.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (answer == DialogResult.Cancel) e.Cancel = true;
                 else if (answer == DialogResult.Yes && !Save()) e.Cancel = true;
             };
             Shown += (s, e) =>
             {
                 if (!File.Exists(conf.Path) && !File.Exists(conf.Path + ".dist"))
-                    Ui.Error(this, confName + " was not found in the server's configs\\modules folder. Build the server with the module first.");
+                    Ui.Error(this, L.F("{0} was not found in the server's configs\\modules folder. Build the server with the module first.", confName));
             };
         }
 
@@ -191,7 +191,7 @@ namespace CoAInstaller
         protected virtual void Changed()
         {
             int n = Unsaved();
-            changes.Text = n == 0 ? "" : n == 1 ? "1 change not saved yet" : n + " changes not saved yet";
+            changes.Text = n == 0 ? "" : n == 1 ? L.T("1 change not saved yet") : L.F("{0} changes not saved yet", n);
             changes.ForeColor = n == 0 ? Ui.Muted : Ui.Warn;
             foreach (var r in refreshers) r();
         }
@@ -219,10 +219,10 @@ namespace CoAInstaller
             var written = new[] { conf }.Concat(also).Where(f => f.Pending.Count + f.Removed.Count > 0).Select(f => f.Name).ToList();
             if (written.Count == 0) written.Add(conf.Name);
             try { conf.Save(); foreach (var f in also) f.Save(); }
-            catch (Exception ex) { Ui.Error(this, "The settings could not be saved:\n" + ex.Message); return false; }
+            catch (Exception ex) { Ui.Error(this, L.T("The settings could not be saved:") + "\n" + ex.Message); return false; }
             Changed();
             DialogResult = DialogResult.OK;
-            MessageBox.Show(this, "Saved in " + string.Join(" and ", written) + ".\n\nThe changes take effect when the worldserver is started the next time (Restart server).", Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, L.F("Saved in {0}.", string.Join(", ", written)) + "\n\n" + L.T("The changes take effect when the worldserver is started the next time (Restart server)."), Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
             Close();
             return true;
         }
@@ -306,9 +306,21 @@ namespace CoAInstaller
             var row = Ui.Row(); row.BackColor = Ui.Surface;
             row.Controls.Add(new Label { Text = label, Font = Ui.Base, ForeColor = Ui.Text, Width = labelWidth, Height = 40, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0, 0, 8, 0), BackColor = Ui.Surface });
             var seg = new Segmented(texts) { BackColor = Ui.Surface };
-            row.Controls.Add(seg);
-            card.Add(row);
-            if (hint != null) card.Add(Small(hint, card.Inner - labelWidth - 40, labelWidth + 8));
+            if (labelWidth + 8 + seg.Width <= card.Inner)
+            {
+                row.Controls.Add(seg);
+                card.Add(row);
+                if (hint != null) card.Add(Small(hint, card.Inner - labelWidth - 40, labelWidth + 8));
+            }
+            else
+            {
+                // Longer texts (some languages): the choice goes below its label.
+                row.Controls[0].Width = card.Inner; row.Controls[0].Height = 30;
+                card.Add(row);
+                seg.Margin = new Padding(0, 0, 0, 4);
+                card.Add(seg);
+                if (hint != null) card.Add(Small(hint, card.Inner - 40, 0));
+            }
             loaders.Add(() => { int i = Array.IndexOf(values, Raw(key, values[0])); seg.Selected = i < 0 ? 0 : i; });
             seg.SelectedChanged += (s, e) => Set(key, values[seg.Selected]);
             return seg;
@@ -379,18 +391,16 @@ namespace CoAInstaller
 
     class ClassicSetup : SetupDialog
     {
-        public ClassicSetup(Install i) : base(i, "mod_classic_classes.conf", "Classic classes", "mod-classic-classes  ·  modules\\mod_classic_classes.conf", "gamemaster", "ClassicClasses.Enable", "Classic classes on")
+        public ClassicSetup(Install i) : base(i, "mod_classic_classes.conf", L.T("Classic classes"), L.T("mod-classic-classes  ·  modules\\mod_classic_classes.conf"), "gamemaster", "ClassicClasses.Enable", L.T("Classic classes on"))
         {
-            Tab("Classes");
-            var classes = Card("Which classic classes can be played", "Next to the classes of Conquest of Azeroth, in the way Ascension's Warcraft Reborn realms played them: their Reborn spells, trainers, talents and summons. " +
-                "The random bots are created in the same classes.", "gamemaster");
+            Tab(L.T("Classes"));
+            var classes = Card(L.T("Which classic classes can be played"), L.T("Next to the classes of Conquest of Azeroth, in the way Ascension's Warcraft Reborn realms played them: their Reborn spells, trainers, talents and summons. The random bots are created in the same classes."), "gamemaster");
             AddFlags(classes, "ClassicClasses.Classes", new[] { 1, 2, 3, 4, 5, 7, 8, 9, 11 },
-                new[] { "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid" }, 3, ' ');
-            classes.Add(Small("The Death Knight is left out: his spells begin at level 55, so he would skip almost the whole world.", classes.Inner));
+                new[] { L.T("Warrior"), L.T("Paladin"), L.T("Hunter"), L.T("Rogue"), L.T("Priest"), L.T("Shaman"), L.T("Mage"), L.T("Warlock"), L.T("Druid") }, 3, ' ');
+            classes.Add(Small(L.T("The Death Knight is left out: his spells begin at level 55, so he would skip almost the whole world."), classes.Inner));
 
-            var after = Card("After a change", null, "client");
-            after.Add(Small("The class choice of the game shows the classes of the client patch. After a change, open Modules › Game client and choose Install: " +
-                Product.Name + " builds the patch anew. The other players need the new ZIP. Bots already made keep their class; Maintenance › Reset random bots makes them anew.", after.Inner));
+            var after = Card(L.T("After a change"), null, "client");
+            after.Add(Small(L.F("The class choice of the game shows the classes of the client patch. After a change, open Modules › Game client and choose Install: {0} builds the patch anew. The other players need the new ZIP. Bots already made keep their class; Maintenance › Reset random bots makes them anew.", Product.Name), after.Inner));
             Start();
         }
     }
@@ -421,41 +431,37 @@ namespace CoAInstaller
         string folder;
         readonly Label usage = new Label { AutoSize = true, Font = Ui.Bold, ForeColor = Ui.Text, BackColor = Ui.Surface, Margin = new Padding(0, 4, 0, 8) };
 
-        public RacesSetup(Install i) : base(i, "mod_custom_races.conf", "Custom races", "mod-custom-races  ·  modules\\mod_custom_races.conf", "accounts", "CustomRaces.Enable", "Custom races on")
+        public RacesSetup(Install i) : base(i, "mod_custom_races.conf", L.T("Custom races"), L.T("mod-custom-races  ·  modules\\mod_custom_races.conf"), "accounts", "CustomRaces.Enable", L.T("Custom races on"))
         {
             ReadKnown();
             string problem = ReadClient();
             ReadFolder();
 
-            Tab("Races");
-            var head = Card("Which races can be played", "These are the races your game client carries a body for, read from the client itself. " +
-                "Switch on the ones you want: each starts like its base race - where that race starts, with its quests, stats, racial abilities and faction - " +
-                "and keeps its own looks." + (slots.Count > 0 ? " The game client knows race numbers up to 31, so " + slots.Count + " races without a number of their own can be on at once - " +
-                (slots.Count + moreSlots.Count) + " with the 64-race patch below." : ""), "accounts");
+            Tab(L.T("Races"));
+            var head = Card(L.T("Which races can be played"), L.T("These are the races your game client carries a body for, read from the client itself. Switch on the ones you want: each starts like its base race - where that race starts, with its quests, stats, racial abilities and faction - and keeps its own looks.") +
+                (slots.Count > 0 ? " " + L.F("The game client knows race numbers up to 31, so {0} races without a number of their own can be on at once - {1} with the 64-race patch below.", slots.Count, slots.Count + moreSlots.Count) : ""), "accounts");
             if (problem != null) head.Add(Small(problem, head.Inner));
             else head.Add(usage);
             OnChange(UpdateUsage);
 
-            var fold = Card("Races from other clients", "Races of other game clients and repacks, gathered into a race folder: one folder per race with its " +
-                "models, textures and rows (race.json). They are offered below like the races of your client; where your client has the same race, you choose " +
-                "whose looks it gets. Their files go into the game as an archive of their own for each race (Data\\patch-ZY<number>.MPQ).", "client");
+            var fold = Card(L.T("Races from other clients"), L.T("Races of other game clients and repacks, gathered into a race folder: one folder per race with its models, textures and rows (race.json). They are offered below like the races of your client; where your client has the same race, you choose whose looks it gets. Their files go into the game as an archive of their own for each race (Data\\patch-ZY<number>.MPQ)."), "client");
             var where = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(fold.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8),
-                Text = folder == null ? "No race folder chosen." : folder + "  ·  " + races.Count(r => r.Pack != null || r.Alt != null) + " races" };
+                Text = folder == null ? L.T("No race folder chosen.") : folder + "  ·  " + L.F("{0} races", races.Count(r => r.Pack != null || r.Alt != null)) };
             fold.Add(where);
-            var choose = Ui.Secondary("Choose the race folder …");
+            var choose = Ui.Secondary(L.T("Choose the race folder …"));
             choose.Click += (s, e) =>
             {
-                using (var d = new FolderBrowserDialog { Description = "The race folder: one folder per race, each with a race.json", SelectedPath = folder ?? "" })
+                using (var d = new FolderBrowserDialog { Description = L.T("The race folder: one folder per race, each with a race.json"), SelectedPath = folder ?? "" })
                 {
                     if (d.ShowDialog(this) != DialogResult.OK) return;
                     string chosen = d.SelectedPath;
-                    if (Busy.Run(this, "Reading the race folder …", report => RaceImport.Read(chosen).Count) == 0) { Ui.Error(this, "This folder holds no races (no subfolders with a race.json)."); return; }
+                    if (Busy.Run(this, L.T("Reading the race folder …"), report => RaceImport.Read(chosen).Count) == 0) { Ui.Error(this, L.T("This folder holds no races (no subfolders with a race.json).")); return; }
                     Set("CustomRaces.ImportFolder", "\"" + d.SelectedPath + "\"");
-                    where.Text = d.SelectedPath + "  ·  save, then open this page again to see its races";
+                    where.Text = d.SelectedPath + "  ·  " + L.T("save, then open this page again to see its races");
                 }
             };
             fold.Add(choose);
-            var make = Ui.Secondary("Create race packs from a client …");
+            var make = Ui.Secondary(L.T("Create race packs from a client …"));
             make.Click += (s, e) =>
             {
                 string target = folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "AFK-Rassen");
@@ -466,16 +472,13 @@ namespace CoAInstaller
                     d.ShowDialog(this);
                     if (d.Made == 0) return;
                     if (Raw("CustomRaces.ImportFolder", "") != target) Set("CustomRaces.ImportFolder", "\"" + target + "\"");
-                    where.Text = target + "  ·  save, then open this page again to see the new races";
+                    where.Text = target + "  ·  " + L.T("save, then open this page again to see the new races");
                 }
             };
             fold.Add(make);
 
             // more than 31 races: the 64-race patch of the game client (a DLL of the user's own, from CoA Custom)
-            var more = Card("More than 31 races", "The game client knows race numbers up to 31. With a 64-race patch (dinput8.dll next to Ascension.exe, as " +
-                "CoA Custom ships it) it knows numbers up to 63, and " + (moreSlots.Count > 0 ? moreSlots.Count.ToString() : "up to 32") + " more races can be on at once. " + Product.Name + " puts the patch next to " +
-                "your game when you install the client patch, and into the ZIP for the other players; switched off, it takes it away again. A race above 32 does " +
-                "what its base race may do (it has no bit of its own in the race masks of quests and items). The server needs its core rebuilt for this once.", "client");
+            var more = Card(L.T("More than 31 races"), L.F("The game client knows race numbers up to 31. With a 64-race patch (dinput8.dll next to Ascension.exe, as CoA Custom ships it) it knows numbers up to 63, and {0} more races can be on at once. {1} puts the patch next to your game when you install the client patch, and into the ZIP for the other players; switched off, it takes it away again. A race above 32 does what its base race may do (it has no bit of its own in the race masks of quests and items). The server needs its core rebuilt for this once.", (moreSlots.Count > 0 ? moreSlots.Count.ToString() : L.T("up to 32")), Product.Name), "client");
             var dllNote = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(more.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
             Func<string> dll = () =>
             {
@@ -486,20 +489,20 @@ namespace CoAInstaller
             Action showDll = () =>
             {
                 string f = dll();
-                dllNote.Text = f.Length == 0 ? "No 64-race patch chosen. Making race packs from CoA Custom keeps its patch in your race folder (_Client\\dinput8.dll)." :
-                    File.Exists(f) ? "Patch: " + f : "Patch not found: " + f;
+                dllNote.Text = f.Length == 0 ? L.T("No 64-race patch chosen. Making race packs from CoA Custom keeps its patch in your race folder (_Client\\dinput8.dll).") :
+                    File.Exists(f) ? L.T("Patch:") + " " + f : L.T("Patch not found:") + " " + f;
             };
-            var moreToggle = new Toggle("Race numbers above 31 (64-race patch)") { BackColor = Ui.Surface };
+            var moreToggle = new Toggle(L.T("Race numbers above 31 (64-race patch)")) { BackColor = Ui.Surface };
             moreToggle.Wrap(more.Inner - 40);
             more.Add(moreToggle);
             more.Add(dllNote);
-            var pickDll = Ui.Secondary("Choose the patch (dinput8.dll) …");
+            var pickDll = Ui.Secondary(L.T("Choose the patch (dinput8.dll) …"));
             pickDll.Click += (s, e) =>
             {
-                using (var d = new OpenFileDialog { Filter = "64-race patch (dinput8.dll)|dinput8.dll|DLL files (*.dll)|*.dll", Title = "The 64-race patch of the game client" })
+                using (var d = new OpenFileDialog { Filter = L.T("64-race patch") + " (dinput8.dll)|dinput8.dll|" + L.T("DLL files") + " (*.dll)|*.dll", Title = L.T("The 64-race patch of the game client") })
                 {
                     if (d.ShowDialog(this) != DialogResult.OK) return;
-                    if (!RacePacker.IsRacePatch(d.FileName)) { Ui.Error(this, "This DLL is not a 64-race patch of the game client."); return; }
+                    if (!RacePacker.IsRacePatch(d.FileName)) { Ui.Error(this, L.T("This DLL is not a 64-race patch of the game client.")); return; }
                     Set("CustomRaces.MoreRacesFile", "\"" + d.FileName + "\"");
                     showDll();
                 }
@@ -514,7 +517,7 @@ namespace CoAInstaller
                     string f = dll();
                     if (f.Length == 0 || !File.Exists(f))
                     {
-                        Ui.Error(this, "Choose the 64-race patch first (dinput8.dll of CoA Custom), or make race packs from CoA Custom: that keeps its patch in your race folder.");
+                        Ui.Error(this, L.T("Choose the 64-race patch first (dinput8.dll of CoA Custom), or make race packs from CoA Custom: that keeps its patch in your race folder."));
                         moreToggle.Checked = false;
                         return;
                     }
@@ -524,8 +527,8 @@ namespace CoAInstaller
                 else
                 {
                     var above = races.Where(r => IdOf(r) > 31 && Chosen().Any(c => c.Equals(r.Key, StringComparison.OrdinalIgnoreCase))).Select(r => r.Name).ToList();
-                    if (above.Count > 0 && !Ui.Confirm(this, string.Join(", ", above) + (above.Count == 1 ? " has a race number" : " have race numbers") +
-                        " above 31 and will stay off without the patch; their characters play their base race until it is on again. Switch it off?"))
+                    if (above.Count > 0 && !Ui.Confirm(this, (above.Count == 1 ? L.F("{0} has a race number above 31 and will stay off without the patch; its characters play their base race until it is on again. Switch it off?", above[0])
+                        : L.F("{0} have race numbers above 31 and will stay off without the patch; their characters play their base race until it is on again. Switch it off?", string.Join(", ", above)))))
                     {
                         moreToggle.Checked = true;
                         return;
@@ -536,11 +539,11 @@ namespace CoAInstaller
 
             var groups = new[]
             {
-                new { Id = "armor", Title = "Show armour, male and female" },
-                new { Id = "male", Title = "Male only - the game has no female model" },
-                new { Id = "noarmor", Title = "Show no armour - their model has no places for it" },
-                new { Id = "untested", Title = "Not tried yet" },
-                new { Id = "poor", Title = "Not recommended" },
+                new { Id = "armor", Title = L.T("Show armour, male and female") },
+                new { Id = "male", Title = L.T("Male only - the game has no female model") },
+                new { Id = "noarmor", Title = L.T("Show no armour - their model has no places for it") },
+                new { Id = "untested", Title = L.T("Not tried yet") },
+                new { Id = "poor", Title = L.T("Not recommended") },
             };
             foreach (var g in groups)
             {
@@ -550,11 +553,8 @@ namespace CoAInstaller
                 foreach (var r in group) AddRace(card, r);
             }
 
-            var after = Card("After a change", null, "client");
-            after.Add(Small("The race choice of the game shows the races of the client patch. After a change, open Modules › Game client and choose Install: " +
-                Product.Name + " builds the patch anew. The other players need the new ZIP. A race switched off keeps its characters as their base race until " +
-                "it is on again; changing the base race of a race with characters may move them to the other faction. When the game client changes with " +
-                "an update, open this page again: it reads the races anew.", after.Inner));
+            var after = Card(L.T("After a change"), null, "client");
+            after.Add(Small(L.F("The race choice of the game shows the races of the client patch. After a change, open Modules › Game client and choose Install: {0} builds the patch anew. The other players need the new ZIP. A race switched off keeps its characters as their base race until it is on again; changing the base race of a race with characters may move them to the other faction. When the game client changes with an update, open this page again: it reads the races anew.", Product.Name), after.Inner));
             Start();
             Shown += (s, e) => Refresh();
         }
@@ -608,7 +608,7 @@ namespace CoAInstaller
                     }
                 }
             }
-            catch (Exception ex) { Shown += (s, e) => Ui.Error(this, "What mod-custom-races knows of the races could not be read (" + file + "): " + ex.Message); }
+            catch (Exception ex) { Shown += (s, e) => Ui.Error(this, L.F("What mod-custom-races knows of the races could not be read ({0}): {1}", file, ex.Message)); }
             if (bases.Count == 0) bases.AddRange(new[] { "Human", "Orc", "Dwarf", "NightElf", "Undead", "Tauren", "Gnome", "Troll", "BloodElf", "Draenei" });
         }
 
@@ -617,7 +617,7 @@ namespace CoAInstaller
         {
             string client = ClientAddons.ClientFolder;
             if (client == null || !ClientAddons.IsClientFolder(client))
-                return "No game client is chosen yet. Choose your game folder under Modules › Game client, then open this page again: the races are read from it.";
+                return L.T("No game client is chosen yet. Choose your game folder under Modules › Game client, then open this page again: the races are read from it.");
             try
             {
                 var scan = ClientRaces.Read(client, virtuals);
@@ -625,9 +625,9 @@ namespace CoAInstaller
                 slots.AddRange(scan.FreeNumbers);
                 moreSlots.AddRange(scan.MoreNumbers);
                 foreach (var h in scan.HelmetPrefixes) helmetPrefixes.Add(h);
-                return races.Count == 0 ? "Your game client has no races beyond the stock ones." : null;
+                return races.Count == 0 ? L.T("Your game client has no races beyond the stock ones.") : null;
             }
-            catch (Exception ex) { return "The races of your game client could not be read: " + ex.Message; }
+            catch (Exception ex) { return L.T("The races of your game client could not be read:") + " " + ex.Message; }
         }
 
         /// <summary>The races of the race folder: new ones, and other looks for races this client has.</summary>
@@ -649,6 +649,18 @@ namespace CoAInstaller
         }
 
         Known KnownOf(ClientRace r) { Known k; return known.TryGetValue(r.Key, out k) ? k : null; }
+
+        /// <summary>A stock race (its key, "NightElf") as the game names it, in the language shown.</summary>
+        static string BaseName(string key)
+        {
+            switch (key)
+            {
+                case "Human": return L.T("Human"); case "Orc": return L.T("Orc"); case "Dwarf": return L.T("Dwarf"); case "NightElf": return L.T("Night Elf");
+                case "Undead": return L.T("Undead"); case "Tauren": return L.T("Tauren"); case "Gnome": return L.T("Gnome"); case "Troll": return L.T("Troll");
+                case "BloodElf": return L.T("Blood Elf"); case "Draenei": return L.T("Draenei");
+                default: return key;
+            }
+        }
 
         bool UsesFolder(ClientRace r) { return r.Pack != null || (r.Alt != null && Raw("CustomRaces." + r.Key + ".Import", "0") == "1"); }
 
@@ -769,7 +781,7 @@ namespace CoAInstaller
         {
             int used = races.Count(r => !r.OwnNumber && IdOf(r) > 0);
             int on = Chosen().Count(k => races.Any(r => r.Key.Equals(k, StringComparison.OrdinalIgnoreCase)));
-            usage.Text = on + (on == 1 ? " race" : " races") + " on  ·  " + used + " of " + Slots.Count + " free race numbers in use";
+            usage.Text = (on == 1 ? L.T("1 race on") : L.F("{0} races on", on)) + "  ·  " + L.F("{0} of {1} free race numbers in use", used, Slots.Count);
             usage.ForeColor = used >= Slots.Count ? Ui.Warn : Ui.Text;
         }
 
@@ -777,25 +789,25 @@ namespace CoAInstaller
         {
             var k = KnownOf(r);
             var row = Ui.Row(); row.BackColor = Ui.Surface;
-            var toggle = new Toggle(r.Name) { BackColor = Ui.Surface };
+            var toggle = new Toggle(L.Outside(r.Name)) { BackColor = Ui.Surface };
             toggle.Wrap(220);
             toggle.Width = 230;
             var basePick = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130, Font = Ui.Base, Margin = new Padding(4, 3, 8, 0) };
-            foreach (var b in bases) basePick.Items.Add(b);
+            foreach (var b in bases) basePick.Items.Add(BaseName(b));
             var number = new Label { AutoSize = false, Width = 175, Height = 30, Font = Ui.Small, ForeColor = Ui.Muted, TextAlign = ContentAlignment.MiddleLeft, BackColor = Ui.Surface };
-            var free = Ui.Ghost("Free its number");
+            var free = Ui.Ghost(L.T("Free its number"));
             free.Visible = !r.OwnNumber;
-            row.Controls.Add(toggle); row.Controls.Add(new Label { Text = "leans on", Font = Ui.Small, ForeColor = Ui.Muted, AutoSize = true, Margin = new Padding(0, 9, 0, 0), BackColor = Ui.Surface });
+            row.Controls.Add(toggle); row.Controls.Add(new Label { Text = L.T("leans on"), Font = Ui.Small, ForeColor = Ui.Muted, AutoSize = true, Margin = new Padding(0, 9, 0, 0), BackColor = Ui.Surface });
             row.Controls.Add(basePick); row.Controls.Add(number); row.Controls.Add(free);
             card.Add(row);
-            string about = r.Pack != null ? "From your race folder (" + (r.Pack.Source.Length > 0 ? r.Pack.Source : "another client") + ", " + (r.Pack.Bytes / 1000000) + " MB)." +
-                    (r.Pack.Missing > 0 ? " " + r.Pack.Missing + " of its files are missing; the choices that need them are left out." : "")
-                : k != null && k.About.Length > 0 ? k.About : "A race of your game client" + (r.Virtual ? "" : " (row " + r.Source + " of its race table)") + ".";
-            if (k != null && k.Note.Length > 0) about += " " + k.Note;
+            string about = r.Pack != null ? L.F("From your race folder ({0}, {1} MB).", r.Pack.Source.Length > 0 ? r.Pack.Source : L.T("another client"), r.Pack.Bytes / 1000000) +
+                    (r.Pack.Missing > 0 ? " " + L.F("{0} of its files are missing; the choices that need them are left out.", r.Pack.Missing) : "")
+                : k != null && k.About.Length > 0 ? L.Outside(k.About) : r.Virtual ? L.T("A race of your game client.") : L.F("A race of your game client (row {0} of its race table).", r.Source);
+            if (k != null && k.Note.Length > 0) about += " " + L.Outside(k.Note);
             card.Add(Small(about, card.Inner - 40, 46));
             if (r.Alt != null)
             {
-                var alt = new Toggle("Looks from the race folder (" + (r.Alt.Source.Length > 0 ? r.Alt.Source : "another client") + ", " + (r.Alt.Bytes / 1000000) + " MB) instead of your client") { BackColor = Ui.Surface, Margin = new Padding(46, 0, 0, 8) };
+                var alt = new Toggle(L.F("Looks from the race folder ({0}, {1} MB) instead of your client", r.Alt.Source.Length > 0 ? r.Alt.Source : L.T("another client"), r.Alt.Bytes / 1000000)) { BackColor = Ui.Surface, Margin = new Padding(46, 0, 0, 8) };
                 alt.Wrap(card.Inner - 80);
                 card.Add(alt);
                 AddLoader(() => alt.Checked = Raw("CustomRaces." + r.Key + ".Import", "0") == "1");
@@ -810,7 +822,7 @@ namespace CoAInstaller
             Action show = () =>
             {
                 int id = IdOf(r);
-                number.Text = r.OwnNumber ? "race number " + r.Source + " (its own)" : id > 0 ? "race number " + id : "no race number yet";
+                number.Text = r.OwnNumber ? L.F("race number {0} (its own)", r.Source) : id > 0 ? L.F("race number {0}", id) : L.T("no race number yet");
                 free.Enabled = !r.OwnNumber && id > 0 && !toggle.Checked;
             };
             AddLoader(() =>
@@ -833,8 +845,7 @@ namespace CoAInstaller
                         id = FreeSlot();
                         if (id == 0)
                         {
-                            Ui.Error(this, "All " + Slots.Count + " free race numbers are taken" + (More ? "" : " (switch on the 64-race patch for more)") + ". Free the number of a race you do not want any more " +
-                                "(switch it off, then \"Free its number\") to make room for the " + r.Name + ".");
+                            Ui.Error(this, L.F("All {0} free race numbers are taken{1}. Free the number of a race you do not want any more (switch it off, then \"Free its number\") to make room for the {2}.", Slots.Count, More ? "" : " " + L.T("(switch on the 64-race patch for more)"), L.Outside(r.Name)));
                             toggle.Checked = false;
                             return;
                         }
@@ -853,7 +864,7 @@ namespace CoAInstaller
             };
             free.Click += (s, e) =>
             {
-                if (!Ui.Confirm(this, "Give up the race number of the " + r.Name + "? Its characters stay their base race for good, and another race can take the number.")) return;
+                if (!Ui.Confirm(this, L.F("Give up the race number of the {0}? Its characters stay their base race for good, and another race can take the number.", L.Outside(r.Name)))) return;
                 Set("CustomRaces." + r.Key + ".Id", "0");
             };
         }
@@ -917,10 +928,10 @@ namespace CoAInstaller
             Func<double, float> X = l => left + (float)((l - 1) / 59.0) * w;
             var lanes = new[]
             {
-                Tuple.Create("Old world", Rules.ClassicFrom, Rules.ClassicTo, OldWorld),
-                Tuple.Create("Outland", Rules.OutlandFrom, Rules.OutlandTo, Outland),
-                Tuple.Create("Northrend", Rules.NorthrendFrom, Rules.NorthrendTo, Northrend),
-                Tuple.Create("Raids and heroics", Rules.Endgame, Rules.Endgame, End),
+                Tuple.Create(L.T("Old world"), Rules.ClassicFrom, Rules.ClassicTo, OldWorld),
+                Tuple.Create(L.T("Outland"), Rules.OutlandFrom, Rules.OutlandTo, Outland),
+                Tuple.Create(L.T("Northrend"), Rules.NorthrendFrom, Rules.NorthrendTo, Northrend),
+                Tuple.Create(L.T("Raids and heroics"), Rules.Endgame, Rules.Endgame, End),
             };
             for (int i = 0; i < lanes.Length; i++)
             {
@@ -980,10 +991,10 @@ namespace CoAInstaller
                 }
             }
             string text = On
-                ? "A character of level " + Level + " meets the weakest creatures of a zone at " + (Level - Below) + ", the strongest at " + (Level + Above) + ", elites and rares up to " + (Level + Above + 1) + "."
-                : "Without the window every lifted creature stands at the same level below the character (DestinyWeaver.Scaling.Offset).";
+                ? L.F("A character of level {0} meets the weakest creatures of a zone at {1}, the strongest at {2}, elites and rares up to {3}.", Level, Level - Below, Level + Above, Level + Above + 1)
+                : L.T("Without the window every lifted creature stands at the same level below the character (DestinyWeaver.Scaling.Offset).");
             TextRenderer.DrawText(g, text, Ui.Small, new Rectangle(8, 74, Width - 16, 18), Ui.Muted, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-            TextRenderer.DrawText(g, "Character", Ui.Small, new Point((int)X(Level) - 26, 0), Ui.Accent);
+            TextRenderer.DrawText(g, L.T("Character"), Ui.Small, new Point((int)X(Level) - 26, 0), Ui.Accent);
         }
     }
 
@@ -994,92 +1005,90 @@ namespace CoAInstaller
         readonly JourneyRules rules = new JourneyRules();
         readonly JourneyBar bar = new JourneyBar();
         readonly ListView placeList = new ListView { View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle, Height = 330 };
-        readonly Segmented placeKind = new Segmented("Zones", "Dungeons and raids");
-        readonly Toggle byHand = new Toggle("Set this one by hand");
+        readonly Segmented placeKind = new Segmented(L.T("Zones"), L.T("Dungeons and raids"));
+        readonly Toggle byHand = new Toggle(L.T("Set this one by hand"));
         Slider handLevel;
         readonly Label placeName = new Label { AutoSize = true, Font = Ui.Bold, ForeColor = Ui.Text, BackColor = Ui.Surface, Margin = new Padding(0, 8, 0, 2) };
         static readonly string[] Parts = { "OldWorld", "Outland", "Northrend", "Endgame" };
-        static readonly string[] PartNames = { "Old world", "Outland", "Northrend", "Raids and heroics" };
+        static readonly string[] PartNames = { L.T("Old world"), L.T("Outland"), L.T("Northrend"), L.T("Raids and heroics") };
         static readonly string[] Ranks = { "Normal", "Elite", "RareElite", "WorldBoss", "Rare" };
-        static readonly string[] RankNames = { "Normal", "Elite", "Rare elite", "World boss", "Rare" };
+        static readonly string[] RankNames = { L.T("Normal"), L.T("Elite"), L.T("Rare elite"), L.T("World boss"), L.T("Rare") };
         static readonly string[] Stats = { "Health", "Damage", "SpellDamage", "Armor" };
-        static readonly string[] StatNames = { "Health", "Damage", "Spell damage", "Armor" };
-        readonly Segmented diffPart = new Segmented("All parts", "Old world", "Outland", "Northrend", "Raids and heroics");
-        readonly Toggle partOwn = new Toggle("Own values for this part of the world");
+        static readonly string[] StatNames = { L.T("Health"), L.T("Damage"), L.T("Spell damage"), L.T("Armor") };
+        readonly Segmented diffPart = new Segmented(L.T("All parts"), L.T("Old world"), L.T("Outland"), L.T("Northrend"), L.T("Raids and heroics"));
+        readonly Toggle partOwn = new Toggle(L.T("Own values for this part of the world"));
         readonly Slider[,] diff = new Slider[5, 4];
-        readonly Segmented preset = new Segmented("Relaxed", "Standard", "Challenging", "Hard");
-        readonly PillToggle extraHard = new PillToggle("Extra hard") { BackColor = Ui.Surface };
+        readonly Segmented preset = new Segmented(L.T("Relaxed"), L.T("Standard"), L.T("Challenging"), L.T("Hard"));
+        readonly PillToggle extraHard = new PillToggle(L.T("Extra hard")) { BackColor = Ui.Surface };
         ConfigFile coa;
         const string CoaSwitch = "CoA.CreatureScaling.Enable";
 
-        public JourneySetup(Install i) : base(i, "mod_world_journey.conf", "World Journey", "mod-world-journey  ·  modules\\mod_world_journey.conf", "journey", "Journey.Enable", "World Journey on")
+        public JourneySetup(Install i) : base(i, "mod_world_journey.conf", L.T("World Journey"), L.T("mod-world-journey  ·  modules\\mod_world_journey.conf"), "journey", "Journey.Enable", L.T("World Journey on"))
         {
             LoadPlaces();
 
             // ---- the journey
-            Tab("The journey");
-            var shape = Card("Where each part of the world begins", "The zones of a part open over its range, in their original order; every zone stays worth playing until 60, because CoA lifts its creatures to a character. " +
-                "The ranges may overlap: that makes the journey a choice instead of a tube.", "journey");
+            Tab(L.T("The journey"));
+            var shape = Card(L.T("Where each part of the world begins"), L.T("The zones of a part open over its range, in their original order; every zone stays worth playing until 60, because CoA lifts its creatures to a character. The ranges may overlap: that makes the journey a choice instead of a tube."), "journey");
             shape.Add(bar).Width = shape.Inner;
-            AddRange(shape, "Journey.Classic.Range", "Old world (was 1–55)", 1, 60, null, JourneyBar.OldWorld);
-            AddRange(shape, "Journey.Outland.Range", "Outland (was 58–67)", 1, 60, null, JourneyBar.Outland);
-            AddRange(shape, "Journey.Northrend.Range", "Northrend (was 68–77)", 1, 60, null, JourneyBar.Northrend);
+            AddRange(shape, "Journey.Classic.Range", L.T("Old world (was 1–55)"), 1, 60, null, JourneyBar.OldWorld);
+            AddRange(shape, "Journey.Outland.Range", L.T("Outland (was 58–67)"), 1, 60, null, JourneyBar.Outland);
+            AddRange(shape, "Journey.Northrend.Range", L.T("Northrend (was 68–77)"), 1, 60, null, JourneyBar.Northrend);
 
-            var end = Card("The end of the journey", "The raids and heroic dungeons of Outland and Northrend are played at the end, after those of the old world, which stay as they are.", "gamemaster");
-            AddSlider(end, "Journey.Endgame.Level", "Level of raids and heroics", 50, 60, 1);
-            AddSlider(end, "Journey.Endgame.BossLevels", "Their bosses stand higher by", 0, 3, 1, v => "+" + (int)v);
-            AddRange(end, "Journey.Endgame.Outland.ItemLevels", "Item levels of Outland's rewards", 60, 200, "The raids of the old world give 66 to 92: Outland's rewards come next on the ladder, Northrend's last.");
-            AddRange(end, "Journey.Endgame.Northrend.ItemLevels", "Item levels of Northrend's rewards", 60, 200);
+            var end = Card(L.T("The end of the journey"), L.T("The raids and heroic dungeons of Outland and Northrend are played at the end, after those of the old world, which stay as they are."), "gamemaster");
+            AddSlider(end, "Journey.Endgame.Level", L.T("Level of raids and heroics"), 50, 60, 1);
+            AddSlider(end, "Journey.Endgame.BossLevels", L.T("Their bosses stand higher by"), 0, 3, 1, v => "+" + (int)v);
+            AddRange(end, "Journey.Endgame.Outland.ItemLevels", L.T("Item levels of Outland's rewards"), 60, 200, L.T("The raids of the old world give 66 to 92: Outland's rewards come next on the ladder, Northrend's last."));
+            AddRange(end, "Journey.Endgame.Northrend.ItemLevels", L.T("Item levels of Northrend's rewards"), 60, 200);
 
-            var guard = Card("The rules of the realm", null, "settings");
-            AddToggle(guard, "Journey.Scaling.Forced", "Every character plays the scaled world",
-                "CoA's level scaling is on for everyone. The question at character creation still appears, but \"off\" no longer counts. Off: each character keeps the choice it made at creation.");
-            AddToggle(guard, "Journey.Guard.Enable", "Keep the realm at 60",
-                "The realm runs with the highest level 60, the Dungeon Finder with the dungeons of Outland and Northrend and Wintergrasp from 60, whatever worldserver.conf says.");
+            var guard = Card(L.T("The rules of the realm"), null, "settings");
+            AddToggle(guard, "Journey.Scaling.Forced", L.T("Every character plays the scaled world"),
+                L.T("CoA's level scaling is on for everyone. The question at character creation still appears, but \"off\" no longer counts. Off: each character keeps the choice it made at creation."));
+            AddToggle(guard, "Journey.Guard.Enable", L.T("Keep the realm at 60"),
+                L.T("The realm runs with the highest level 60, the Dungeon Finder with the dungeons of Outland and Northrend and Wintergrasp from 60, whatever worldserver.conf says."));
 
             // ---- zones and dungeons
-            Tab("Zones and dungeons");
-            var where = Card("Zones and dungeons", "Where each one opens on the journey, worked out from the ranges. Set one by hand to move it: its creatures and quests move with it, and the bots and the world map follow.", "globe");
+            Tab(L.T("Zones and dungeons"));
+            var where = Card(L.T("Zones and dungeons"), L.T("Where each one opens on the journey, worked out from the ranges. Set one by hand to move it: its creatures and quests move with it, and the bots and the world map follow."), "globe");
             where.Add(placeKind);
             placeList.Width = where.Inner;
-            placeList.Columns.Add("Name", 300); placeList.Columns.Add("Part", 150); placeList.Columns.Add("Originally", 100, HorizontalAlignment.Right);
-            placeList.Columns.Add("On the journey", 130, HorizontalAlignment.Right);
+            placeList.Columns.Add(L.T("Name"), 300); placeList.Columns.Add(L.T("Part"), 150); placeList.Columns.Add(L.T("Originally"), 100, HorizontalAlignment.Right);
+            placeList.Columns.Add(L.T("On the journey"), 130, HorizontalAlignment.Right);
             where.Add(placeList);
             where.Add(placeName);
             byHand.BackColor = Ui.Surface;
             where.Add(byHand);
-            handLevel = AddSlider(where, null, "Opens at level", 1, 60, 1);
+            handLevel = AddSlider(where, null, L.T("Opens at level"), 1, 60, 1);
             placeKind.SelectedChanged += (s, e) => FillPlaces();
             placeList.SelectedIndexChanged += (s, e) => ShowPlace();
             byHand.CheckedChanged += (s, e) => { if (!filling) SetHand(); };
             handLevel.ValueChanged += (s, e) => { if (!filling && byHand.Checked) SetHand(); };
-            if (places.Count == 0) Note("The list of zones comes with the module (data\\journey-ui.json). Update World Journey to see it here.");
+            if (places.Count == 0) Note(L.T("The list of zones comes with the module (data\\journey-ui.json). Update World Journey to see it here."));
 
             // ---- level window
-            Tab("Level window");
-            var window = Card("The level window", "Creatures lifted to a character keep their place in their zone: the weakest stand a little below the character, the strongest a little above, elites and rares one more. " +
-                "A creature is never set below its own level.", "server");
-            var winOn = AddToggle(window, "Journey.Window.Enable", "Use the level window");
-            var below = AddSlider(window, "Journey.Window.Below", "Weakest creatures below", 0, 10, 1, v => "−" + (int)v);
-            var above = AddSlider(window, "Journey.Window.Above", "Strongest creatures above", 0, 10, 1, v => "+" + (int)v);
+            Tab(L.T("Level window"));
+            var window = Card(L.T("The level window"), L.T("Creatures lifted to a character keep their place in their zone: the weakest stand a little below the character, the strongest a little above, elites and rares one more. A creature is never set below its own level."), "server");
+            var winOn = AddToggle(window, "Journey.Window.Enable", L.T("Use the level window"));
+            var below = AddSlider(window, "Journey.Window.Below", L.T("Weakest creatures below"), 0, 10, 1, v => "−" + (int)v);
+            var above = AddSlider(window, "Journey.Window.Above", L.T("Strongest creatures above"), 0, 10, 1, v => "+" + (int)v);
             var preview = window.Add(new WindowPreview());
             preview.Width = window.Inner;
-            var level = AddSlider(window, null, "Try it with a character of level", 10, 60, 1);
+            var level = AddSlider(window, null, L.T("Try it with a character of level"), 10, 60, 1);
             level.Value = 40;
             Action showWindow = () => { preview.On = winOn.Checked; preview.Below = (int)below.Value; preview.Above = (int)above.Value; preview.Level = (int)level.Value; preview.Invalidate(); };
             level.ValueChanged += (s, e) => showWindow();
             OnChange(showWindow);
-            Note("The level window and the forced scaling need World Journey's change to the core, which " + Product.Name + " brings in when it builds the server.");
+            Note(L.F("The level window and the forced scaling need World Journey's change to the core, which {0} brings in when it builds the server.", Product.Name));
 
             // ---- difficulty
-            Tab("Difficulty");
-            var presets = Card("How hard", "A starting point for the multipliers below. They come on top of the creatures' base stats and of the Rate.Creature.* settings of the server.", "gamemaster");
+            Tab(L.T("Difficulty"));
+            var presets = Card(L.T("How hard"), L.T("A starting point for the multipliers below. They come on top of the creatures' base stats and of the Rate.Creature.* settings of the server."), "gamemaster");
             var howHard = Ui.Row(); howHard.BackColor = Ui.Surface;
             howHard.Controls.Add(preset);
             extraHard.Margin = new Padding(28, 4, 0, 6);
             howHard.Controls.Add(extraHard);
             presets.Add(howHard);
-            presets.Add(Small("Relaxed: a bit softer than the original. Standard: as the module comes, rares stronger. Challenging and Hard: everything hits harder and lasts longer.", presets.Inner));
+            presets.Add(Small(L.T("Relaxed: a bit softer than the original. Standard: as the module comes, rares stronger. Challenging and Hard: everything hits harder and lasts longer."), presets.Inner));
             var extraText = presets.Add(Small("", presets.Inner));
             preset.SelectedChanged += (s, e) => ApplyPreset(preset.Selected);
             coa = AlsoEdit(inst.CoaConf, "modules\\coa.conf");
@@ -1089,16 +1098,16 @@ namespace CoAInstaller
             AddLoader(() => extraHard.Checked = coaHasIt && RawIn(coa, CoaSwitch, "0") == "1");
             OnChange(() =>
             {
-                if (!coaHasIt) { extraText.Text = "Extra hard needs a CoA core from October 2026 or later, which has creature multipliers of its own. Update the server to use it."; return; }
+                if (!coaHasIt) { extraText.Text = L.T("Extra hard needs a CoA core from October 2026 or later, which has creature multipliers of its own. Update the server to use it."); return; }
                 Func<string, string, string> x = (key, fallback) => "×" + RawIn(coa, "CoA.CreatureScaling." + key, fallback);
-                extraText.Text = "Extra hard adds CoA's own creature multipliers (coa.conf) on top of the level chosen here: " +
-                    "in the open world creatures have " + x("World.Health", "2.5") + " health and hit players and pets " + x("World.Damage", "2.0") + " as hard, " +
-                    "in dungeons " + x("Dungeon.Health", "2.5") + " health (some maps more) and " + x("Dungeon.Damage", "1.5") + " damage, in raids " +
-                    x("Raid.Health", "2.2") + " health. The values themselves are set in coa.conf (Settings).";
+                extraText.Text = L.F("Extra hard adds CoA's own creature multipliers (coa.conf) on top of the level chosen here: " +
+                    "in the open world creatures have {0} health and hit players and pets {1} as hard, " +
+                    "in dungeons {2} health (some maps more) and {3} damage, in raids {4} health. The values themselves are set in coa.conf (Settings).",
+                    x("World.Health", "2.5"), x("World.Damage", "2.0"), x("Dungeon.Health", "2.5"), x("Dungeon.Damage", "1.5"), x("Raid.Health", "2.2"));
                 extraText.ForeColor = extraHard.Checked ? Ui.Bad : Ui.Muted;
             });
 
-            var grid = Card("Multipliers by rank", null, "settings");
+            var grid = Card(L.T("Multipliers by rank"), null, "settings");
             grid.Add(diffPart);
             partOwn.BackColor = Ui.Surface; partOwn.Wrap(grid.Inner);
             grid.Add(partOwn);
@@ -1125,26 +1134,26 @@ namespace CoAInstaller
             diffPart.SelectedChanged += (s, e) => ShowDiff();
             partOwn.CheckedChanged += (s, e) => { if (!filling) PartOwn(partOwn.Checked); };
 
-            var creatures = Card("Creatures on the way", null, "server");
-            AddChoice(creatures, "Journey.Creatures.BaseStats", "Base stats of Outland and Northrend", new[] { "journey", "original" }, new[] { "The old world's (recommended)", "Their own game's" },
-                "Those of the old world rise evenly to 60; the tables of Outland and Northrend have gaps and jumps below 60. Raids and heroics always keep those of their game.");
+            var creatures = Card(L.T("Creatures on the way"), null, "server");
+            AddChoice(creatures, "Journey.Creatures.BaseStats", L.T("Base stats of Outland and Northrend"), new[] { "journey", "original" }, new[] { L.T("The old world's (recommended)"), L.T("Their own game's") },
+                L.T("Those of the old world rise evenly to 60; the tables of Outland and Northrend have gaps and jumps below 60. Raids and heroics always keep those of their game."));
 
-            var xp = Card("Quest experience", "On top of Rate.XP.Quest of the server.", "journey");
-            AddSlider(xp, "Journey.Quests.XpRate", "All quests", 0, 3, 0.05, v => "×" + v.ToString("0.##", CultureInfo.InvariantCulture));
+            var xp = Card(L.T("Quest experience"), L.T("On top of Rate.XP.Quest of the server."), "journey");
+            AddSlider(xp, "Journey.Quests.XpRate", L.T("All quests"), 0, 3, 0.05, v => "×" + v.ToString("0.##", CultureInfo.InvariantCulture));
 
             // ---- what follows
-            Tab("What follows");
-            var follows = Card("What follows the journey", "Switch off what should stay as it came.", "modules");
-            AddToggle(follows, "Journey.Items.Enable", "Items: required level, item level, stats, armor, damage and price");
-            AddToggle(follows, "Journey.Consumables.Enable", "Potions, food, elixirs, flasks and the spells of trinkets and procs");
-            AddToggle(follows, "Journey.Enchantments.Enable", "Gems, socket bonuses and the enchantments of Outland's and Northrend's professions");
-            AddToggle(follows, "Journey.Trainers.Enable", "Riding and the professions (riding at 13 and 26, flying at 33 and 47)");
-            AddToggle(follows, "Journey.Battlegrounds.Enable", "Eye of the Storm, Strand of the Ancients, Isle of Conquest and Wintergrasp open at 60");
-            var client = Card("In the game client", "Needs the add-on ZoneLevels, which " + Product.Name + " puts into your game (Modules › Game client add-ons).", "client");
-            AddToggle(client, "Journey.Map.Enable", "The world map shows the zone levels of the journey");
-            AddToggle(client, "Journey.Tooltips.Enable", "Tooltips show the real values of items' spells, gems and enchantments");
-            var debug = Card("For testing", null, "maintenance");
-            AddToggle(debug, "Journey.Debug", "More detail in the server log");
+            Tab(L.T("What follows"));
+            var follows = Card(L.T("What follows the journey"), L.T("Switch off what should stay as it came."), "modules");
+            AddToggle(follows, "Journey.Items.Enable", L.T("Items: required level, item level, stats, armor, damage and price"));
+            AddToggle(follows, "Journey.Consumables.Enable", L.T("Potions, food, elixirs, flasks and the spells of trinkets and procs"));
+            AddToggle(follows, "Journey.Enchantments.Enable", L.T("Gems, socket bonuses and the enchantments of Outland's and Northrend's professions"));
+            AddToggle(follows, "Journey.Trainers.Enable", L.T("Riding and the professions (riding at 13 and 26, flying at 33 and 47)"));
+            AddToggle(follows, "Journey.Battlegrounds.Enable", L.T("Eye of the Storm, Strand of the Ancients, Isle of Conquest and Wintergrasp open at 60"));
+            var client = Card(L.T("In the game client"), L.F("Needs the add-on ZoneLevels, which {0} puts into your game (Modules › Game client add-ons).", Product.Name), "client");
+            AddToggle(client, "Journey.Map.Enable", L.T("The world map shows the zone levels of the journey"));
+            AddToggle(client, "Journey.Tooltips.Enable", L.T("Tooltips show the real values of items' spells, gems and enchantments"));
+            var debug = Card(L.T("For testing"), null, "maintenance");
+            AddToggle(debug, "Journey.Debug", L.T("More detail in the server log"));
 
             AddLoader(() => { ReadRules(); FillPlaces(); ShowDiff(); preset.Selected = MatchingPreset(); });
             OnChange(() => { ReadRules(); bar.Rules = rules; bar.Invalidate(); if (!filling) RefreshPlaceLevels(); });
@@ -1189,9 +1198,9 @@ namespace CoAInstaller
         string PartOf(Place p)
         {
             if (!p.Instance) return PartNames[p.Part];
-            if (p.Kind == 2) return "Raid";
-            if (p.Kind == 1) return "Heroic";
-            return "Dungeon";
+            if (p.Kind == 2) return L.T("Raid");
+            if (p.Kind == 1) return L.T("Heroic");
+            return L.T("Dungeon");
         }
         int LevelOf(Place p) { return p.Instance ? rules.Instance(p.Id, p.Kind, p.Original, p.Content) : rules.Zone(p.Id, p.Part, p.Original); }
         string Key(Place p) { return (p.Instance ? "Journey.Instance." : "Journey.Zone.") + p.Id; }
@@ -1202,9 +1211,9 @@ namespace CoAInstaller
             bool instances = placeKind.Selected == 1;
             if (placeKind.Selected < 0) placeKind.Selected = 0;
             placeList.BeginUpdate(); placeList.Items.Clear();
-            foreach (var p in places.Where(p => p.Instance == instances).OrderBy(p => LevelOf(p)).ThenBy(p => p.Name))
+            foreach (var p in places.Where(p => p.Instance == instances).OrderBy(p => LevelOf(p)).ThenBy(p => L.Outside(p.Name)))
             {
-                var it = new ListViewItem(p.Name) { Tag = p };
+                var it = new ListViewItem(L.Outside(p.Name)) { Tag = p };
                 it.SubItems.Add(PartOf(p)); it.SubItems.Add(p.Original.ToString()); it.SubItems.Add("");
                 placeList.Items.Add(it);
             }
@@ -1219,7 +1228,7 @@ namespace CoAInstaller
             foreach (ListViewItem it in placeList.Items)
             {
                 var p = (Place)it.Tag;
-                string text = LevelOf(p) + (Has(Key(p)) ? "  (by hand)" : "");
+                string text = LevelOf(p) + (Has(Key(p)) ? "  " + L.T("(by hand)") : "");
                 if (it.SubItems[3].Text != text) it.SubItems[3].Text = text;
                 it.ForeColor = Has(Key(p)) ? Ui.Accent : Ui.Text;
             }
@@ -1230,7 +1239,7 @@ namespace CoAInstaller
             filling = true;
             var p = placeList.SelectedItems.Count == 1 ? (Place)placeList.SelectedItems[0].Tag : null;
             byHand.Enabled = handLevel.Enabled = p != null;
-            placeName.Text = p == null ? "Choose a zone or dungeon in the list to move it." : p.Name + " – opens at " + LevelOf(p) + " on the journey (originally " + p.Original + ")";
+            placeName.Text = p == null ? L.T("Choose a zone or dungeon in the list to move it.") : L.F("{0} – opens at {1} on the journey (originally {2})", L.Outside(p.Name), LevelOf(p), p.Original);
             byHand.Checked = p != null && Has(Key(p));
             handLevel.Value = p == null ? 1 : LevelOf(p);
             handLevel.Enabled = p != null && byHand.Checked;
@@ -1245,7 +1254,7 @@ namespace CoAInstaller
             ReadRules();
             filling = true; handLevel.Enabled = byHand.Checked; if (!byHand.Checked) handLevel.Value = LevelOf(p); filling = false;
             RefreshPlaceLevels();
-            placeName.Text = p.Name + " – opens at " + LevelOf(p) + " on the journey (originally " + p.Original + ")";
+            placeName.Text = L.F("{0} – opens at {1} on the journey (originally {2})", L.Outside(p.Name), LevelOf(p), p.Original);
         }
 
         // ---- difficulty
@@ -1338,134 +1347,134 @@ namespace CoAInstaller
     class AuctionSetup : SetupDialog
     {
         const string P = "PlayerbotsAuctions.";
-        static readonly string[] Qualities = { "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary" };
-        static string Minutes(double v) { return v >= 120 && v % 60 == 0 ? (v / 60) + " h" : (int)v + " min"; }
+        static readonly string[] Qualities = { L.C("quality", "Poor"), L.C("quality", "Common"), L.C("quality", "Uncommon"), L.C("quality", "Rare"), L.C("quality", "Epic"), L.C("quality", "Legendary") };
+        static string Minutes(double v) { return v >= 120 && v % 60 == 0 ? L.F("{0} h", v / 60) : L.F("{0} min", (int)v); }
         static string Times(double v) { return "×" + v.ToString("0.##", CultureInfo.InvariantCulture); }
         static string Percent(double v) { return (int)v + " %"; }
         static string Plain(double v) { return ((int)v).ToString(CultureInfo.InvariantCulture); }
 
-        public AuctionSetup(Install i) : base(i, "mod_playerbots_auctions.conf", "Auction house bots", "mod-playerbots-auctions  ·  modules\\mod_playerbots_auctions.conf", "auction", P + "Enable", "Auction house bots on")
+        public AuctionSetup(Install i) : base(i, "mod_playerbots_auctions.conf", L.T("Auction house bots"), L.T("mod-playerbots-auctions  ·  modules\\mod_playerbots_auctions.conf"), "auction", P + "Enable", L.T("Auction house bots on"))
         {
             // ---- the bots
-            Tab("The bots");
-            var who = Card("Who trades", "Every bot has a character of its own that never changes: whether it collects or tidies up, haggles or pays, crafts for profit or for skill. These settings set the frame.", "accounts");
-            AddSlider(who, P + "MinBotLevel", "Lowest level of trading bots", 1, 80, 1);
-            AddSlider(who, P + "Character.AvoidersPercent", "Bots that never use the auction house", 0, 100, 1, Percent, "They sell everything to a vendor, as many players do.");
-            var trips = Card("Trips to the auction house", "Like a player, a bot decides for itself when it is time to go: when its bags fill up or it has collected enough to sell. Out in the world it takes its hearthstone to a capital, walks to the auctioneers and later returns.", "globe");
-            AddToggle(trips, P + "CityTrip.Enable", "Bots set out for the auction house on their own");
-            AddPair(trips, P + "CityTrip.ItemsMin", P + "CityTrip.ItemsMax", "Things to sell before setting out", 1, 30, 1, Plain, "Tidy bots go with few, collectors with many.");
-            AddPair(trips, P + "CityTrip.CooldownMinutesMin", P + "CityTrip.CooldownMinutesMax", "Time between two trips", 10, 600, 10, Minutes);
-            AddPair(trips, P + "VisitCooldownMinutesMin", P + "VisitCooldownMinutesMax", "Time between visits in town", 5, 240, 5, Minutes);
-            AddSlider(trips, P + "AuctioneerRange", "Distance to the auctioneer", 5, 100, 1, v => (int)v + " yd");
-            var pace = Card("Pace", "How often the module looks at the bots and how many of them do their business each time; keeps the load even with thousands of bots.", "server");
-            AddSlider(pace, P + "IntervalSeconds", "Look at the bots every", 5, 300, 5, v => (int)v + " s");
-            AddSlider(pace, P + "BotsPerCycle", "Bots per look", 1, 100, 1, Plain);
-            AddToggle(pace, P + "DailyRhythm", "Busier in the evening and at the weekend than at night");
-            var memory = Card("Memory and mail", null, "database");
-            AddToggle(memory, P + "SaveMemory", "Bots remember prices over a restart", "What things sold for and what came back unsold is kept in two small tables of the characters database.");
-            AddToggle(memory, P + "PauseAuctionsWhileOffline", "Auctions pause while the server is off", "On a server that only runs for an evening, the auctions would otherwise be gone by the next one.");
-            AddToggle(memory, P + "CollectAuctionMail", "Bots empty their auction mail");
-            AddToggle(memory, P + "Debug", "Write what the bots do to the server log (for testing)");
+            Tab(L.T("The bots"));
+            var who = Card(L.T("Who trades"), L.T("Every bot has a character of its own that never changes: whether it collects or tidies up, haggles or pays, crafts for profit or for skill. These settings set the frame."), "accounts");
+            AddSlider(who, P + "MinBotLevel", L.T("Lowest level of trading bots"), 1, 80, 1);
+            AddSlider(who, P + "Character.AvoidersPercent", L.T("Bots that never use the auction house"), 0, 100, 1, Percent, L.T("They sell everything to a vendor, as many players do."));
+            var trips = Card(L.T("Trips to the auction house"), L.T("Like a player, a bot decides for itself when it is time to go: when its bags fill up or it has collected enough to sell. Out in the world it takes its hearthstone to a capital, walks to the auctioneers and later returns."), "globe");
+            AddToggle(trips, P + "CityTrip.Enable", L.T("Bots set out for the auction house on their own"));
+            AddPair(trips, P + "CityTrip.ItemsMin", P + "CityTrip.ItemsMax", L.T("Things to sell before setting out"), 1, 30, 1, Plain, L.T("Tidy bots go with few, collectors with many."));
+            AddPair(trips, P + "CityTrip.CooldownMinutesMin", P + "CityTrip.CooldownMinutesMax", L.T("Time between two trips"), 10, 600, 10, Minutes);
+            AddPair(trips, P + "VisitCooldownMinutesMin", P + "VisitCooldownMinutesMax", L.T("Time between visits in town"), 5, 240, 5, Minutes);
+            AddSlider(trips, P + "AuctioneerRange", L.T("Distance to the auctioneer"), 5, 100, 1, v => L.F("{0} yd", (int)v));
+            var pace = Card(L.T("Pace"), L.T("How often the module looks at the bots and how many of them do their business each time; keeps the load even with thousands of bots."), "server");
+            AddSlider(pace, P + "IntervalSeconds", L.T("Look at the bots every"), 5, 300, 5, v => L.F("{0} s", (int)v));
+            AddSlider(pace, P + "BotsPerCycle", L.T("Bots per look"), 1, 100, 1, Plain);
+            AddToggle(pace, P + "DailyRhythm", L.T("Busier in the evening and at the weekend than at night"));
+            var memory = Card(L.T("Memory and mail"), null, "database");
+            AddToggle(memory, P + "SaveMemory", L.T("Bots remember prices over a restart"), L.T("What things sold for and what came back unsold is kept in two small tables of the characters database."));
+            AddToggle(memory, P + "PauseAuctionsWhileOffline", L.T("Auctions pause while the server is off"), L.T("On a server that only runs for an evening, the auctions would otherwise be gone by the next one."));
+            AddToggle(memory, P + "CollectAuctionMail", L.T("Bots empty their auction mail"));
+            AddToggle(memory, P + "Debug", L.T("Write what the bots do to the server log (for testing)"));
 
             // ---- selling
-            Tab("Selling");
-            var what = Card("What is sold", "A bot only sells what it does not need itself and what is not soulbound. Items that bind when picked up and quest items are never sold.", "auction");
-            AddChoice(what, P + "Sell.MinQuality.Equipment", "Weapons and armor from", new[] { "0", "1", "2", "3", "4" }, new[] { "Poor", "Common", "Uncommon", "Rare", "Epic" });
-            AddChoice(what, P + "Sell.MinQuality.Other", "Everything else from", new[] { "0", "1", "2", "3", "4" }, new[] { "Poor", "Common", "Uncommon", "Rare", "Epic" });
-            AddChoice(what, P + "Sell.MaxQuality", "Up to", new[] { "2", "3", "4", "5" }, new[] { "Uncommon", "Rare", "Epic", "Legendary" });
-            var classes = Card("Kinds of items", "What may go into the auction house. Projectiles are left out: bots are handed their ammunition.", "modules");
+            Tab(L.T("Selling"));
+            var what = Card(L.T("What is sold"), L.T("A bot only sells what it does not need itself and what is not soulbound. Items that bind when picked up and quest items are never sold."), "auction");
+            AddChoice(what, P + "Sell.MinQuality.Equipment", L.T("Weapons and armor from"), new[] { "0", "1", "2", "3", "4" }, new[] { L.C("quality", "Poor"), L.C("quality", "Common"), L.C("quality", "Uncommon"), L.C("quality", "Rare"), L.C("quality", "Epic") });
+            AddChoice(what, P + "Sell.MinQuality.Other", L.T("Everything else from"), new[] { "0", "1", "2", "3", "4" }, new[] { L.C("quality", "Poor"), L.C("quality", "Common"), L.C("quality", "Uncommon"), L.C("quality", "Rare"), L.C("quality", "Epic") });
+            AddChoice(what, P + "Sell.MaxQuality", L.T("Up to"), new[] { "2", "3", "4", "5" }, new[] { L.C("quality", "Uncommon"), L.C("quality", "Rare"), L.C("quality", "Epic"), L.C("quality", "Legendary") });
+            var classes = Card(L.T("Kinds of items"), L.T("What may go into the auction house. Projectiles are left out: bots are handed their ammunition."), "modules");
             AddFlags(classes, P + "Sell.ItemClasses", new[] { 0, 1, 2, 3, 4, 5, 7, 9, 11, 12, 13, 15, 16 },
-                new[] { "Consumables", "Bags", "Weapons", "Gems", "Armor", "Reagents", "Trade goods", "Recipes", "Quivers", "Quest items (tradable)", "Keys", "Pets, mounts, misc.", "Glyphs" });
-            var how = Card("How", null, "settings");
-            AddToggle(how, P + "Sell.ChargeDeposit", "Bots pay the deposit like players");
-            AddToggle(how, P + "Sell.KeepFromVendor", "Bots keep what is worth an auction from the vendor");
-            AddToggle(how, P + "Sell.JunkToVendor", "Bots sell their junk to a vendor nearby");
-            AddSlider(how, P + "Sell.MinAuctionValueSilver", "Smallest auction worth creating", 0, 100, 1, v => (int)v + " silver");
-            AddSlider(how, P + "Sell.MaxAuctionsPerHouse", "Auctions per auction house at most", 1000, 50000, 1000, Plain);
-            var never = Card("Never sold", null, "maintenance");
-            AddText(never, P + "Sell.ExcludedItemIDs", "Item ids", "Separated by commas.");
-            AddText(never, P + "Sell.ExcludedNameParts", "Names containing", "Parts of names separated by commas; keeps test and technical items out.");
+                new[] { L.T("Consumables"), L.T("Bags"), L.T("Weapons"), L.T("Gems"), L.T("Armor"), L.T("Reagents"), L.T("Trade goods"), L.T("Recipes"), L.T("Quivers"), L.T("Quest items (tradable)"), L.T("Keys"), L.T("Pets, mounts, misc."), L.T("Glyphs") });
+            var how = Card(L.T("How"), null, "settings");
+            AddToggle(how, P + "Sell.ChargeDeposit", L.T("Bots pay the deposit like players"));
+            AddToggle(how, P + "Sell.KeepFromVendor", L.T("Bots keep what is worth an auction from the vendor"));
+            AddToggle(how, P + "Sell.JunkToVendor", L.T("Bots sell their junk to a vendor nearby"));
+            AddSlider(how, P + "Sell.MinAuctionValueSilver", L.T("Smallest auction worth creating"), 0, 100, 1, v => L.F("{0} silver", (int)v));
+            AddSlider(how, P + "Sell.MaxAuctionsPerHouse", L.T("Auctions per auction house at most"), 1000, 50000, 1000, Plain);
+            var never = Card(L.T("Never sold"), null, "maintenance");
+            AddText(never, P + "Sell.ExcludedItemIDs", L.T("Item ids"), L.T("Separated by commas."));
+            AddText(never, P + "Sell.ExcludedNameParts", L.T("Names containing"), L.T("Parts of names separated by commas; keeps test and technical items out."));
 
             // ---- prices
-            Tab("Prices");
-            var factors = Card("Starting prices", "The vendor value of an item times the factor of its quality. What auctions really sell for moves this usual price over time.", "auction");
-            AddSlider(factors, P + "Price.Poor", "Poor (grey)", 0.5, 10, 0.5, Times);
-            AddSlider(factors, P + "Price.Normal", "Common (white)", 0.5, 20, 0.5, Times);
-            AddSlider(factors, P + "Price.Uncommon", "Uncommon (green)", 1, 40, 0.5, Times);
-            AddSlider(factors, P + "Price.Rare", "Rare (blue)", 1, 60, 1, Times);
-            AddSlider(factors, P + "Price.Epic", "Epic (purple)", 1, 100, 1, Times);
-            AddSlider(factors, P + "Price.Legendary", "Legendary (orange)", 1, 200, 1, Times);
-            var limits = Card("Limits", null, "settings");
-            AddToggle(limits, P + "Price.LearnFromSales", "Prices learn from what really sold");
-            AddSlider(limits, P + "Price.MinVendorFactor", "Never below the vendor value", 1, 5, 0.1, Times);
-            AddSlider(limits, P + "Price.MaxBuyoutGold", "Highest buyout", 0, 20000, 100, v => v == 0 ? "no limit" : (int)v + " g");
+            Tab(L.T("Prices"));
+            var factors = Card(L.T("Starting prices"), L.T("The vendor value of an item times the factor of its quality. What auctions really sell for moves this usual price over time."), "auction");
+            AddSlider(factors, P + "Price.Poor", L.T("Poor (grey)"), 0.5, 10, 0.5, Times);
+            AddSlider(factors, P + "Price.Normal", L.T("Common (white)"), 0.5, 20, 0.5, Times);
+            AddSlider(factors, P + "Price.Uncommon", L.T("Uncommon (green)"), 1, 40, 0.5, Times);
+            AddSlider(factors, P + "Price.Rare", L.T("Rare (blue)"), 1, 60, 1, Times);
+            AddSlider(factors, P + "Price.Epic", L.T("Epic (purple)"), 1, 100, 1, Times);
+            AddSlider(factors, P + "Price.Legendary", L.T("Legendary (orange)"), 1, 200, 1, Times);
+            var limits = Card(L.T("Limits"), null, "settings");
+            AddToggle(limits, P + "Price.LearnFromSales", L.T("Prices learn from what really sold"));
+            AddSlider(limits, P + "Price.MinVendorFactor", L.T("Never below the vendor value"), 1, 5, 0.1, Times);
+            AddSlider(limits, P + "Price.MaxBuyoutGold", L.T("Highest buyout"), 0, 20000, 100, v => v == 0 ? L.T("no limit") : L.F("{0} g", (int)v));
 
             // ---- buying
-            Tab("Buying");
-            var buy = Card("Buying and bidding", "A bot looks through some of the items on offer for things it has a use for: upgrades, things it uses up, bags, materials for its professions. Of several offers it takes the cheapest.", "auction");
-            AddToggle(buy, P + "Buy.Enable", "Bots buy and bid");
-            AddToggle(buy, P + "Buy.FromPlayers", "From players");
-            AddToggle(buy, P + "Buy.FromBots", "From other bots");
-            AddToggle(buy, P + "Buy.PlaceBids", "Bots bid too (a bid can outbid a player)");
-            AddToggle(buy, P + "Buy.UseBotMoney", "Bots pay with their own money");
-            AddSlider(buy, P + "Buy.ItemsLookedAt", "Items looked at per visit", 10, 500, 10, Plain);
-            AddSlider(buy, P + "Buy.MinVendorFactor", "Always willing to pay", 1, 5, 0.1, Times, "Times the vendor value, so selling to the bots is never worse than selling to a vendor.");
-            AddSlider(buy, P + "Buy.VendorItemMaxPercent", "For vendor goods at most", 10, 100, 5, Percent, "Of the vendor's price, so nobody can buy from a vendor and sell to the bots for a profit.");
+            Tab(L.T("Buying"));
+            var buy = Card(L.T("Buying and bidding"), L.T("A bot looks through some of the items on offer for things it has a use for: upgrades, things it uses up, bags, materials for its professions. Of several offers it takes the cheapest."), "auction");
+            AddToggle(buy, P + "Buy.Enable", L.T("Bots buy and bid"));
+            AddToggle(buy, P + "Buy.FromPlayers", L.T("From players"));
+            AddToggle(buy, P + "Buy.FromBots", L.T("From other bots"));
+            AddToggle(buy, P + "Buy.PlaceBids", L.T("Bots bid too (a bid can outbid a player)"));
+            AddToggle(buy, P + "Buy.UseBotMoney", L.T("Bots pay with their own money"));
+            AddSlider(buy, P + "Buy.ItemsLookedAt", L.T("Items looked at per visit"), 10, 500, 10, Plain);
+            AddSlider(buy, P + "Buy.MinVendorFactor", L.T("Always willing to pay"), 1, 5, 0.1, Times, L.T("Times the vendor value, so selling to the bots is never worse than selling to a vendor."));
+            AddSlider(buy, P + "Buy.VendorItemMaxPercent", L.T("For vendor goods at most"), 10, 100, 5, Percent, L.T("Of the vendor's price, so nobody can buy from a vendor and sell to the bots for a profit."));
 
             // ---- crafting
-            Tab("Crafting");
-            var craft = Card("Crafting", "At the auctioneers a bot thinks through its recipes and compares what a product would bring with what its materials cost. What it makes and does not need, it sells.", "maintenance");
-            AddToggle(craft, P + "Crafting.Enable", "Bots craft");
-            AddToggle(craft, P + "Crafting.WalkToAnvilForgeFire", "They walk to an anvil, forge or fire when a recipe needs one");
-            AddToggle(craft, P + "Crafting.BuyMaterials", "They buy missing materials in the auction house");
-            AddToggle(craft, P + "Crafting.BuyVendorMaterials", "They buy thread, vials and the like from a vendor");
-            AddToggle(craft, P + "Crafting.TakeApart", "Prospecting, milling and disenchanting");
-            AddToggle(craft, P + "Crafting.Scrolls", "Enchanters sell their enchantments as scrolls");
-            AddToggle(craft, P + "Crafting.Glyphs", "Scribes make glyphs", "The classes of Conquest of Azeroth cannot use the glyphs of Wrath of the Lich King.");
-            var worth = Card("When it is worth it", null, "settings");
-            AddSlider(worth, P + "Crafting.MinProfitPercent", "Least profit", 0, 200, 5, Percent);
-            AddSlider(worth, P + "Crafting.SkillUpBonusPercent", "A recipe that raises skill is worth more", 0, 300, 10, v => "+" + (int)v + " %");
-            AddSlider(worth, P + "Crafting.MaxMaterialPriceFactor", "Most paid for a material", 1, 5, 0.1, Times, "Times its usual price.");
-            AddSlider(worth, P + "Crafting.RecipesPerVisit", "Recipes thought through per visit", 5, 200, 5, Plain);
-            AddSlider(worth, P + "Crafting.MaxInARow", "Most of one thing in one go", 1, 20, 1, Plain);
+            Tab(L.T("Crafting"));
+            var craft = Card(L.T("Crafting"), L.T("At the auctioneers a bot thinks through its recipes and compares what a product would bring with what its materials cost. What it makes and does not need, it sells."), "maintenance");
+            AddToggle(craft, P + "Crafting.Enable", L.T("Bots craft"));
+            AddToggle(craft, P + "Crafting.WalkToAnvilForgeFire", L.T("They walk to an anvil, forge or fire when a recipe needs one"));
+            AddToggle(craft, P + "Crafting.BuyMaterials", L.T("They buy missing materials in the auction house"));
+            AddToggle(craft, P + "Crafting.BuyVendorMaterials", L.T("They buy thread, vials and the like from a vendor"));
+            AddToggle(craft, P + "Crafting.TakeApart", L.T("Prospecting, milling and disenchanting"));
+            AddToggle(craft, P + "Crafting.Scrolls", L.T("Enchanters sell their enchantments as scrolls"));
+            AddToggle(craft, P + "Crafting.Glyphs", L.T("Scribes make glyphs"), L.T("The classes of Conquest of Azeroth cannot use the glyphs of Wrath of the Lich King."));
+            var worth = Card(L.T("When it is worth it"), null, "settings");
+            AddSlider(worth, P + "Crafting.MinProfitPercent", L.T("Least profit"), 0, 200, 5, Percent);
+            AddSlider(worth, P + "Crafting.SkillUpBonusPercent", L.T("A recipe that raises skill is worth more"), 0, 300, 10, v => "+" + (int)v + " %");
+            AddSlider(worth, P + "Crafting.MaxMaterialPriceFactor", L.T("Most paid for a material"), 1, 5, 0.1, Times, L.T("Times its usual price."));
+            AddSlider(worth, P + "Crafting.RecipesPerVisit", L.T("Recipes thought through per visit"), 5, 200, 5, Plain);
+            AddSlider(worth, P + "Crafting.MaxInARow", L.T("Most of one thing in one go"), 1, 20, 1, Plain);
 
             // ---- chat
-            Tab("Chat");
-            var deals = Card("Deals by chat", "A player writes WTB or WTS into a channel - the item typed out or linked, a number before it, a price after it - and bots answer by whisper. The goods come by mail, cash on delivery.", "accounts");
-            AddToggle(deals, P + "Chat.Enable", "Bots answer WTB and WTS");
-            AddSlider(deals, P + "Chat.Answers", "Bots answering one line at most", 1, 10, 1, Plain);
-            AddText(deals, P + "Chat.Channels", "Channels read", "Parts of channel names separated by commas, for example general, trade. Empty: every channel.");
-            AddToggle(deals, P + "Chat.Meet", "A bot nearby offers to meet");
-            AddSlider(deals, P + "Chat.MeetDistance", "Nearby means within", 10, 2000, 10, v => (int)v + " yd");
-            AddSlider(deals, P + "Chat.MailDelay", "The parcel takes", -1, 3600, 1, v => v < 0 ? "like mail" : v < 120 ? (int)v + " s" : (int)(v / 60) + " min", "\"Like mail\" follows Mail.DeliveryDelay of worldserver.conf.");
-            var chatter = Card("Chatter", "Every bot is somebody in chat too: 65 personalities with more than 16000 lines between them.", "accounts");
-            AddToggle(chatter, P + "Chatter.Enable", "The bots talk");
-            AddSlider(chatter, P + "Chatter.Interval", "Something said out of the blue about every", 20, 3600, 10, v => v < 120 ? (int)v + " s" : (v / 60).ToString("0.#", CultureInfo.InvariantCulture) + " min", "Lower is livelier.");
-            AddToggle(chatter, P + "Chatter.Replies", "They answer a hello, a ding, a thanks, a joke request");
-            AddToggle(chatter, P + "Chatter.Nearby", "A bot within earshot says something now and then");
-            AddToggle(chatter, P + "Chatter.WorldChannel", "Use the realm's channel when no bot is in the player's zone");
-            AddSlider(chatter, P + "Chatter.Mixed", "Bots that mix two personalities", 0, 100, 5, Percent);
-            AddSlider(chatter, P + "Chatter.EasterEggs", "A wink at AFK Realm once in", 0, 2000, 10, v => v == 0 ? "never" : (int)v + " lines");
+            Tab(L.T("Chat"));
+            var deals = Card(L.T("Deals by chat"), L.T("A player writes WTB or WTS into a channel - the item typed out or linked, a number before it, a price after it - and bots answer by whisper. The goods come by mail, cash on delivery."), "accounts");
+            AddToggle(deals, P + "Chat.Enable", L.T("Bots answer WTB and WTS"));
+            AddSlider(deals, P + "Chat.Answers", L.T("Bots answering one line at most"), 1, 10, 1, Plain);
+            AddText(deals, P + "Chat.Channels", L.T("Channels read"), L.T("Parts of channel names separated by commas, for example general, trade. Empty: every channel."));
+            AddToggle(deals, P + "Chat.Meet", L.T("A bot nearby offers to meet"));
+            AddSlider(deals, P + "Chat.MeetDistance", L.T("Nearby means within"), 10, 2000, 10, v => L.F("{0} yd", (int)v));
+            AddSlider(deals, P + "Chat.MailDelay", L.T("The parcel takes"), -1, 3600, 1, v => v < 0 ? L.T("like mail") : v < 120 ? L.F("{0} s", (int)v) : L.F("{0} min", (int)(v / 60)), L.T("\"Like mail\" follows Mail.DeliveryDelay of worldserver.conf."));
+            var chatter = Card(L.T("Chatter"), L.T("Every bot is somebody in chat too: 65 personalities with more than 16000 lines between them."), "accounts");
+            AddToggle(chatter, P + "Chatter.Enable", L.T("The bots talk"));
+            AddSlider(chatter, P + "Chatter.Interval", L.T("Something said out of the blue about every"), 20, 3600, 10, v => v < 120 ? L.F("{0} s", (int)v) : L.F("{0} min", (v / 60).ToString("0.#", CultureInfo.InvariantCulture)), L.T("Lower is livelier."));
+            AddToggle(chatter, P + "Chatter.Replies", L.T("They answer a hello, a ding, a thanks, a joke request"));
+            AddToggle(chatter, P + "Chatter.Nearby", L.T("A bot within earshot says something now and then"));
+            AddToggle(chatter, P + "Chatter.WorldChannel", L.T("Use the realm's channel when no bot is in the player's zone"));
+            AddSlider(chatter, P + "Chatter.Mixed", L.T("Bots that mix two personalities"), 0, 100, 5, Percent);
+            AddSlider(chatter, P + "Chatter.EasterEggs", L.T("A wink at AFK Realm once in"), 0, 2000, 10, v => v == 0 ? L.T("never") : L.F("{0} lines", (int)v));
 
             // ---- trading post
-            Tab("Trading Post");
-            var post = Card("The Trading Post", "A last resort at every auctioneer for what bots hardly come by: materials and what crafters make for everybody, well above the usual price. Only players can use it; the money is gone from the world.", "auction");
-            AddToggle(post, P + "TradingPost.Enable", "Auctioneers offer the Trading Post");
-            AddToggle(post, P + "TradingPost.Flyer", "Players get its flyer once a day");
-            AddToggle(post, P + "TradingPost.FreeSample", "A free sample once a week (always junk)");
-            AddChoice(post, P + "TradingPost.MaxQuality", "Best quality sold", new[] { "1", "2", "3", "4" }, new[] { "Common", "Uncommon", "Rare", "Epic" });
-            AddSlider(post, P + "TradingPost.ScarceBelow", "Sells a material while the house has fewer than", 1, 200, 1, v => (int)v + " pcs");
-            var postPrice = Card("Its prices and stock", "Prices as multiples of what a thing usually goes for: the buyout is delivered at once, a bid when the auction ends.", "settings");
-            AddSlider(postPrice, P + "TradingPost.Price.Materials", "Buyout of materials", 1, 10, 0.1, Times);
-            AddSlider(postPrice, P + "TradingPost.Price.Crafted", "Buyout of crafted goods", 1, 10, 0.1, Times);
-            AddSlider(postPrice, P + "TradingPost.Bid.Materials", "Lowest bid for materials", 1, 10, 0.1, Times);
-            AddSlider(postPrice, P + "TradingPost.Bid.Crafted", "Lowest bid for crafted goods", 1, 10, 0.1, Times);
-            AddSlider(postPrice, P + "TradingPost.Stock.Materials", "Pieces of a material per day", 1, 500, 1, Plain);
-            AddSlider(postPrice, P + "TradingPost.Stock.Crafted", "Pieces of a crafted thing per day", 1, 200, 1, Plain);
-            AddSlider(postPrice, P + "TradingPost.Daily.Materials", "Most a character buys a day (materials)", 1, 200, 1, Plain);
-            AddSlider(postPrice, P + "TradingPost.Daily.Crafted", "Most a character buys a day (crafted)", 1, 100, 1, Plain);
-            var postNever = Card("Never at the Trading Post", null, "maintenance");
-            AddText(postNever, P + "TradingPost.ExcludedItemIDs", "Item ids", "What is meant to be scarce: materials made on a cooldown and the like.");
+            Tab(L.T("Trading Post"));
+            var post = Card(L.T("The Trading Post"), L.T("A last resort at every auctioneer for what bots hardly come by: materials and what crafters make for everybody, well above the usual price. Only players can use it; the money is gone from the world."), "auction");
+            AddToggle(post, P + "TradingPost.Enable", L.T("Auctioneers offer the Trading Post"));
+            AddToggle(post, P + "TradingPost.Flyer", L.T("Players get its flyer once a day"));
+            AddToggle(post, P + "TradingPost.FreeSample", L.T("A free sample once a week (always junk)"));
+            AddChoice(post, P + "TradingPost.MaxQuality", L.T("Best quality sold"), new[] { "1", "2", "3", "4" }, new[] { L.C("quality", "Common"), L.C("quality", "Uncommon"), L.C("quality", "Rare"), L.C("quality", "Epic") });
+            AddSlider(post, P + "TradingPost.ScarceBelow", L.T("Sells a material while the house has fewer than"), 1, 200, 1, v => L.F("{0} pcs", (int)v));
+            var postPrice = Card(L.T("Its prices and stock"), L.T("Prices as multiples of what a thing usually goes for: the buyout is delivered at once, a bid when the auction ends."), "settings");
+            AddSlider(postPrice, P + "TradingPost.Price.Materials", L.T("Buyout of materials"), 1, 10, 0.1, Times);
+            AddSlider(postPrice, P + "TradingPost.Price.Crafted", L.T("Buyout of crafted goods"), 1, 10, 0.1, Times);
+            AddSlider(postPrice, P + "TradingPost.Bid.Materials", L.T("Lowest bid for materials"), 1, 10, 0.1, Times);
+            AddSlider(postPrice, P + "TradingPost.Bid.Crafted", L.T("Lowest bid for crafted goods"), 1, 10, 0.1, Times);
+            AddSlider(postPrice, P + "TradingPost.Stock.Materials", L.T("Pieces of a material per day"), 1, 500, 1, Plain);
+            AddSlider(postPrice, P + "TradingPost.Stock.Crafted", L.T("Pieces of a crafted thing per day"), 1, 200, 1, Plain);
+            AddSlider(postPrice, P + "TradingPost.Daily.Materials", L.T("Most a character buys a day (materials)"), 1, 200, 1, Plain);
+            AddSlider(postPrice, P + "TradingPost.Daily.Crafted", L.T("Most a character buys a day (crafted)"), 1, 100, 1, Plain);
+            var postNever = Card(L.T("Never at the Trading Post"), null, "maintenance");
+            AddText(postNever, P + "TradingPost.ExcludedItemIDs", L.T("Item ids"), L.T("What is meant to be scarce: materials made on a cooldown and the like."));
             Start();
         }
     }

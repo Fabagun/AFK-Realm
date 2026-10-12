@@ -18,11 +18,11 @@ namespace CoAInstaller
         readonly ServerControl ctl;
         readonly Label link = new Label { AutoSize = true, Font = Ui.Bold, Margin = new Padding(0, 0, 0, 0) };
         readonly ListView people = new ListView { View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false, Dock = DockStyle.Fill, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle };
-        readonly CheckBox offline = new CheckBox { Text = "Offline too", AutoSize = true, Font = Ui.Small, Margin = new Padding(0, 4, 10, 0) };
-        readonly CheckBox bots = new CheckBox { Text = "Bots too", AutoSize = true, Font = Ui.Small, Margin = new Padding(0, 4, 10, 0) };
+        readonly CheckBox offline = new CheckBox { Text = L.T("Offline too"), AutoSize = true, Font = Ui.Small, Margin = new Padding(0, 4, 10, 0) };
+        readonly CheckBox bots = new CheckBox { Text = L.T("Bots too"), AutoSize = true, Font = Ui.Small, Margin = new Padding(0, 4, 10, 0) };
         readonly TextBox questText = new TextBox { Font = Ui.Base, Width = 250, Margin = new Padding(0, 3, 8, 3) };
         readonly NumericUpDown radius = new NumericUpDown { Minimum = 20, Maximum = 2000, Value = 150, Increment = 50, Width = 64, Font = Ui.Base, Margin = new Padding(0, 4, 4, 0) };
-        readonly CheckBox levelOnly = new CheckBox { Text = "Only quests it can take now", AutoSize = true, Checked = true, Font = Ui.Small, Margin = new Padding(10, 6, 0, 0) };
+        readonly CheckBox levelOnly = new CheckBox { Text = L.T("Only quests it can take now"), AutoSize = true, Checked = true, Font = Ui.Small, Margin = new Padding(10, 6, 0, 0) };
         readonly ListView quests = new ListView { View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false, Dock = DockStyle.Fill, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle };
         readonly Label questHint = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 6, 0, 0) };
         readonly TextBox log = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Font = Ui.Mono, Dock = DockStyle.Fill, BackColor = Color.FromArgb(24, 22, 32), ForeColor = Color.FromArgb(215, 215, 225), WordWrap = true };
@@ -36,119 +36,120 @@ namespace CoAInstaller
         public GameMasterDialog(Install i, ServerControl c)
         {
             inst = i; ctl = c;
-            Text = Product.Name + " – Game master"; Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = Product.Name + " – " + L.T("Game master"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(1220, 720); MinimumSize = new Size(980, 600);
 
             var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(16, 12, 16, 6), WrapContents = false };
             top.Controls.Add(link);
 
             // ---- characters
-            people.Columns.Add("Character", 190);
-            people.Columns.Add("Lvl", 38, HorizontalAlignment.Right);
-            people.Columns.Add("Zone", 130);
+            people.Columns.Add(L.T("Character"), 190);
+            people.Columns.Add(L.T("Lvl"), 38, HorizontalAlignment.Right);
+            people.Columns.Add(L.T("Zone"), 130);
             var peopleTop = Ui.Row(); peopleTop.Dock = DockStyle.Top; peopleTop.Margin = new Padding(0);
-            peopleTop.Controls.Add(new Label { Text = "Characters", AutoSize = true, Font = Ui.H2, Margin = new Padding(0, 0, 12, 4) });
+            peopleTop.Controls.Add(new Label { Text = L.T("Characters"), AutoSize = true, Font = Ui.H2, Margin = new Padding(0, 0, 12, 4) });
             var peopleFilter = Ui.Row(); peopleFilter.Dock = DockStyle.Top; peopleFilter.Margin = new Padding(0);
-            var refresh = Ui.Secondary("Refresh"); refresh.Font = Ui.Small; refresh.Padding = new Padding(6, 1, 6, 1);
+            var refresh = Ui.Secondary(L.T("Refresh")); refresh.Font = Ui.Small; refresh.Padding = new Padding(6, 1, 6, 1);
             peopleFilter.Controls.Add(offline); peopleFilter.Controls.Add(bots); peopleFilter.Controls.Add(refresh);
             var left = new Panel { Dock = DockStyle.Left, Width = 400, Padding = new Padding(16, 0, 8, 10) };
             left.Controls.Add(people); left.Controls.Add(peopleFilter); left.Controls.Add(peopleTop);
 
             // ---- quest helper
-            quests.Columns.Add("Id", 54, HorizontalAlignment.Right);
-            quests.Columns.Add("Quest", 220);
-            quests.Columns.Add("Lvl", 38, HorizontalAlignment.Right);
-            quests.Columns.Add("Status", 82);
-            quests.Columns.Add("Progress", 0);
-            quests.Columns.Add("Given by", 150);
-            quests.Columns.Add("Handed in to", 150);
-            quests.Columns.Add("Yards", 50, HorizontalAlignment.Right);
+            quests.Columns.Add(L.T("Id"), 54, HorizontalAlignment.Right);
+            quests.Columns.Add(L.T("Quest"), 220);
+            quests.Columns.Add(L.T("Lvl"), 38, HorizontalAlignment.Right);
+            quests.Columns.Add(L.T("Status"), 82);
+            quests.Columns.Add(L.T("Progress"), 0);
+            quests.Columns.Add(L.T("Given by"), 150);
+            quests.Columns.Add(L.T("Handed in to"), 150);
+            quests.Columns.Add(L.T("Yards"), 50, HorizontalAlignment.Right);
             quests.ShowItemToolTips = true;
             var search = Ui.Row(); search.Dock = DockStyle.Top; search.Margin = new Padding(0);
-            search.Controls.Add(new Label { Text = "NPC name, quest title or id", AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
+            search.Controls.Add(new Label { Text = L.T("NPC name, quest title or id"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
             search.Controls.Add(questText);
-            var find = Ui.Primary("Search"); find.Padding = new Padding(10, 3, 10, 3);
+            var find = Ui.Primary(L.T("Search")); find.Padding = new Padding(10, 3, 10, 3);
             search.Controls.Add(find);
             var near = Ui.Row(); near.Dock = DockStyle.Top; near.Margin = new Padding(0);
-            var logBtn = Ui.Secondary("Quest log"); logBtn.Padding = new Padding(10, 3, 10, 3); logBtn.Margin = new Padding(0, 2, 8, 2);
+            var logBtn = Ui.Secondary(L.T("Quest log")); logBtn.Padding = new Padding(10, 3, 10, 3); logBtn.Margin = new Padding(0, 2, 8, 2);
             near.Controls.Add(logBtn);
-            var nearBtn = Ui.Secondary("New quests nearby"); nearBtn.Padding = new Padding(10, 3, 10, 3);
+            var nearBtn = Ui.Secondary(L.T("New quests nearby")); nearBtn.Padding = new Padding(10, 3, 10, 3);
             near.Controls.Add(nearBtn);
-            near.Controls.Add(new Label { Text = "within", AutoSize = true, Font = Ui.Base, Margin = new Padding(8, 6, 4, 0) });
+            near.Controls.Add(new Label { Text = L.T("within"), AutoSize = true, Font = Ui.Base, Margin = new Padding(8, 6, 4, 0) });
             near.Controls.Add(radius);
-            near.Controls.Add(new Label { Text = "yards", AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 0, 0) });
+            near.Controls.Add(new Label { Text = L.T("yards"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 0, 0) });
             near.Controls.Add(levelOnly);
             var questButtons = Ui.Row(); questButtons.Dock = DockStyle.Bottom; questButtons.Margin = new Padding(0);
-            questButtons.Controls.Add(Action("Give quest", () => Quest("add")));
-            questButtons.Controls.Add(Action("Complete", () => Quest("complete")));
-            questButtons.Controls.Add(Action("Reward", () => Quest("reward")));
-            questButtons.Controls.Add(Action("Remove", () => Quest("remove")));
-            questButtons.Controls.Add(Action("Check", () => Quest("status")));
+            questButtons.Controls.Add(Action(L.T("Give quest"), () => Quest("add")));
+            questButtons.Controls.Add(Action(L.T("Complete"), () => Quest("complete")));
+            questButtons.Controls.Add(Action(L.T("Reward"), () => Quest("reward")));
+            questButtons.Controls.Add(Action(L.T("Remove"), () => Quest("remove")));
+            questButtons.Controls.Add(Action(L.T("Check"), () => Quest("status")));
             var questNote = new Label { Dock = DockStyle.Bottom, Height = 66, Font = Ui.Small, ForeColor = Ui.Muted,
-                Text = "Choosing a character shows its quest log; \"New quests nearby\" lists what it could still take around it. " +
+                Text = L.T("Choosing a character shows its quest log; \"New quests nearby\" lists what it could still take around it. " +
                        "Give puts the quest into the character's log. Complete marks every objective as done and adds missing quest items. " +
-                       "Reward hands a completed quest in: experience, money and the reward (the first one, if there is a choice). Works for offline characters too." };
-            var questTab = new TabPage("Quests") { BackColor = Color.White, Padding = new Padding(10) };
+                       "Reward hands a completed quest in: experience, money and the reward (the first one, if there is a choice). Works for offline characters too.") };
+            var questTab = new TabPage(L.T("Quests")) { BackColor = Color.White, Padding = new Padding(10) };
             questTab.Controls.Add(quests); questTab.Controls.Add(questHint); questTab.Controls.Add(near); questTab.Controls.Add(search);
             questTab.Controls.Add(questButtons); questTab.Controls.Add(questNote);
             questHint.Dock = DockStyle.Top;
 
             // ---- player actions
             var player = Ui.Column(); player.Padding = new Padding(4);
-            player.Controls.Add(Ui.Hint("These act on the character chosen on the left.", 700));
+            player.Controls.Add(Ui.Hint(L.T("These act on the character chosen on the left."), 700));
             var p1 = Ui.Row();
-            p1.Controls.Add(Action("Unstuck (to its inn)", () => Player("unstuck {0} inn", null)));
-            p1.Controls.Add(Action("Revive", () => Player("revive {0}", null)));
-            p1.Controls.Add(Action("Kick …", () => { string r = Prompt.Ask(this, "Kick", "Reason shown to the player (optional)", ""); if (r != null) Player("kick {0} " + Clean(r), null); }));
+            p1.Controls.Add(Action(L.T("Unstuck (to its inn)"), () => Player("unstuck {0} inn", null)));
+            p1.Controls.Add(Action(L.T("Revive"), () => Player("revive {0}", null)));
+            p1.Controls.Add(Action(L.T("Kick …"), () => { string r = Prompt.Ask(this, L.T("Kick"), L.T("Reason shown to the player (optional)"), ""); if (r != null) Player("kick {0} " + Clean(r), null); }));
             player.Controls.Add(p1);
             var p2 = Ui.Row();
-            p2.Controls.Add(Action("Set level …", () =>
+            p2.Controls.Add(Action(L.T("Set level …"), () =>
             {
-                string v = Prompt.Ask(this, "Set level", "New level", ""); int n;
+                string v = Prompt.Ask(this, L.T("Set level"), L.T("New level"), ""); int n;
                 if (v == null) return;
-                if (!int.TryParse(v.Trim(), out n) || n < 1 || n > 255) { Ui.Error(this, "Please enter a level as a number."); return; }
+                if (!int.TryParse(v.Trim(), out n) || n < 1 || n > 255) { Ui.Error(this, L.T("Please enter a level as a number.")); return; }
                 Player("character level {0} " + n, null);
             }));
-            p2.Controls.Add(Action("Send gold …", () =>
+            p2.Controls.Add(Action(L.T("Send gold …"), () =>
             {
-                string v = Prompt.Ask(this, "Send gold", "Gold (arrives by in-game mail)", ""); int n;
+                string v = Prompt.Ask(this, L.T("Send gold"), L.T("Gold (arrives by in-game mail)"), ""); int n;
                 if (v == null) return;
-                if (!int.TryParse(v.Trim(), out n) || n < 1 || n > 200000) { Ui.Error(this, "Please enter the gold as a whole number."); return; }
+                if (!int.TryParse(v.Trim(), out n) || n < 1 || n > 200000) { Ui.Error(this, L.T("Please enter the gold as a whole number.")); return; }
                 Player("send money {0} \"Gold\" \"From your game master.\" " + ((long)n * 10000), null);
             }));
-            p2.Controls.Add(Action("Send mail …", () =>
+            p2.Controls.Add(Action(L.T("Send mail …"), () =>
             {
-                string[] v = Prompt.Ask2(this, "Send mail", "Subject", "Text");
+                string[] v = Prompt.Ask2(this, L.T("Send mail"), L.T("Subject"), L.T("Text"));
                 if (v == null || v[0].Trim().Length == 0) return;
                 Player("send mail {0} \"" + Clean(v[0]) + "\" \"" + Clean(v[1]) + "\"", null);
             }));
             player.Controls.Add(p2);
-            player.Controls.Add(Ui.Heading("At the next login"));
+            player.Controls.Add(Ui.Heading(L.T("At the next login")));
             var p4 = Ui.Row();
-            p4.Controls.Add(Action("Change name", () => Player("character rename {0}", null)));
-            p4.Controls.Add(Action("Customize appearance", () => Player("character customize {0}", null)));
-            p4.Controls.Add(Action("Change race", () => Player("character changerace {0}", null)));
-            p4.Controls.Add(Action("Change faction", () => Player("character changefaction {0}", null)));
+            p4.Controls.Add(Action(L.T("Change name"), () => Player("character rename {0}", null)));
+            p4.Controls.Add(Action(L.T("Customize appearance"), () => Player("character customize {0}", null)));
+            p4.Controls.Add(Action(L.T("Change race"), () => Player("character changerace {0}", null)));
+            p4.Controls.Add(Action(L.T("Change faction"), () => Player("character changefaction {0}", null)));
             player.Controls.Add(p4);
-            player.Controls.Add(Ui.Hint("The character is marked on the login screen the next time its player logs in: \"Change name\" asks for a new name, \"Customize appearance\" lets them redo looks, gender and name, \"Change race\" also lets them pick another race of the same faction, \"Change faction\" a race of the other faction. A character that is online has to log out to the character list first.", 700));
-            player.Controls.Add(Ui.Heading("Message to everyone"));
+            player.Controls.Add(Ui.Hint(L.T("The character is marked on the login screen the next time its player logs in: \"Change name\" asks for a new name, \"Customize appearance\" lets them redo looks, gender and name, \"Change race\" also lets them pick another race of the same faction, \"Change faction\" a race of the other faction. A character that is online has to log out to the character list first."), 700));
+            player.Controls.Add(Ui.Heading(L.T("Message to everyone")));
             var p3 = Ui.Row(); p3.Controls.Add(announce);
-            p3.Controls.Add(Action("Announce", () => { string t = Clean(announce.Text); if (t.Length > 0) { Send("announce " + t, null); announce.Text = ""; } }));
+            p3.Controls.Add(Action(L.T("Announce"), () => { string t = Clean(announce.Text); if (t.Length > 0) { Send("announce " + t, null); announce.Text = ""; } }));
             player.Controls.Add(p3);
-            player.Controls.Add(Ui.Hint("Everything else works in the console below: type any GM command the server console accepts, for example \"server info\" or \"lookup item sword\".", 700));
-            var playerTab = new TabPage("Player") { BackColor = Color.White, Padding = new Padding(10), AutoScroll = true };
+            player.Controls.Add(Ui.Hint(L.T("Everything else works in the console below: type any GM command the server console accepts, for example \"server info\" or \"lookup item sword\"."), 700));
+            var playerTab = new TabPage(L.T("Player")) { BackColor = Color.White, Padding = new Padding(10), AutoScroll = true };
             playerTab.Controls.Add(player);
 
             var tabs = new TabControl { Dock = DockStyle.Fill, Font = Ui.Base };
             tabs.TabPages.Add(questTab); tabs.TabPages.Add(playerTab);
 
             // ---- console
-            var send = Ui.Secondary("Send"); send.Dock = DockStyle.Right; send.Width = 80; send.AutoSize = false; send.Padding = new Padding(0); send.Font = Ui.Small;
+            var send = Ui.Secondary(L.T("Send")); send.Dock = DockStyle.Right; send.AutoSize = false; send.Padding = new Padding(0); send.Font = Ui.Small;
+            send.Width = Math.Max(80, TextRenderer.MeasureText(send.Text, send.Font).Width + 24);
             var inputRow = new Panel { Dock = DockStyle.Bottom, Height = 32, Padding = new Padding(0, 6, 0, 0) };
             inputRow.Controls.Add(input); inputRow.Controls.Add(send);
             var console = new Panel { Dock = DockStyle.Bottom, Height = 210, Padding = new Padding(0, 6, 0, 0) };
             console.Controls.Add(log); console.Controls.Add(inputRow);
-            console.Controls.Add(new Label { Text = "Server console", Dock = DockStyle.Top, Height = 22, Font = Ui.Bold });
+            console.Controls.Add(new Label { Text = L.T("Server console"), Dock = DockStyle.Top, Height = 22, Font = Ui.Bold });
 
             var right = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 0, 16, 12) };
             right.Controls.Add(tabs); right.Controls.Add(console);
@@ -164,7 +165,7 @@ namespace CoAInstaller
                 if (quests.Tag as string == "search" && quests.Items.Count > 0) SearchQuests();
                 else if (Who != null) ShowLog(false);
             };
-            logBtn.Click += (s, e) => { if (Who == null) Ui.Error(this, "Choose a character on the left first."); else ShowLog(true); };
+            logBtn.Click += (s, e) => { if (Who == null) Ui.Error(this, L.T("Choose a character on the left first.")); else ShowLog(true); };
             find.Click += (s, e) => SearchQuests();
             questText.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; SearchQuests(); } };
             nearBtn.Click += (s, e) => NearQuests();
@@ -210,7 +211,7 @@ namespace CoAInstaller
                 string problem = AdminLink.Problem(inst, ctl);
                 UI(() =>
                 {
-                    link.Text = problem ?? "●  Connected to the running server.";
+                    link.Text = problem ?? L.T("●  Connected to the running server.");
                     link.ForeColor = problem == null ? Ui.Ok : Ui.Warn;
                 });
             });
@@ -229,7 +230,7 @@ namespace CoAInstaller
             {
                 List<CharacterInfo> list;
                 try { list = GameData.Characters(inst, off, bot); }
-                catch (Exception ex) { UI(() => Print("! The characters could not be read: " + ex.Message)); return; }
+                catch (Exception ex) { UI(() => Print("! " + L.T("The characters could not be read:") + " " + ex.Message)); return; }
                 UI(() =>
                 {
                     people.BeginUpdate();
@@ -240,14 +241,14 @@ namespace CoAInstaller
                         it.SubItems.Add(c.Level.ToString());
                         it.SubItems.Add(GameData.ZoneName(inst, c.Zone));
                         if (!c.Online) it.ForeColor = Ui.Muted;
-                        it.ToolTipText = "Account " + c.Account + (c.Bot ? " (random bot)" : "");
+                        it.ToolTipText = L.F("Account {0}", c.Account) + (c.Bot ? " " + L.T("(random bot)") : "");
                         people.Items.Add(it);
                         if (c.Guid == keep) it.Selected = true;
                     }
                     people.ShowItemToolTips = true;
                     people.EndUpdate();
                     if (people.SelectedItems.Count == 0 && people.Items.Count == 1) people.Items[0].Selected = true;
-                    if (list.Count == 0) Print(off ? "No characters found." : "Nobody is online. Tick \"Offline too\" to see all characters.");
+                    if (list.Count == 0) Print(off ? L.T("No characters found.") : L.T("Nobody is online. Tick \"Offline too\" to see all characters."));
                     if (thenLog && Who != null) ShowLog(true);
                 });
             });
@@ -272,7 +273,7 @@ namespace CoAInstaller
                 {
                     busy = false; foreach (var b in actions) b.Enabled = true;
                     if (error != null) { Print("! " + error); return; }
-                    Print(answer.Length > 0 ? answer : "(done)");
+                    Print(answer.Length > 0 ? answer : L.T("(done)"));
                     if (done != null) done();
                 });
             });
@@ -290,7 +291,7 @@ namespace CoAInstaller
         void Player(string format, Action done)
         {
             var who = Who;
-            if (who == null) { Ui.Error(this, "Choose a character on the left first."); return; }
+            if (who == null) { Ui.Error(this, L.T("Choose a character on the left first.")); return; }
             Send(string.Format(format, Arg(who.Name)), done);
         }
 
@@ -334,8 +335,10 @@ namespace CoAInstaller
             Background(() =>
             {
                 var list = GameData.SearchQuests(inst, text, who != null ? who.Guid : 0);
-                UI(() => Fill(list, "search", list.Count == 0 ? "Nothing found for \"" + text + "\"."
-                    : list.Count + " quest(s)" + (who != null ? ". Status for " + who.Name + (who.Online ? " as of the server's last save." : ".") : ". Choose a character to see its status.")));
+                UI(() => Fill(list, "search", list.Count == 0 ? L.F("Nothing found for \"{0}\".", text)
+                    : who == null ? L.F("{0} quest(s). Choose a character to see its status.", list.Count)
+                    : who.Online ? L.F("{0} quest(s). Status for {1} as of the server's last save.", list.Count, who.Name)
+                    : L.F("{0} quest(s). Status for {1}.", list.Count, who.Name)));
             });
         }
 
@@ -351,7 +354,7 @@ namespace CoAInstaller
             if (who == null) return;
             int ticket = ++logTicket;
             live = live && who.Online && AdminLink.Problem(inst, ctl) == null;
-            questHint.Text = "Reading the quest log of " + who.Name + " …";
+            questHint.Text = L.F("Reading the quest log of {0} …", who.Name);
             Background(() =>
             {
                 if (live) { try { AdminLink.Run(inst, "saveall"); System.Threading.Thread.Sleep(1500); } catch { live = false; } }
@@ -359,8 +362,8 @@ namespace CoAInstaller
                 UI(() =>
                 {
                     if (ticket != logTicket) return;        // another character was chosen in the meantime
-                    Fill(list, "log", (list.Count == 0 ? who.Name + " has no quests in its log" : list.Count + " quest(s) in the log of " + who.Name) +
-                        (!who.Online ? "." : live ? ", as of now." : ", as of the server's last save. \"Quest log\" reads it fresh."));
+                    Fill(list, "log", (list.Count == 0 ? L.F("{0} has no quests in its log", who.Name) : L.F("{0} quest(s) in the log of {1}", list.Count, who.Name)) +
+                        (!who.Online ? "." : live ? L.T(", as of now.") : L.T(", as of the server's last save. \"Quest log\" reads it fresh.")));
                 });
             });
         }
@@ -368,30 +371,31 @@ namespace CoAInstaller
         void NearQuests()
         {
             var who = Who;
-            if (who == null) { Ui.Error(this, "Choose a character on the left first."); return; }
+            if (who == null) { Ui.Error(this, L.T("Choose a character on the left first.")); return; }
             int r = (int)radius.Value; bool level = levelOnly.Checked;
             ++logTicket;
             bool live = who.Online && AdminLink.Problem(inst, ctl) == null;
-            questHint.Text = "Looking around " + who.Name + " …";
+            questHint.Text = L.F("Looking around {0} …", who.Name);
             Background(() =>
             {
                 // The position in the database is the one of the last save; "saveall" makes it current.
                 if (live) { try { AdminLink.Run(inst, "saveall"); System.Threading.Thread.Sleep(1500); } catch { live = false; } }
                 var now = GameData.Character(inst, who.Guid);
-                if (now == null) { UI(() => questHint.Text = "The character was not found."); return; }
+                if (now == null) { UI(() => questHint.Text = L.T("The character was not found.")); return; }
                 var list = GameData.QuestsNear(inst, now, r, level);
-                UI(() => Fill(list, "near", (list.Count == 0 ? "No new quests" : list.Count + " quest(s) it does not have yet") + " within " + r + " yards of " + now.Name +
-                    " in " + GameData.ZoneName(inst, now.Zone) + (live ? "." : " (position as last saved by the server).") +
-                    (level ? "" : " Quests it cannot take yet are included; \"Check\" tells why.")));
+                UI(() => Fill(list, "near", (list.Count == 0 ? L.F("No new quests within {0} yards of {1} in {2}", r, now.Name, GameData.ZoneName(inst, now.Zone))
+                    : L.F("{0} quest(s) it does not have yet within {1} yards of {2} in {3}", list.Count, r, now.Name, GameData.ZoneName(inst, now.Zone))) +
+                    (live ? "." : " " + L.T("(position as last saved by the server).")) +
+                    (level ? "" : " " + L.T("Quests it cannot take yet are included; \"Check\" tells why."))));
             });
         }
 
         void Quest(string verb)
         {
             var who = Who; var quest = Which; var item = quests.SelectedItems.Count == 1 ? quests.SelectedItems[0] : null;
-            if (who == null) { Ui.Error(this, "Choose a character on the left first."); return; }
-            if (quest == null) { Ui.Error(this, "Choose a quest in the list first."); return; }
-            if (verb == "reward" && quest.Status != 1) Print("Note: Reward only works for a completed quest. If the server refuses, use Complete first.");
+            if (who == null) { Ui.Error(this, L.T("Choose a character on the left first.")); return; }
+            if (quest == null) { Ui.Error(this, L.T("Choose a quest in the list first.")); return; }
+            if (verb == "reward" && quest.Status != 1) Print(L.T("Note: Reward only works for a completed quest. If the server refuses, use Complete first."));
             Send("quest " + verb + " " + quest.Id.ToString(CultureInfo.InvariantCulture) + " " + Arg(who.Name), () =>
             {
                 if (verb == "add") quest.Status = 3;
@@ -429,7 +433,7 @@ namespace CoAInstaller
                     boxes.Add(box); col.Controls.Add(box);
                 }
                 var row = Ui.Row(); row.Margin = new Padding(0, 10, 0, 0);
-                var ok = Ui.Primary("OK"); var cancel = Ui.Secondary("Cancel");
+                var ok = Ui.Primary("OK"); var cancel = Ui.Secondary(L.T("Cancel"));
                 ok.Click += (s, e) => { f.DialogResult = DialogResult.OK; f.Close(); };
                 cancel.Click += (s, e) => { f.DialogResult = DialogResult.Cancel; f.Close(); };
                 row.Controls.Add(ok); row.Controls.Add(cancel);

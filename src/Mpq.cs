@@ -106,7 +106,7 @@ namespace CoAInstaller
                 stream.Position = at;
                 if (r.ReadUInt32() == 0x1A51504D) { start = at; break; }
             }
-            if (start < 0) throw new InvalidDataException(System.IO.Path.GetFileName(path) + " is not an MPQ archive.");
+            if (start < 0) throw new InvalidDataException(L.F("{0} is not an MPQ archive.", System.IO.Path.GetFileName(path)));
             uint headerSize = r.ReadUInt32();
             r.ReadUInt32();                         // archive size
             ushort format = r.ReadUInt16();
@@ -191,7 +191,7 @@ namespace CoAInstaller
             var block = blocks[index];
             if ((block.Flags & FileExists) == 0 || (block.Flags & FileDeleteMarker) != 0) return null;
             string label = name + " in " + System.IO.Path.GetFileName(Path);
-            if ((block.Flags & FileImplode) != 0) throw new InvalidDataException(label + " is packed with PKWARE implode; AFK Realm cannot read it.");
+            if ((block.Flags & FileImplode) != 0) throw new InvalidDataException(L.F("{0} is packed with PKWARE implode; AFK Realm cannot read it.", label));
 
             stream.Position = start + block.Offset;
             var packed = new byte[block.Packed];
@@ -227,7 +227,7 @@ namespace CoAInstaller
             {
                 int from = (int)offsets[s], to = (int)offsets[s + 1];
                 int want = (int)Math.Min(sectorSize, block.Size - (long)s * sectorSize);
-                if (from < 0 || to > packed.Length || to < from) throw new InvalidDataException(label + " is damaged.");
+                if (from < 0 || to > packed.Length || to < from) throw new InvalidDataException(L.F("{0} is damaged.", label));
                 if (encrypted) MpqCrypt.Decrypt(packed, from, to - from, key + (uint)s);
                 byte[] sector = to - from < want ? Decompress(packed, from, to - from, want, label) : Slice(packed, from, want);
                 Buffer.BlockCopy(sector, 0, output, s * sectorSize, Math.Min(sector.Length, want));
@@ -253,7 +253,7 @@ namespace CoAInstaller
         static byte[] Decompress(byte[] data, int from, int count, int size, string label)
         {
             byte type = data[from];
-            if (type != 0x02) throw new InvalidDataException(label + " uses a compression AFK Realm cannot read (0x" + type.ToString("X2") + ").");
+            if (type != 0x02) throw new InvalidDataException(L.F("{0} uses a compression AFK Realm cannot read (0x{1}).", label, type.ToString("X2")));
             // zlib: a type byte, then a two-byte zlib header before the deflate stream
             using (var input = new MemoryStream(data, from + 3, count - 3))
             using (var inflate = new DeflateStream(input, CompressionMode.Decompress))
@@ -318,7 +318,7 @@ namespace CoAInstaller
                             length = input.Length;
                         }
                     }
-                    if (fs.Position > uint.MaxValue) throw new InvalidOperationException("The archive " + System.IO.Path.GetFileName(path) + " would be larger than 4 GB.");
+                    if (fs.Position > uint.MaxValue) throw new InvalidOperationException(L.F("The archive {0} would be larger than 4 GB.", System.IO.Path.GetFileName(path)));
                     blockTable[block * 4] = (uint)offset;
                     blockTable[block * 4 + 1] = (uint)length;
                     blockTable[block * 4 + 2] = (uint)length;
@@ -434,13 +434,13 @@ namespace CoAInstaller
 
         public static DbcTable Parse(byte[] data, string label)
         {
-            if (data.Length < 20 || Encoding.ASCII.GetString(data, 0, 4) != "WDBC") throw new InvalidDataException(label + " is not a DBC table.");
+            if (data.Length < 20 || Encoding.ASCII.GetString(data, 0, 4) != "WDBC") throw new InvalidDataException(L.F("{0} is not a DBC table.", label));
             var t = new DbcTable();
             int count = BitConverter.ToInt32(data, 4);
             t.Fields = BitConverter.ToInt32(data, 8);
             t.RecordSize = BitConverter.ToInt32(data, 12);
             int stringSize = BitConverter.ToInt32(data, 16);
-            if (20L + (long)count * t.RecordSize + stringSize > data.Length) throw new InvalidDataException(label + " is damaged.");
+            if (20L + (long)count * t.RecordSize + stringSize > data.Length) throw new InvalidDataException(L.F("{0} is damaged.", label));
             for (int i = 0; i < count; i++)
             {
                 var rec = new byte[t.RecordSize];
@@ -496,7 +496,7 @@ namespace CoAInstaller
             int width = Fields > 0 && RecordSize % Fields == 0 ? RecordSize / Fields : 4;
             if (width != 1 && width != 2) width = 4;
             if (width < 4 && value >= (1u << (8 * width)))
-                throw new InvalidDataException("The value " + value + " does not fit into a field of " + width + " byte(s).");
+                throw new InvalidDataException(L.F("The value {0} does not fit into a field of {1} byte(s).", value, width));
             for (int b = 0; b < width; b++) record[field * width + b] = (byte)(value >> (8 * b));
         }
 

@@ -22,7 +22,7 @@ namespace CoAInstaller
         public bool CanTake = true;        // level, race, class and the quest before it allow it
         public string StatusText
         {
-            get { return Status == 100 ? "rewarded" : Status == 1 ? "complete" : Status == 3 ? "in progress" : Status == 5 ? "failed" : Status < 0 ? "" : "in log"; }
+            get { return Status == 100 ? L.T("rewarded") : Status == 1 ? L.T("complete") : Status == 3 ? L.T("in progress") : Status == 5 ? L.T("failed") : Status < 0 ? "" : L.T("in log"); }
         }
     }
 
@@ -191,11 +191,11 @@ namespace CoAInstaller
                 int need, have; string name = f[9 + i * 3 + 2];
                 if (!int.TryParse(f[9 + i * 3], NumberStyles.Integer, CultureInfo.InvariantCulture, out need) || need <= 0) continue;
                 int.TryParse(f[9 + i * 3 + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out have);
-                if (name == "NULL" || name.Length == 0) name = i < 4 ? "objective " + (i + 1) : "item";
+                if (name == "NULL" || name.Length == 0) name = i < 4 ? L.F("objective {0}", i + 1) : L.T("item");
                 // The server stops counting when the quest is complete; the log then shows it as done.
                 parts.Add(name + " " + (q.Status == 1 ? need : Math.Min(have, need)) + "/" + need);
             }
-            q.Progress = parts.Count > 0 ? string.Join(", ", parts.ToArray()) : (q.Status == 1 ? "done" : "nothing to count (talk, travel or explore)");
+            q.Progress = parts.Count > 0 ? string.Join(", ", parts.ToArray()) : (q.Status == 1 ? L.T("done") : L.T("nothing to count (talk, travel or explore)"));
             return q;
         }
 

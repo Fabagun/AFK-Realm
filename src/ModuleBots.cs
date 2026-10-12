@@ -44,7 +44,7 @@ namespace CoAInstaller
                     var data = json.DeserializeObject(File.ReadAllText(file, Encoding.UTF8)) as Dictionary<string, object>;
                     var bots = data != null && data.TryGetValue("bots", out v) ? v as Dictionary<string, object> : null;
                     if (bots == null || !(bots.TryGetValue("reset", out v) && v is bool && (bool)v)) continue;
-                    result.Add(new KeyValuePair<string, string>(name, bots.TryGetValue("why", out v) ? Convert.ToString(v) : ""));
+                    result.Add(new KeyValuePair<string, string>(name, bots.TryGetValue("why", out v) ? L.Outside(Convert.ToString(v)) : ""));
                 }
                 catch { }
             }

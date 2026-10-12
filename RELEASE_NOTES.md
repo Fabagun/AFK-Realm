@@ -1,6 +1,14 @@
-# AFK Realm 0.9.4 – preview
+# AFK Realm 0.9.5 – preview
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 0.9.5
+
+- **AFK Realm in your language.** English, Deutsch, Français, Español, Português (Brasil), Русский and 简体中文. AFK Realm starts in the language of Windows; the language button at the top right of every page switches it (AFK Realm restarts, your servers keep running). The setup pages of the modules by AFK Realm – World Journey, the auction house bots, custom races and classic classes – are translated too, with the zones and dungeons under the names your game client uses.
+- **What stays English:** the descriptions of the server's own options (worldserver.conf, playerbots.conf and the modules of others), the log files, announcements in the game, and anything other modules bring. The READ ME in the ZIP for your players comes in your language and in English.
+- **Your own language.** *Add a language …* in the same menu writes a file with every text of AFK Realm to translate. Put the finished file into `%APPDATA%\AFK-Realm\lang` (or a `lang` folder next to the exe) and it shows up in the menu at the next start. A file with the code of a built-in language can also correct single texts of it. Translations or corrections are very welcome as an issue or a pull request.
+- **Updates that would break a module are named first.** Before an update, AFK Realm tries the patches of your installed modules on the new CoA core and mod-playerbots. A patch that would no longer fit is named in the update banner and in the question before the update, so you know beforehand which module change will be left out until its module is adapted.
+- **Please tell me** when a translation reads oddly or a text does not fit its place – it was checked on screen, but not by native speakers of every language.
 
 ## New in 0.9.4
 

@@ -38,7 +38,7 @@ namespace CoAInstaller
                     if (f.Length < 4) continue;
                     var m = Regex.Match(f[1], @"github\.com[/:]([^/]+)/([^/.]+)");
                     if (!m.Success || !Regex.IsMatch(f[3], "^[0-9a-f]{40}$")) continue;
-                    Ask(r, git, f[0] == "core" ? "CoA core" : "Playerbots", m.Groups[1].Value + "/" + m.Groups[2].Value, f[2], f[3]);
+                    Ask(r, git, f[0] == "core" ? L.T("CoA core") : "Playerbots", m.Groups[1].Value + "/" + m.Groups[2].Value, f[2], f[3]);
                 }
             }
             // Additional modules: the same question for each one that came from GitHub.
@@ -119,19 +119,19 @@ namespace CoAInstaller
                     string json = Get("https://api.github.com/repos/" + repo + "/compare/" + revision + "..." + Uri.EscapeDataString(branch));
                     var ahead = Regex.Match(json, @"""ahead_by""\s*:\s*(\d+)");
                     int n = ahead.Success ? int.Parse(ahead.Groups[1].Value) : 0;
-                    if (n > 0) r.Server.Add(name + ": " + n + (n == 1 ? " new change" : " new changes"));
+                    if (n > 0) r.Server.Add(n == 1 ? L.F("{0}: 1 new change", name) : L.F("{0}: {1} new changes", name, n));
                     return;
                 }
                 catch (WebException ex)
                 {
                     var resp = ex.Response as HttpWebResponse;
                     // An unknown revision (history rewritten upstream) still means the build is not current.
-                    if (resp != null && resp.StatusCode == HttpStatusCode.NotFound) { r.Server.Add(name + ": new version"); return; }
+                    if (resp != null && resp.StatusCode == HttpStatusCode.NotFound) { r.Server.Add(L.F("{0}: new version", name)); return; }
                     NoteLimit(r, ex);
                 }
                 catch { }
             }
-            if (head != null) r.Server.Add(name + ": new version");
+            if (head != null) r.Server.Add(L.F("{0}: new version", name));
         }
 
         // ------------------------------------------------------------------------------------------- patches
@@ -195,8 +195,8 @@ namespace CoAInstaller
                     if (patch == null) continue;
                     string fit = Fits(git, targetFolder, patch);
                     if (fit == "broken")
-                        r.PatchWarnings.Add(name + ": \"" + label + "\" does not fit the new " + (target == "core" ? "CoA core" : "mod-playerbots") +
-                            ". The update would build the server without it until " + name + " is adapted.");
+                        r.PatchWarnings.Add(L.F("{0}: \"{1}\" does not fit the new {2}. The update would build the server without it until {0} is adapted.",
+                            name, L.Outside(label), target == "core" ? L.T("CoA core") : "mod-playerbots"));
                 }
             }
         }

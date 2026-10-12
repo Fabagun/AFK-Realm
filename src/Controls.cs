@@ -649,7 +649,7 @@ namespace CoAInstaller
             var k = Settings.KnownServers.FirstOrDefault(x => x.Root.Equals(inst.Root, StringComparison.OrdinalIgnoreCase)) ?? new Settings.KnownServer { Root = inst.Root };
             int count = Settings.KnownServers.Count;
             TextRenderer.DrawText(g, NameOf(k), Ui.Bold, new Rectangle(22, 18, Width - 60, 22), Color.White, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-            TextRenderer.DrawText(g, count > 1 ? "Switch server  ·  " + count + " servers" : "Servers …", Ui.Small, new Rectangle(22, 40, Width - 60, 20),
+            TextRenderer.DrawText(g, count > 1 ? L.F("Switch server  ·  {0} servers", count) : L.T("Servers …"), Ui.Small, new Rectangle(22, 40, Width - 60, 20),
                 Color.FromArgb(170, 165, 200), TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
             using (var pen = new Pen(Color.FromArgb(196, 190, 220), 1.6f))
             {

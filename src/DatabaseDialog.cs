@@ -26,8 +26,8 @@ namespace CoAInstaller
         readonly ServerControl ctl;
         readonly TextBox tableFilter = new TextBox { Dock = DockStyle.Top, Font = Ui.Base };
         readonly TreeView tree = new TreeView { Dock = DockStyle.Fill, Font = Ui.Base, HideSelection = false, BorderStyle = BorderStyle.FixedSingle, ShowLines = false, FullRowSelect = true };
-        readonly CheckBox allow = new CheckBox { Text = "Allow changes", AutoSize = true, Font = Ui.Bold, Margin = new Padding(0, 6, 14, 0) };
-        readonly Label tableName = new Label { AutoSize = true, Font = Ui.Bold, Margin = new Padding(0, 7, 10, 0), Text = "Choose a table on the left." };
+        readonly CheckBox allow = new CheckBox { Text = L.T("Allow changes"), AutoSize = true, Font = Ui.Bold, Margin = new Padding(0, 6, 14, 0) };
+        readonly Label tableName = new Label { AutoSize = true, Font = Ui.Bold, Margin = new Padding(0, 7, 10, 0), Text = L.T("Choose a table on the left.") };
         readonly TextBox where = new TextBox { Font = Ui.Mono, Width = 330, Margin = new Padding(0, 5, 6, 0) };
         readonly Label pageInfo = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(8, 8, 8, 0) };
         readonly Label tableHint = new Label { Dock = DockStyle.Bottom, Height = 22, Font = Ui.Small, ForeColor = Ui.Muted };
@@ -36,10 +36,10 @@ namespace CoAInstaller
         readonly TextBox sql = new TextBox { Multiline = true, AcceptsReturn = true, AcceptsTab = true, ScrollBars = ScrollBars.Vertical, Font = Ui.Mono, Dock = DockStyle.Top, Height = 150, WordWrap = true };
         readonly Label sqlHint = new Label { Dock = DockStyle.Bottom, Height = 22, Font = Ui.Small, ForeColor = Ui.Muted };
         readonly ComboBox resultPick = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 560, Font = Ui.Small, Margin = new Padding(10, 6, 0, 0), Visible = false };
-        readonly Button save = Ui.Primary("Save changes"), discard = Ui.Secondary("Discard"), addRow = Ui.Secondary("Add row"), delRow = Ui.Secondary("Delete row"),
-            prev = Ui.Secondary("< Previous"), next = Ui.Secondary("Next >"), apply = Ui.Secondary("Filter"), run = Ui.Primary("Run (F5)");
+        readonly Button save = Ui.Primary(L.T("Save changes")), discard = Ui.Secondary(L.T("Discard")), addRow = Ui.Secondary(L.T("Add row")), delRow = Ui.Secondary(L.T("Delete row")),
+            prev = Ui.Secondary(L.T("< Previous")), next = Ui.Secondary(L.T("Next >")), apply = Ui.Secondary(L.T("Filter")), run = Ui.Primary(L.T("Run (F5)"));
 
-        readonly Button export = Ui.Secondary("Export …"), import = Ui.Secondary("Import SQL file …"), undo = Ui.Secondary("Undo last change …");
+        readonly Button export = Ui.Secondary(L.T("Export …")), import = Ui.Secondary(L.T("Import SQL file …")), undo = Ui.Secondary(L.T("Undo last change …"));
         string db, table;                               // the table shown in the grid
         List<ColumnInfo> columns = new List<ColumnInfo>();
         int page; bool more, loading, busy;
@@ -68,19 +68,19 @@ namespace CoAInstaller
         public DatabaseDialog(Install i, ServerControl c)
         {
             inst = i; ctl = c;
-            Text = Product.Name + " – Database"; Font = Ui.Base; BackColor = Color.White; ShowIcon = false; KeyPreview = true;
+            Text = Product.Name + " – " + L.T("Database"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false; KeyPreview = true;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(1280, 760); MinimumSize = new Size(1000, 600);
 
             // ---- top: the warning and the switch
             var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(16, 10, 16, 6), WrapContents = false };
             top.Controls.Add(allow);
-            var backup = Ui.Secondary("Back up the server first …"); backup.Font = Ui.Small; backup.Padding = new Padding(8, 2, 8, 2); backup.Margin = new Padding(0, 2, 14, 0);
+            var backup = Ui.Secondary(L.T("Back up the server first …")); backup.Font = Ui.Small; backup.Padding = new Padding(8, 2, 8, 2); backup.Margin = new Padding(0, 2, 14, 0);
             top.Controls.Add(backup);
             top.Controls.Add(new Label
             {
                 AutoSize = true, MaximumSize = new Size(820, 0), Font = Ui.Small, ForeColor = Ui.Warn, Margin = new Padding(0, 0, 0, 0),
-                Text = "This is the server's own data. A wrong value or a statement without WHERE can break the world, characters or accounts - if you do not know what a table is for, leave it alone. " +
-                       "Looking is safe: nothing can be changed until \"Allow changes\" is ticked."
+                Text = L.T("This is the server's own data. A wrong value or a statement without WHERE can break the world, characters or accounts - if you do not know what a table is for, leave it alone. " +
+                       "Looking is safe: nothing can be changed until \"Allow changes\" is ticked.")
             });
 
             // ---- left: databases and their tables
@@ -89,7 +89,7 @@ namespace CoAInstaller
             transfer.WrapContents = true;
             foreach (var x in new[] { export, import, undo }) { x.Font = Ui.Small; x.Padding = new Padding(8, 2, 8, 2); x.Margin = new Padding(0, 0, 6, 6); transfer.Controls.Add(x); }
             left.Controls.Add(tree); left.Controls.Add(tableFilter); left.Controls.Add(transfer);
-            left.Controls.Add(new Label { Text = "Find a table", Dock = DockStyle.Top, Height = 22, Font = Ui.Small, ForeColor = Ui.Muted });
+            left.Controls.Add(new Label { Text = L.T("Find a table"), Dock = DockStyle.Top, Height = 22, Font = Ui.Small, ForeColor = Ui.Muted });
 
             // ---- the table
             var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Margin = new Padding(0), Padding = new Padding(0, 0, 0, 4) };
@@ -100,7 +100,7 @@ namespace CoAInstaller
             bar.Controls.Add(where); bar.Controls.Add(apply);
             bar.SetFlowBreak(apply, true);
             bar.Controls.Add(prev); bar.Controls.Add(next); bar.Controls.Add(addRow); bar.Controls.Add(delRow); bar.Controls.Add(save); bar.Controls.Add(discard); bar.Controls.Add(pageInfo);
-            var tableTab = new TabPage("Table") { BackColor = Color.White, Padding = new Padding(10) };
+            var tableTab = new TabPage(L.T("Table")) { BackColor = Color.White, Padding = new Padding(10) };
             tableTab.Controls.Add(grid); tableTab.Controls.Add(tableHint); tableTab.Controls.Add(bar);
 
             // ---- free SQL
@@ -109,15 +109,15 @@ namespace CoAInstaller
             sqlBar.Controls.Add(run); sqlBar.Controls.Add(resultPick);
             var sqlTab = new TabPage("SQL") { BackColor = Color.White, Padding = new Padding(10) };
             sqlTab.Controls.Add(result); sqlTab.Controls.Add(sqlHint); sqlTab.Controls.Add(sqlBar); sqlTab.Controls.Add(sql);
-            sqlHint.Text = "Type any SQL; several statements are separated by ';'. Name the database with the table: acore_world.creature_template.";
+            sqlHint.Text = L.T("Type any SQL; several statements are separated by ';'. Name the database with the table: acore_world.creature_template.");
 
             var tabs = new TabControl { Dock = DockStyle.Fill, Font = Ui.Base };
             tabs.TabPages.Add(tableTab); tabs.TabPages.Add(sqlTab);
             var note = new Label
             {
                 Dock = DockStyle.Bottom, Height = 36, Font = Ui.Small, ForeColor = Ui.Muted, Padding = new Padding(2, 4, 0, 0),
-                Text = "The worldserver reads most world tables only when it starts. A change shows in the game after a restart of the server, or after the matching " +
-                       "\".reload …\" command in Game master tools (for example \"reload creature_template 1234\"). Characters that are online are written back by the server: change those while they are logged out."
+                Text = L.T("The worldserver reads most world tables only when it starts. A change shows in the game after a restart of the server, or after the matching " +
+                       "\".reload …\" command in Game master tools (for example \"reload creature_template 1234\"). Characters that are online are written back by the server: change those while they are logged out.")
             };
             var right = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 0, 16, 10) };
             right.Controls.Add(tabs); right.Controls.Add(note);
@@ -144,12 +144,12 @@ namespace CoAInstaller
             undo.Click += (s, e) => UndoLast();
             resultPick.SelectedIndexChanged += (s, e) => ShowResult(resultPick.SelectedIndex);
             allow.CheckedChanged += (s, e) => Allow();
-            backup.Click += (s, e) => { if (Leave("Back up the server now? This window closes; the backup shows its progress and can be restored under \"Backups …\".")) { BackUpNow = true; Close(); } };
+            backup.Click += (s, e) => { if (Leave(L.T("Back up the server now? This window closes; the backup shows its progress and can be restored under \"Backups …\"."))) { BackUpNow = true; Close(); } };
             KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.F5 || (e.Control && e.KeyCode == Keys.Enter)) { e.SuppressKeyPress = true; if (tabs.SelectedTab == sqlTab) RunSql(); else LoadPage(); }
             };
-            FormClosing += (s, e) => { if (!BackUpNow && Dirty && !Ui.Confirm(this, "There are changes that were not saved. Close anyway?")) e.Cancel = true; };
+            FormClosing += (s, e) => { if (!BackUpNow && Dirty && !Ui.Confirm(this, L.T("There are changes that were not saved. Close anyway?"))) e.Cancel = true; };
             Shown += (s, e) => LoadTree();
             Buttons();
         }
@@ -195,7 +195,7 @@ namespace CoAInstaller
         /// <summary>Asks before unsaved changes are thrown away.</summary>
         bool Leave(string question)
         {
-            return Ui.Confirm(this, Dirty ? "There are changes that were not saved; they are lost. " + question : question);
+            return Ui.Confirm(this, Dirty ? L.T("There are changes that were not saved; they are lost.") + " " + question : question);
         }
 
         static void Paint(DataGridView g, DataGridViewCellFormattingEventArgs e)
@@ -208,7 +208,7 @@ namespace CoAInstaller
 
         void LoadTree()
         {
-            tableHint.Text = "Reading the databases …";
+            tableHint.Text = L.T("Reading the databases …");
             Dictionary<string, List<string>> found = null;
             Background(() =>
             {
@@ -220,8 +220,8 @@ namespace CoAInstaller
                     if (!found.ContainsKey(row[0])) found[row[0]] = new List<string>();
                     found[row[0]].Add(row[1]);
                 }
-                UI(() => { tablesOf = found; FillTree(); tableHint.Text = found.Count + " database(s). Choose a table on the left."; });
-            }, error => tableHint.Text = "The databases could not be read: " + error);
+                UI(() => { tablesOf = found; FillTree(); tableHint.Text = L.F("{0} database(s). Choose a table on the left.", found.Count); });
+            }, error => tableHint.Text = L.T("The databases could not be read:") + " " + error);
         }
 
         void FillTree()
@@ -245,7 +245,7 @@ namespace CoAInstaller
         void Open(string database, string name)
         {
             if (busy || (database == db && name == table)) return;
-            if (Dirty && !Ui.Confirm(this, "There are changes that were not saved; they are lost. Open " + name + " anyway?")) return;
+            if (Dirty && !Ui.Confirm(this, L.F("There are changes that were not saved; they are lost. Open {0} anyway?", name))) return;
             db = database; table = name; page = 0; where.Text = "";
             LoadPage(true);
         }
@@ -255,10 +255,10 @@ namespace CoAInstaller
         void LoadPage(bool force)
         {
             if (table == null || busy) return;
-            if (!force && Dirty && !Ui.Confirm(this, "There are changes that were not saved; they are lost. Read the table again?")) return;
+            if (!force && Dirty && !Ui.Confirm(this, L.T("There are changes that were not saved; they are lost. Read the table again?"))) return;
             string database = db, name = table, filter = where.Text.Trim(); int at = page;
             tableName.Text = database + "." + name;
-            tableHint.Text = "Reading " + name + " …";
+            tableHint.Text = L.F("Reading {0} …", name);
             Background(() =>
             {
                 var meta = MySql.Tables(inst, Login, "SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = " +
@@ -268,14 +268,14 @@ namespace CoAInstaller
                     Name = r[0], Type = r[1] ?? "", Nullable = r[2] == "YES", Key = r[3] == "PRI", Auto = (r[4] ?? "").IndexOf("auto_increment", StringComparison.OrdinalIgnoreCase) >= 0,
                     Binary = Regex.IsMatch(r[1] ?? "", @"^(tiny|medium|long)?blob|^(var)?binary|^bit", RegexOptions.IgnoreCase)
                 }).ToList();
-                if (cols.Count == 0) throw new InvalidOperationException("The table " + name + " was not found.");
+                if (cols.Count == 0) throw new InvalidOperationException(L.F("The table {0} was not found.", name));
                 string order = cols.Any(c => c.Key) ? " ORDER BY " + string.Join(", ", cols.Where(c => c.Key).Select(c => Id(c.Name))) : "";
                 // One row more than a page holds tells whether there is a next page.
                 var data = MySql.Tables(inst, Login, "SELECT * FROM " + Id(database) + "." + Id(name) + (filter.Length > 0 ? " WHERE " + filter : "") + order +
                     " LIMIT " + (PageSize + 1) + " OFFSET " + ((long)at * PageSize) + ";", PageSize + 1);
                 var rows = data.Count > 0 ? data[0].Rows : new List<string[]>();
                 UI(() => Show(cols, rows, at));
-            }, error => { tableHint.Text = "Not read: " + error; });
+            }, error => { tableHint.Text = L.T("Not read:") + " " + error; });
         }
 
         void Show(List<ColumnInfo> cols, List<string[]> rows, int at)
@@ -290,7 +290,7 @@ namespace CoAInstaller
                 int n = grid.Columns.Add(c.Name, c.Name);
                 var col = grid.Columns[n];
                 col.SortMode = DataGridViewColumnSortMode.NotSortable;
-                col.ToolTipText = c.Type + (c.Key ? ", primary key" : "") + (c.Nullable ? ", may be NULL" : "") + (c.Auto ? ", counts up by itself" : "");
+                col.ToolTipText = c.Type + (c.Key ? L.T(", primary key") : "") + (c.Nullable ? L.T(", may be NULL") : "") + (c.Auto ? L.T(", counts up by itself") : "");
                 col.Width = Math.Max(60, Math.Min(260, 24 + c.Name.Length * 7));
                 if (c.Key) col.HeaderCell.Style.Font = new Font(Ui.Small, FontStyle.Bold);
             }
@@ -310,10 +310,10 @@ namespace CoAInstaller
             grid.ResumeLayout();
             loading = false;
             int shown = Math.Min(rows.Count, PageSize);
-            pageInfo.Text = shown == 0 ? "no rows" : "rows " + ((long)at * PageSize + 1) + " to " + ((long)at * PageSize + shown) + (more ? ", more follow" : "");
-            tableHint.Text = !HasKey ? "This table has no primary key, so rows cannot be told apart: it can be read here and changed in the SQL tab."
-                : allow.Checked ? "Click a cell to change it; type NULL for an empty value where the column allows it. Nothing is written until \"Save changes\"."
-                : "Tick \"Allow changes\" at the top to edit. The primary key is shown in bold.";
+            pageInfo.Text = shown == 0 ? L.T("no rows") : L.F("rows {0} to {1}", (long)at * PageSize + 1, (long)at * PageSize + shown) + (more ? L.T(", more follow") : "");
+            tableHint.Text = !HasKey ? L.T("This table has no primary key, so rows cannot be told apart: it can be read here and changed in the SQL tab.")
+                : allow.Checked ? L.T("Click a cell to change it; type NULL for an empty value where the column allows it. Nothing is written until \"Save changes\".")
+                : L.T("Tick \"Allow changes\" at the top to edit. The primary key is shown in bold.");
             Buttons();
         }
 
@@ -349,7 +349,7 @@ namespace CoAInstaller
             for (int i = 0; i < columns.Count; i++) row.Cells[i].Value = "";
             loading = false;
             grid.CurrentCell = row.Cells[0];
-            tableHint.Text = "Fill in the new row. Cells left empty get the column's default value.";
+            tableHint.Text = L.T("Fill in the new row. Cells left empty get the column's default value.");
             Buttons();
         }
 
@@ -357,7 +357,7 @@ namespace CoAInstaller
         {
             var rows = grid.SelectedCells.Cast<DataGridViewCell>().Select(c => c.OwningRow).Distinct().ToList();
             if (rows.Count == 0) return;
-            if (!Ui.Confirm(this, "Delete " + rows.Count + " row(s)? They are removed from the table when you press \"Save changes\".")) return;
+            if (!Ui.Confirm(this, L.F("Delete {0} row(s)? They are removed from the table when you press \"Save changes\".", rows.Count))) return;
             foreach (var row in rows)
             {
                 var state = row.Tag as RowState;
@@ -432,13 +432,13 @@ namespace CoAInstaller
                 }
             }
             if (statements.Count == 0) return;
-            string summary = string.Join(", ", new[] { updates > 0 ? updates + " row(s) changed" : null, inserts > 0 ? inserts + " added" : null, deleted.Count > 0 ? deleted.Count + " deleted" : null }.Where(x => x != null));
+            string summary = string.Join(", ", new[] { updates > 0 ? L.F("{0} row(s) changed", updates) : null, inserts > 0 ? L.F("{0} added", inserts) : null, deleted.Count > 0 ? L.F("{0} deleted", deleted.Count) : null }.Where(x => x != null));
             if (!LiveOk(new[] { db })) return;
-            if (!Ui.Confirm(this, "Write to " + db + "." + table + ": " + summary + "?")) return;
+            if (!Ui.Confirm(this, L.F("Write to {0}: {1}?", db + "." + table, summary))) return;
             // All or nothing where the table allows it (InnoDB); the client stops at the first error.
             string script = "START TRANSACTION;\n" + string.Join("\n", statements) + "\nCOMMIT;\n";
-            tableHint.Text = "Saving …";
-            string undoFile = NewUndoFile("edit of " + db + "." + table), database = db, name = table; var known = tablesOf;
+            tableHint.Text = L.T("Saving …");
+            string undoFile = NewUndoFile(L.F("edit of {0}", db + "." + table)), database = db, name = table; var known = tablesOf;
             back.Reverse();
             Background(() =>
             {
@@ -451,7 +451,7 @@ namespace CoAInstaller
                 }
                 try { MySql.Tables(inst, Login, script, 1); }
                 catch { try { File.Delete(undoFile); } catch { } throw; }
-            }, () => { deleted.Clear(); LoadPage(true); }, error => { tableHint.Text = "Not saved."; Ui.Error(this, "The database refused the changes; nothing was written (tables of the MyISAM kind keep what came before the error):\n\n" + error); });
+            }, () => { deleted.Clear(); LoadPage(true); }, error => { tableHint.Text = L.T("Not saved."); Ui.Error(this, L.T("The database refused the changes; nothing was written (tables of the MyISAM kind keep what came before the error):") + "\n\n" + error); });
         }
 
         // ---------------------------------------------------------------- free SQL
@@ -474,7 +474,7 @@ namespace CoAInstaller
         {
             string text = sql.SelectionLength > 0 ? sql.SelectedText : sql.Text;
             if (busy || text.Trim().Length == 0) return;
-            if (!allow.Checked && !ReadsOnly(text)) { Ui.Error(this, "This would change something. Tick \"Allow changes\" at the top first."); return; }
+            if (!allow.Checked && !ReadsOnly(text)) { Ui.Error(this, L.T("This would change something. Tick \"Allow changes\" at the top first.")); return; }
             // Statements that change something: keep the tables they name first, so the change can be undone.
             Dictionary<string, SortedSet<string>> touched = null; string undoFile = null; var known = tablesOf;
             if (allow.Checked && !ReadsOnly(text))
@@ -483,15 +483,17 @@ namespace CoAInstaller
                 touched = Touched(plan, null);
                 if (plan.Other || plan.Loose || touched.Count == 0 || touched.Keys.Any(d => !known.ContainsKey(d)))
                 {
-                    if (!Ui.Confirm(this, Product.Name + " cannot tell for sure which tables this changes" + (plan.Loose ? " (name the database with each table: acore_world.creature_template)" : "") +
-                        ", so \"Undo last change\" will not be able to take it back.\n\nRun it anyway?")) return;
+                    if (!Ui.Confirm(this, (plan.Loose
+                        ? L.F("{0} cannot tell for sure which tables this changes (name the database with each table: acore_world.creature_template), so \"Undo last change\" will not be able to take it back.", Product.Name)
+                        : L.F("{0} cannot tell for sure which tables this changes, so \"Undo last change\" will not be able to take it back.", Product.Name)) +
+                        "\n\n" + L.T("Run it anyway?"))) return;
                     if (!LiveOk(touched.Keys)) return;
                     touched = null;
                 }
                 else if (!LiveOk(touched.Keys)) return;
-                else undoFile = NewUndoFile("SQL on " + string.Join(", ", touched.SelectMany(d => d.Value.Select(t => d.Key + "." + t)).Take(3)) + (touched.Sum(d => d.Value.Count) > 3 ? " and more" : ""));
+                else undoFile = NewUndoFile(L.F("SQL on {0}", string.Join(", ", touched.SelectMany(d => d.Value.Select(t => d.Key + "." + t)).Take(3))) + (touched.Sum(d => d.Value.Count) > 3 ? " " + L.T("and more") : ""));
             }
-            sqlHint.Text = undoFile != null ? "Keeping a copy of " + touched.Sum(d => d.Value.Count) + " table(s) for the undo, then running … (large tables take a moment)" : "Running …";
+            sqlHint.Text = undoFile != null ? L.F("Keeping a copy of {0} table(s) for the undo, then running … (large tables take a moment)", touched.Sum(d => d.Value.Count)) : L.T("Running …");
             DateTime start = DateTime.Now;
             // The number of rows the last statement changed comes back as a result of its own.
             // Without the switch the session itself is read-only, whatever the text says.
@@ -501,7 +503,7 @@ namespace CoAInstaller
                 if (undoFile != null)
                 {
                     try { WriteCopies(undoFile, touched, known); }
-                    catch (Exception ex) { throw new InvalidOperationException("The copy for \"Undo last change\" could not be made, so nothing was run.\n\n" + ex.Message); }
+                    catch (Exception ex) { throw new InvalidOperationException(L.T("The copy for \"Undo last change\" could not be made, so nothing was run.") + "\n\n" + ex.Message); }
                 }
                 var list = MySql.Tables(inst, Login, script, QueryRows);
                 UI(() =>
@@ -510,21 +512,21 @@ namespace CoAInstaller
                     if (list.Count > 0 && list[list.Count - 1].Columns.Count == 1 && list[list.Count - 1].Columns[0] == "afk_rows_changed")
                     {
                         string v = list[list.Count - 1].Rows.Count > 0 ? list[list.Count - 1].Rows[0][0] : null; int n;
-                        if (int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out n) && n >= 0) changed = n + " row(s) changed by the last statement";
+                        if (int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out n) && n >= 0) changed = L.F("{0} row(s) changed by the last statement", n);
                         list.RemoveAt(list.Count - 1);
                     }
                     results = list;
                     resultPick.Items.Clear();
                     for (int i = 0; i < list.Count; i++)
-                        resultPick.Items.Add("Result " + (i + 1) + " of " + list.Count + ", " + list[i].Total + " row(s): " + (list[i].Statement.Length > 60 ? list[i].Statement.Substring(0, 60) + " …" : list[i].Statement));
+                        resultPick.Items.Add(L.F("Result {0} of {1}, {2} row(s):", i + 1, list.Count, list[i].Total) + " " + (list[i].Statement.Length > 60 ? list[i].Statement.Substring(0, 60) + " …" : list[i].Statement));
                     resultPick.Visible = list.Count > 1;
                     if (list.Count > 0) { resultPick.SelectedIndex = list.Count - 1; ShowResult(list.Count - 1); } else { result.Rows.Clear(); result.Columns.Clear(); }
                     string took = (DateTime.Now - start).TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s";
                     Buttons();
-                    sqlHint.Text = "Done in " + took + (changed != null ? ": " + changed : "") + (list.Count == 0 && changed == null ? ". No rows came back." : "") +
-                        (list.Count > 0 ? ". " + list[list.Count - 1].Total + " row(s)" + (list[list.Count - 1].Total > QueryRows ? ", the first " + QueryRows + " are shown" : "") + "." : ".");
+                    sqlHint.Text = L.F("Done in {0}", took) + (changed != null ? ": " + changed : "") + (list.Count == 0 && changed == null ? ". " + L.T("No rows came back.") : "") +
+                        (list.Count > 0 ? ". " + (list[list.Count - 1].Total > QueryRows ? L.F("{0} row(s), the first {1} are shown.", list[list.Count - 1].Total, QueryRows) : L.F("{0} row(s).", list[list.Count - 1].Total)) : (list.Count == 0 && changed == null ? "" : "."));
                 });
-            }, error => { sqlHint.Text = "Stopped with an error. Statements before it were carried out" + (undoFile != null && File.Exists(undoFile) ? "; \"Undo last change\" takes them back." : "."); Ui.Error(this, error); });
+            }, error => { sqlHint.Text = undoFile != null && File.Exists(undoFile) ? L.T("Stopped with an error. Statements before it were carried out; \"Undo last change\" takes them back.") : L.T("Stopped with an error. Statements before it were carried out."); Ui.Error(this, error); });
         }
 
         void ShowResult(int index)
@@ -567,11 +569,11 @@ namespace CoAInstaller
         {
             switch (database)
             {
-                case "acore_world": return "World: creatures, items, quests, loot  (acore_world)";
-                case "acore_characters": return "Characters and what they own  (acore_characters)";
-                case "acore_auth": return "Accounts and realm  (acore_auth)";
+                case "acore_world": return L.T("World: creatures, items, quests, loot") + "  (acore_world)";
+                case "acore_characters": return L.T("Characters and what they own") + "  (acore_characters)";
+                case "acore_auth": return L.T("Accounts and realm") + "  (acore_auth)";
                 case "acore_playerbots": return "Playerbots  (acore_playerbots)";
-                case "afk_modules": return "AFK Realm's record of module changes  (afk_modules)";
+                case "afk_modules": return L.T("AFK Realm's record of module changes") + "  (afk_modules)";
                 default: return database;
             }
         }
@@ -590,14 +592,14 @@ namespace CoAInstaller
             if (preTable == null && node != null) { preDb = node.Parent != null ? node.Parent.Text : node.Text; preTable = node.Parent != null ? node.Text : null; }
 
             var chosen = new Dictionary<string, List<string>>();
-            using (var f = new Form { Text = Product.Name + " – Export", Font = Ui.Base, BackColor = Color.White, ShowIcon = false, MinimizeBox = false, MaximizeBox = false,
+            using (var f = new Form { Text = Product.Name + " – " + L.T("Export"), Font = Ui.Base, BackColor = Color.White, ShowIcon = false, MinimizeBox = false, MaximizeBox = false,
                 StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(520, 560), MinimumSize = new Size(420, 400), Padding = new Padding(16) })
             {
                 var pick = new TreeView { Dock = DockStyle.Fill, CheckBoxes = true, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle, ShowLines = false };
                 var count = new Label { Dock = DockStyle.Bottom, Height = 24, Font = Ui.Small, ForeColor = Ui.Muted, TextAlign = ContentAlignment.MiddleLeft };
-                var ok = Ui.Primary("Export …"); var cancel = Ui.Secondary("Cancel"); ok.DialogResult = DialogResult.OK; cancel.DialogResult = DialogResult.Cancel;
+                var ok = Ui.Primary(L.T("Export …")); var cancel = Ui.Secondary(L.T("Cancel")); ok.DialogResult = DialogResult.OK; cancel.DialogResult = DialogResult.Cancel;
                 var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 6, 0, 0) }; buttons.Controls.Add(ok); buttons.Controls.Add(cancel);
-                var head = new Label { Dock = DockStyle.Top, Height = 64, Text = "Tick what you want to export: a whole database, or open it and tick single tables. Everything goes into one file that can be imported again here or on another server." };
+                var head = new Label { Dock = DockStyle.Top, Height = 64, Text = L.T("Tick what you want to export: a whole database, or open it and tick single tables. Everything goes into one file that can be imported again here or on another server.") };
                 TreeNode show = null;
                 foreach (var name in DatabasesInOrder())
                 {
@@ -612,7 +614,7 @@ namespace CoAInstaller
                 Action recount = () =>
                 {
                     int tables = pick.Nodes.Cast<TreeNode>().Sum(d => d.Nodes.Cast<TreeNode>().Count(n => n.Checked));
-                    count.Text = tables == 0 ? "Nothing ticked yet." : tables + " table(s) ticked.";
+                    count.Text = tables == 0 ? L.T("Nothing ticked yet.") : L.F("{0} table(s) ticked.", tables);
                     ok.Enabled = tables > 0;
                 };
                 bool ticking = false;
@@ -637,13 +639,13 @@ namespace CoAInstaller
 
             string suggestion = chosen.Count == 1 ? chosen.Keys.First() + (chosen.Values.First() != null && chosen.Values.First().Count == 1 ? "." + chosen.Values.First()[0] : "") : "server-export";
             string file;
-            using (var d = new SaveFileDialog { Filter = "SQL file (*.sql)|*.sql", OverwritePrompt = true, FileName = suggestion + ".sql" })
+            using (var d = new SaveFileDialog { Filter = L.T("SQL file (*.sql)|*.sql"), OverwritePrompt = true, FileName = suggestion + ".sql" })
             {
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 file = d.FileName;
             }
             Label hint = tableTabShown() ? tableHint : sqlHint;
-            hint.Text = "Exporting … large databases take a while.";
+            hint.Text = L.T("Exporting … large databases take a while.");
             Background(() =>
             {
                 try
@@ -658,10 +660,10 @@ namespace CoAInstaller
                 catch { try { File.Delete(file); } catch { } throw; }
             }, () =>
             {
-                hint.Text = "Exported to " + file + " (" + Size(new FileInfo(file).Length) + ").";
-                if (Ui.Confirm(this, "Exported to\n" + file + "\n\nShow the file in its folder?"))
+                hint.Text = L.F("Exported to {0} ({1}).", file, Size(new FileInfo(file).Length));
+                if (Ui.Confirm(this, L.T("Exported to") + "\n" + file + "\n\n" + L.T("Show the file in its folder?")))
                     try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + file + "\""); } catch { }
-            }, error => { hint.Text = "Not exported."; Ui.Error(this, "The export failed:\n\n" + error); });
+            }, error => { hint.Text = L.T("Not exported."); Ui.Error(this, L.T("The export failed:") + "\n\n" + error); });
         }
 
         bool tableTabShown() { return tableHint.Visible; }
@@ -723,41 +725,41 @@ namespace CoAInstaller
         void Import()
         {
             if (busy) return;
-            if (!allow.Checked) { Ui.Error(this, "Importing changes the database. Tick \"Allow changes\" at the top first."); return; }
-            if (Dirty && !Ui.Confirm(this, "There are changes in the table that were not saved; they are lost. Go on?")) return;
+            if (!allow.Checked) { Ui.Error(this, L.T("Importing changes the database. Tick \"Allow changes\" at the top first.")); return; }
+            if (Dirty && !Ui.Confirm(this, L.T("There are changes in the table that were not saved; they are lost. Go on?"))) return;
             string file;
-            using (var d = new OpenFileDialog { Filter = "SQL file (*.sql)|*.sql|All files (*.*)|*.*", Title = "Choose the SQL file to import" })
+            using (var d = new OpenFileDialog { Filter = L.T("SQL file (*.sql)|*.sql|All files (*.*)|*.*"), Title = L.T("Choose the SQL file to import") })
             {
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 file = d.FileName;
             }
             FilePlan plan;
-            try { plan = Scan(file); } catch (Exception ex) { Ui.Error(this, "The file could not be read:\n\n" + ex.Message); return; }
+            try { plan = Scan(file); } catch (Exception ex) { Ui.Error(this, L.T("The file could not be read:") + "\n\n" + ex.Message); return; }
 
             // In one sentence, and the tables by name below it for those who want to know.
             var parts = new List<string>();
-            if (plan.Rebuilt.Count > 0) parts.Add("replaces " + plan.Rebuilt.Count + " table(s) completely");
-            if (plan.Created.Count > 0) parts.Add("creates " + plan.Created.Count + " new table(s)");
-            if (plan.Altered.Count > 0) parts.Add("changes the structure of " + plan.Altered.Count + " table(s)");
-            if (plan.Emptied.Count > 0) parts.Add("deletes rows from " + plan.Emptied.Count + " table(s)");
+            if (plan.Rebuilt.Count > 0) parts.Add(L.F("replaces {0} table(s) completely", plan.Rebuilt.Count));
+            if (plan.Created.Count > 0) parts.Add(L.F("creates {0} new table(s)", plan.Created.Count));
+            if (plan.Altered.Count > 0) parts.Add(L.F("changes the structure of {0} table(s)", plan.Altered.Count));
+            if (plan.Emptied.Count > 0) parts.Add(L.F("deletes rows from {0} table(s)", plan.Emptied.Count));
             int writes = plan.Written.Count(t => !plan.Rebuilt.Contains(t) && !plan.Created.Contains(t));
-            if (writes > 0) parts.Add("writes rows into " + writes + " table(s)");
-            if (plan.Other) parts.Add("creates or deletes whole databases");
-            string summary = parts.Count == 0 ? "No changes to tables were recognised in this file; it may still do other things."
-                : "This file " + (parts.Count == 1 ? parts[0] : string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[parts.Count - 1]) + "." + (plan.Partial ? " (It is large; only its beginning was looked at.)" : "");
+            if (writes > 0) parts.Add(L.F("writes rows into {0} table(s)", writes));
+            if (plan.Other) parts.Add(L.T("creates or deletes whole databases"));
+            string summary = parts.Count == 0 ? L.T("No changes to tables were recognised in this file; it may still do other things.")
+                : L.F("This file: {0}.", string.Join("; ", parts)) + (plan.Partial ? " " + L.T("(It is large; only its beginning was looked at.)") : "");
             var text = new StringBuilder();
             Action<string, ICollection<string>> say = (title, names) => { if (names.Count > 0) text.AppendLine(title + ": " + Names(names)); };
-            say("Replaced completely", plan.Rebuilt);
-            say("Created", plan.Created);
-            say("Structure changed", plan.Altered);
-            say("Rows deleted from", plan.Emptied);
-            say("Rows written into", plan.Written.Where(t => !plan.Rebuilt.Contains(t) && !plan.Created.Contains(t)).ToList());
+            say(L.T("Replaced completely"), plan.Rebuilt);
+            say(L.T("Created"), plan.Created);
+            say(L.T("Structure changed"), plan.Altered);
+            say(L.T("Rows deleted from"), plan.Emptied);
+            say(L.T("Rows written into"), plan.Written.Where(t => !plan.Rebuilt.Contains(t) && !plan.Created.Contains(t)).ToList());
 
             // A file that says where it belongs (every export from here does) needs no choice.
             var named = plan.Databases.Where(tablesOf.ContainsKey).ToList();
             bool choose = plan.Loose || named.Count == 0;
             string target, fits = null;
-            using (var f = new Form { Text = Product.Name + " – Import", Font = Ui.Base, BackColor = Color.White, ShowIcon = false, FormBorderStyle = FormBorderStyle.FixedDialog,
+            using (var f = new Form { Text = Product.Name + " – " + L.T("Import"), Font = Ui.Base, BackColor = Color.White, ShowIcon = false, FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false, StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(560, 380), Padding = new Padding(16) })
             {
                 var pick = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 400, Font = Ui.Base, Margin = new Padding(0, 4, 0, 0) };
@@ -767,24 +769,24 @@ namespace CoAInstaller
                 var loose = plan.Rebuilt.Concat(plan.Created).Concat(plan.Altered).Concat(plan.Emptied).Concat(plan.Written).Where(t => !t.Contains(".")).Distinct().ToList();
                 string home = order.Select(d => new { d, hits = loose.Count(t => tablesOf[d].Contains(t)) }).Where(x => x.hits > 0).OrderByDescending(x => x.hits).Select(x => x.d).FirstOrDefault();
                 string guess = plan.Named != null && tablesOf.ContainsKey(plan.Named) ? plan.Named : home ?? (named.Count > 0 ? named[0] : tablesOf.ContainsKey("acore_world") ? "acore_world" : CurrentDb);
-                if (home != null) fits = "Its tables are found in " + home + ".";
+                if (home != null) fits = L.F("Its tables are found in {0}.", home);
                 pick.SelectedIndex = Math.Max(0, order.IndexOf(guess));
                 var head = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
-                head.Controls.Add(new Label { Text = "Import " + Path.GetFileName(file) + "  (" + Size(new FileInfo(file).Length) + ")", AutoSize = true, Font = Ui.Bold });
+                head.Controls.Add(new Label { Text = L.F("Import {0}", Path.GetFileName(file)) + "  (" + Size(new FileInfo(file).Length) + ")", AutoSize = true, Font = Ui.Bold });
                 if (choose)
                 {
-                    head.Controls.Add(new Label { Text = "Which database is this file for?", AutoSize = true, Margin = new Padding(0, 10, 0, 0) });
+                    head.Controls.Add(new Label { Text = L.T("Which database is this file for?"), AutoSize = true, Margin = new Padding(0, 10, 0, 0) });
                     head.Controls.Add(pick);
-                    head.Controls.Add(new Label { Text = fits ?? "The file does not say. The place you got it from usually does (world, characters or auth); most module files are for the world.",
+                    head.Controls.Add(new Label { Text = fits ?? L.T("The file does not say. The place you got it from usually does (world, characters or auth); most module files are for the world."),
                         AutoSize = true, MaximumSize = new Size(520, 0), Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 2, 0, 0) });
                 }
-                else head.Controls.Add(new Label { Text = "Goes into: " + string.Join(", ", named), AutoSize = true, Margin = new Padding(0, 10, 0, 0) });
+                else head.Controls.Add(new Label { Text = L.T("Goes into:") + " " + string.Join(", ", named), AutoSize = true, Margin = new Padding(0, 10, 0, 0) });
                 head.Controls.Add(new Label { Text = summary, AutoSize = true, MaximumSize = new Size(520, 0), Margin = new Padding(0, 10, 0, 6) });
                 var box = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, Font = Ui.Small, BackColor = Ui.Panel, BorderStyle = BorderStyle.FixedSingle, Text = text.ToString().TrimEnd(), TabStop = false, Visible = text.Length > 0 };
                 var foot = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
                 foot.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(520, 0), Font = Ui.Small, ForeColor = Ui.Warn, Margin = new Padding(0, 8, 0, 0),
-                    Text = "The whole file is carried out. Before that, AFK Realm keeps a copy of the tables the file touches, so \"Undo last change\" can put them back as they were. Still: only import files from a source you trust." });
-                var ok = Ui.Primary("Import"); var cancel = Ui.Secondary("Cancel"); ok.DialogResult = DialogResult.OK; cancel.DialogResult = DialogResult.Cancel;
+                    Text = L.T("The whole file is carried out. Before that, AFK Realm keeps a copy of the tables the file touches, so \"Undo last change\" can put them back as they were. Still: only import files from a source you trust.") });
+                var ok = Ui.Primary(L.T("Import")); var cancel = Ui.Secondary(L.T("Cancel")); ok.DialogResult = DialogResult.OK; cancel.DialogResult = DialogResult.Cancel;
                 var row = Ui.Row(); row.Margin = new Padding(0, 10, 0, 0); row.Controls.Add(ok); row.Controls.Add(cancel); foot.Controls.Add(row);
                 f.Controls.Add(box); f.Controls.Add(foot); f.Controls.Add(head); f.CancelButton = cancel;
                 f.Shown += (s, e) => { box.SelectionLength = 0; cancel.Focus(); };
@@ -799,27 +801,27 @@ namespace CoAInstaller
             if (plan.Partial || plan.Other || touched.Count == 0) { touched.Clear(); foreach (var d in named.Concat(choose ? new[] { target } : new string[0]).Distinct()) touched[d] = null; }
             var known = tablesOf;
             if (!LiveOk(touched.Keys)) return;
-            string undoFile = NewUndoFile("import of " + Path.GetFileName(file));
+            string undoFile = NewUndoFile(L.F("import of {0}", Path.GetFileName(file)));
 
             Label hint = tableTabShown() ? tableHint : sqlHint;
-            hint.Text = "Keeping a copy of what the file touches, then importing " + Path.GetFileName(file) + " …";
+            hint.Text = L.F("Keeping a copy of what the file touches, then importing {0} …", Path.GetFileName(file));
             bool copied = false;
             Background(() =>
             {
                 try { WriteCopies(undoFile, touched, known); }
-                catch (Exception ex) { throw new InvalidOperationException("The copy for \"Undo last change\" could not be made, so nothing was imported.\n\n" + ex.Message); }
+                catch (Exception ex) { throw new InvalidOperationException(L.T("The copy for \"Undo last change\" could not be made, so nothing was imported.") + "\n\n" + ex.Message); }
                 copied = true;
                 MySql.RunFile(inst, Login, target, file);
             }, () =>
             {
-                MessageBox.Show(this, Path.GetFileName(file) + " was imported into " + where_ + ".\n\nThe worldserver reads most world tables only when it starts: restart the server for the change to show in the game.\n\n" +
-                    "If it does not work out, \"Undo last change\" puts everything back as it was.", Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Refill("Imported " + Path.GetFileName(file) + " into " + where_ + ".");
+                MessageBox.Show(this, L.F("{0} was imported into {1}.", Path.GetFileName(file), where_) + "\n\n" + L.T("The worldserver reads most world tables only when it starts: restart the server for the change to show in the game.") + "\n\n" +
+                    L.T("If it does not work out, \"Undo last change\" puts everything back as it was."), Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Refill(L.F("Imported {0} into {1}.", Path.GetFileName(file), where_));
             }, error =>
             {
-                if (!copied) { hint.Text = "Nothing was imported."; Ui.Error(this, error); return; }
-                Ui.Error(this, "The import stopped with an error. Statements before it were carried out, so the database may hold only a part of the file. \"Undo last change\" puts everything back as it was.\n\n" + error);
-                Refill("The import stopped with an error.");
+                if (!copied) { hint.Text = L.T("Nothing was imported."); Ui.Error(this, error); return; }
+                Ui.Error(this, L.T("The import stopped with an error. Statements before it were carried out, so the database may hold only a part of the file. \"Undo last change\" puts everything back as it was.") + "\n\n" + error);
+                Refill(L.T("The import stopped with an error."));
             });
         }
 
@@ -906,11 +908,11 @@ namespace CoAInstaller
         {
             if (ctl.World == null) return true;
             bool players = databases.Any(d => d == "acore_characters" || d == "acore_auth");
-            var answer = MessageBox.Show(this, "The server is running. Changing its database now is risky.\n\n" +
-                (players ? "This changes characters or accounts: the worldserver keeps the characters that are online in its memory and writes them back, so your change can be overwritten a moment later, or a character can end up half changed.\n\n"
-                         : "The worldserver has read these tables when it started and goes on working with what it read; the change only shows after a restart, and until then the server and the database do not agree.\n\n") +
-                "Stop the server first? All players are saved and logged out.\n\n" +
-                "Yes: stop the server, then go on\nNo: go on while the server is running\nCancel: change nothing",
+            var answer = MessageBox.Show(this, L.T("The server is running. Changing its database now is risky.") + "\n\n" +
+                (players ? L.T("This changes characters or accounts: the worldserver keeps the characters that are online in its memory and writes them back, so your change can be overwritten a moment later, or a character can end up half changed.\n\n")
+                         : L.T("The worldserver has read these tables when it started and goes on working with what it read; the change only shows after a restart, and until then the server and the database do not agree.\n\n")) +
+                L.T("Stop the server first? All players are saved and logged out.") + "\n\n" +
+                L.T("Yes: stop the server, then go on") + "\n" + L.T("No: go on while the server is running") + "\n" + L.T("Cancel: change nothing"),
                 Product.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);
             if (answer == DialogResult.Cancel) return false;
             if (answer == DialogResult.No) return true;
@@ -924,7 +926,7 @@ namespace CoAInstaller
             using (var f = new Form { Text = Product.Name, Font = Ui.Base, BackColor = Color.White, ShowIcon = false, ControlBox = false, FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(460, 90) })
             {
-                var note = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Text = "Stopping the server ..." };
+                var note = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Text = L.T("Stopping the server ...") };
                 f.Controls.Add(note);
                 f.Shown += (s, e) => System.Threading.ThreadPool.QueueUserWorkItem(_ =>
                 {
@@ -934,7 +936,7 @@ namespace CoAInstaller
                 });
                 f.ShowDialog(this);
             }
-            if (error != null) { Ui.Error(this, "The server could not be stopped, so nothing was changed:\n\n" + error); return false; }
+            if (error != null) { Ui.Error(this, L.T("The server could not be stopped, so nothing was changed:") + "\n\n" + error); return false; }
             return true;
         }
 
@@ -943,7 +945,7 @@ namespace CoAInstaller
             if (busy) return;
             var files = UndoFiles();
             if (files.Count == 0) return;
-            if (!allow.Checked) { Ui.Error(this, "Undoing a change changes the database. Tick \"Allow changes\" at the top first."); return; }
+            if (!allow.Checked) { Ui.Error(this, L.T("Undoing a change changes the database. Tick \"Allow changes\" at the top first.")); return; }
             string file = files[0], name = Path.GetFileNameWithoutExtension(file), what = name.Length > 16 ? name.Substring(16) : name; DateTime when;
             string at = DateTime.TryParseExact(name.Length >= 15 ? name.Substring(0, 15) : "", "yyyyMMdd-HHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out when) ? when.ToString("g") : "";
             bool rows = false;
@@ -952,23 +954,23 @@ namespace CoAInstaller
             rows = head.Contains(RowsMark);
             int mark = head.IndexOf("databases: ", StringComparison.Ordinal);
             if (!LiveOk(mark < 0 ? new string[0] : head.Substring(mark + 11).Split(' '))) return;
-            if (!Ui.Confirm(this, "Undo the last change: " + what + (at.Length > 0 ? ", " + at : "") + "?\n\n" +
-                (rows ? "The rows you changed, added or deleted are put back as they were before."
-                      : "The tables it touched are put back exactly as they were before. Whatever else changed in these tables since then is lost as well.") +
-                (ctl.World != null ? "\n\nThe server is running: restart it afterwards for this to show in the game." : "") +
-                (files.Count > 1 ? "\n\n" + (files.Count - 1) + " earlier change(s) can be undone after this one." : ""))) return;
-            if (Dirty && !Ui.Confirm(this, "There are changes in the table that were not saved; they are lost. Go on?")) return;
+            if (!Ui.Confirm(this, L.F("Undo the last change: {0}?", what + (at.Length > 0 ? ", " + at : "")) + "\n\n" +
+                (rows ? L.T("The rows you changed, added or deleted are put back as they were before.")
+                      : L.T("The tables it touched are put back exactly as they were before. Whatever else changed in these tables since then is lost as well.")) +
+                (ctl.World != null ? "\n\n" + L.T("The server is running: restart it afterwards for this to show in the game.") : "") +
+                (files.Count > 1 ? "\n\n" + L.F("{0} earlier change(s) can be undone after this one.", files.Count - 1) : ""))) return;
+            if (Dirty && !Ui.Confirm(this, L.T("There are changes in the table that were not saved; they are lost. Go on?"))) return;
             Label hint = tableTabShown() ? tableHint : sqlHint;
-            hint.Text = "Putting it back …";
+            hint.Text = L.T("Putting it back …");
             string any = tablesOf.ContainsKey("acore_world") ? "acore_world" : tablesOf.Keys.First();
             Background(() => MySql.RunFile(inst, Login, any, file), () =>
             {
                 try { File.Delete(file); } catch { }
-                Refill("Undone: " + what + ".");
+                Refill(L.F("Undone: {0}.", what));
             }, error =>
             {
-                Ui.Error(this, "Undoing stopped with an error. The file is kept in\n" + file + "\n\n" + error);
-                Refill("Undoing stopped with an error.");
+                Ui.Error(this, L.T("Undoing stopped with an error. The file is kept in") + "\n" + file + "\n\n" + error);
+                Refill(L.T("Undoing stopped with an error."));
             });
         }
 
@@ -992,7 +994,7 @@ namespace CoAInstaller
                 tablesOf = found; FillTree();
                 sqlHint.Text = message;
                 if (name != null && found.ContainsKey(database) && found[database].Contains(name)) LoadPage(true);
-                else { db = table = null; grid.Rows.Clear(); grid.Columns.Clear(); tableName.Text = "Choose a table on the left."; pageInfo.Text = ""; tableHint.Text = message; Buttons(); }
+                else { db = table = null; grid.Rows.Clear(); grid.Columns.Clear(); tableName.Text = L.T("Choose a table on the left."); pageInfo.Text = ""; tableHint.Text = message; Buttons(); }
             }, error => { tableHint.Text = message; });
         }
 
@@ -1005,10 +1007,10 @@ namespace CoAInstaller
             if (allow.Checked && !asked)
             {
                 var answer = MessageBox.Show(this,
-                    "From here on you can change and delete the server's data.\n\n" +
-                    "A mistake can break quests, creatures, characters or accounts, in the worst case the whole server. \"Undo last change\" can take back what you change in this window, but it is no substitute for a backup.\n\n" +
-                    "Back up the server first? The backup holds all databases and can be restored under \"Backups …\".\n\n" +
-                    "Yes: back up now (this window closes)\nNo: go on without a backup\nCancel: do not allow changes",
+                    L.T("From here on you can change and delete the server's data.") + "\n\n" +
+                    L.T("A mistake can break quests, creatures, characters or accounts, in the worst case the whole server. \"Undo last change\" can take back what you change in this window, but it is no substitute for a backup.") + "\n\n" +
+                    L.T("Back up the server first? The backup holds all databases and can be restored under \"Backups …\".") + "\n\n" +
+                    L.T("Yes: back up now (this window closes)") + "\n" + L.T("No: go on without a backup") + "\n" + L.T("Cancel: do not allow changes"),
                     Product.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);
                 if (answer == DialogResult.Cancel) { allow.Checked = false; return; }
                 if (answer == DialogResult.Yes) { BackUpNow = true; Close(); return; }
@@ -1016,8 +1018,8 @@ namespace CoAInstaller
             }
             if (table != null)
                 tableHint.Text = !HasKey ? tableHint.Text
-                    : allow.Checked ? "Click a cell to change it; type NULL for an empty value where the column allows it. Nothing is written until \"Save changes\"."
-                    : "Tick \"Allow changes\" at the top to edit. The primary key is shown in bold.";
+                    : allow.Checked ? L.T("Click a cell to change it; type NULL for an empty value where the column allows it. Nothing is written until \"Save changes\".")
+                    : L.T("Tick \"Allow changes\" at the top to edit. The primary key is shown in bold.");
             Buttons();
         }
     }

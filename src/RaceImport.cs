@@ -168,7 +168,7 @@ namespace CoAInstaller
             var di = DbcTable.Parse(load("DBFilesClient\\CreatureDisplayInfo.dbc"), "CreatureDisplayInfo.dbc");
             var md = DbcTable.Parse(load("DBFilesClient\\CreatureModelData.dbc"), "CreatureModelData.dbc");
             var baseRow = cr.Records.FirstOrDefault(r => cr.Field(r, 0) == baseRace);
-            if (baseRow == null) throw new InvalidOperationException("The game client has no race " + baseRace + " for the " + name + " to lean on.");
+            if (baseRow == null) throw new InvalidOperationException(L.F("The game client has no race {0} for the {1} to lean on.", baseRace, name));
             var displays = di.Records.ToDictionary(r => di.Field(r, 0));
             var models = md.Records.ToDictionary(r => md.Field(r, 0));
             var modelsOfPack = pack.Data.ContainsKey("models") ? pack.Data["models"] as Dictionary<string, object> : null;
@@ -177,14 +177,14 @@ namespace CoAInstaller
             {
                 var m = modelsOfPack == null ? null : (modelsOfPack.ContainsKey(sex == 0 ? "male" : "female") ? modelsOfPack[sex == 0 ? "male" : "female"] as Dictionary<string, object> : null);
                 if (m == null) m = modelsOfPack == null ? null : modelsOfPack.Values.OfType<Dictionary<string, object>>().FirstOrDefault();
-                if (m == null) throw new InvalidOperationException("The race folder of the " + name + " has no model.");
+                if (m == null) throw new InvalidOperationException(L.F("The race folder of the {0} has no model.", name));
                 uint id = (uint)(DisplayBase + race * 2 + sex);
                 if (displays.ContainsKey(id) || models.ContainsKey(id))
-                    throw new InvalidOperationException("The game client already uses display or model " + id + "; the " + name + " cannot take it.");
+                    throw new InvalidOperationException(L.F("The game client already uses display or model {0}; the {1} cannot take it.", id, name));
                 // the base race's display and model, with the model file and size of the imported race
                 byte[] baseDisplay; displays.TryGetValue(cr.Field(baseRow, 4 + sex), out baseDisplay);
                 byte[] baseModel = baseDisplay == null ? null : models.ContainsKey(di.Field(baseDisplay, 1)) ? models[di.Field(baseDisplay, 1)] : null;
-                if (baseDisplay == null || baseModel == null) throw new InvalidOperationException("The game client has no model for race " + baseRace + ".");
+                if (baseDisplay == null || baseModel == null) throw new InvalidOperationException(L.F("The game client has no model for race {0}.", baseRace));
                 var model = (byte[])baseModel.Clone();
                 md.SetField(model, 0, id);
                 md.SetField(model, 2, md.AddString(Str(m, "path")));
@@ -476,7 +476,7 @@ namespace CoAInstaller
                 string path = Path.Combine(data, ArchiveName(w.Race));
                 string stamp = Stamp(w);
                 if (InstalledStamp(path) == stamp) continue;
-                if (InstalledStamp(path) == "") throw new InvalidOperationException("Data\\" + ArchiveName(w.Race) + " in the game folder was not made by " + Product.Name + ". Rename or remove it, then install again.");
+                if (InstalledStamp(path) == "") throw new InvalidOperationException(L.F("Data\\{0} in the game folder was not made by {1}. Rename or remove it, then install again.", ArchiveName(w.Race), Product.Name));
                 var files = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var f in w.Pack.Files)
                 {
@@ -484,7 +484,7 @@ namespace CoAInstaller
                     if (File.Exists(p)) files[f] = p;
                 }
                 string temp = path + ".new";
-                string what = "Writing the files of the " + w.Pack.Name + " (Data\\" + ArchiveName(w.Race) + ")";
+                string what = L.F("Writing the files of the {0} (Data\\{1})", w.Pack.Name, ArchiveName(w.Race));
                 if (progress != null) progress(what + " …", 0, files.Count + 2);
                 MpqArchive.WriteFromFiles(temp, files, new Dictionary<string, byte[]> { { StampName, Encoding.UTF8.GetBytes(stamp) } },
                     progress == null ? null : (Action<int, int>)((done, all) => progress(what + ": " + done + " of " + all + " files", done, all)));
@@ -495,7 +495,7 @@ namespace CoAInstaller
                 catch (IOException)
                 {
                     try { File.Delete(temp); } catch { }
-                    throw new InvalidOperationException("Data\\" + ArchiveName(w.Race) + " is in use. Close the game and its launcher first.");
+                    throw new InvalidOperationException(L.F("Data\\{0} is in use. Close the game and its launcher first.", ArchiveName(w.Race)));
                 }
                 notes.Add(ArchiveName(w.Race) + " (" + w.Pack.Name + ")");
             }

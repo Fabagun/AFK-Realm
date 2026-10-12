@@ -89,7 +89,7 @@ namespace CoAInstaller
         public static Archives Open(string other, string yourClient)
         {
             var theirs = ArchivesOf(other);
-            if (theirs.Count == 0) throw new InvalidOperationException("There are no game archives (.MPQ) in " + other + ".");
+            if (theirs.Count == 0) throw new InvalidOperationException(L.F("There are no game archives (.MPQ) in {0}.", other));
             var names = new HashSet<string>(theirs.Select(Path.GetFileName), StringComparer.OrdinalIgnoreCase);
             var yours = yourClient == null ? new List<string>() : ClientPatch.ClientArchives(yourClient).Where(p => !names.Contains(Path.GetFileName(p)));
             // read order: the player's archives first, then the other client's (the last read wins)
@@ -128,7 +128,7 @@ namespace CoAInstaller
             if (File.Exists(to) && File.ReadAllBytes(to).SequenceEqual(File.ReadAllBytes(found))) return null;
             Directory.CreateDirectory(Path.GetDirectoryName(to));
             File.Copy(found, to, true);
-            return "Its 64-race patch (dinput8.dll) is kept in your race folder too (_Client).";
+            return L.T("Its 64-race patch (dinput8.dll) is kept in your race folder too (_Client).");
         }
 
         /// <summary>A short name of the other client for the race folder.</summary>
@@ -166,7 +166,7 @@ namespace CoAInstaller
         public static List<Candidate> Races(Archives source, string yourClient, string raceFolder)
         {
             var races = Table(source, "ChrRaces");
-            if (races == null) throw new InvalidOperationException("These archives have no race table (DBFilesClient\\ChrRaces.dbc).");
+            if (races == null) throw new InvalidOperationException(L.T("These archives have no race table (DBFilesClient\\ChrRaces.dbc)."));
             var di = Table(source, "CreatureDisplayInfo");
             var md = Table(source, "CreatureModelData");
             var displayModel = di == null ? new Dictionary<uint, uint>() : di.Records.GroupBy(r => di.Field(r, 0)).ToDictionary(g => g.Key, g => di.Field(g.First(), 1));
@@ -281,10 +281,10 @@ namespace CoAInstaller
                     { "model", Enumerable.Range(0, md.Fields).Select(k => (object)md.Field(m, k)).ToArray() },
                     { "path", path },
                 };
-                progress("Reading the model of the " + race.Name + " …");
+                progress(L.F("Reading the model of the {0} …", race.Name));
                 foreach (var f in ModelFiles(source, path)) files.Add(f);
             }
-            if (models.Count == 0) throw new InvalidOperationException("The " + race.Name + " has no model in these archives.");
+            if (models.Count == 0) throw new InvalidOperationException(L.F("The {0} has no model in these archives.", race.Name));
 
             var sections = Rows(Table(source, "CharSections"), 1, race.Id, 4, 5, 6);
             var hdSections = Rows(Table(source, "HDCharSections"), 1, race.Id, 4, 5, 6);
@@ -314,7 +314,7 @@ namespace CoAInstaller
             foreach (var f in files)
             {
                 done++;
-                if (done % 20 == 0) progress("The " + race.Name + ": file " + done + " of " + files.Count + " …");
+                if (done % 20 == 0) progress(L.F("The {0}: file {1} of {2} …", race.Name, done, files.Count));
                 byte[] data;
                 try { data = source.Read(f); }
                 catch { data = null; }
@@ -355,8 +355,8 @@ namespace CoAInstaller
             };
             Directory.CreateDirectory(dest);
             File.WriteAllText(Path.Combine(dest, "race.json"), new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(json), new UTF8Encoding(false));
-            return race.Name + ": " + keep.Count + " files, " + (bytes / 1000000) + " MB" + (same.Count > 0 ? ", " + same.Count + " taken from your client" : "") +
-                (missing.Count > 0 ? ", " + missing.Count + " missing" : "") + ".";
+            return L.F("{0}: {1} files, {2} MB", race.Name, keep.Count, bytes / 1000000) + (same.Count > 0 ? L.F(", {0} taken from your client", same.Count) : "") +
+                (missing.Count > 0 ? L.F(", {0} missing", missing.Count) : "") + ".";
         }
     }
 }

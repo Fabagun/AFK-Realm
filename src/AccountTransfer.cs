@@ -76,8 +76,8 @@ namespace CoAInstaller
             foreach (var line in lines)
             {
                 var f = line.Split('\t');
-                if (f[0] == "ACCOUNT" && f.Length >= 5) sum.Accounts.Add(f[1] + (f[4] == "1" ? " (added to the existing account, password from the file)" : " (new account)"));
-                else if (f[0] == "CHARACTER" && f.Length >= 4) sum.Characters.Add(f[3] == "1" ? f[1] + " (name already taken: asks for a new name at the next login)" : f[1]);
+                if (f[0] == "ACCOUNT" && f.Length >= 5) sum.Accounts.Add(f[1] + " " + (f[4] == "1" ? L.T("(added to the existing account, password from the file)") : L.T("(new account)")));
+                else if (f[0] == "CHARACTER" && f.Length >= 4) sum.Characters.Add(f[3] == "1" ? f[1] + " " + L.T("(name already taken: asks for a new name at the next login)") : f[1]);
                 else if (f[0] == "TABLE" && f.Length >= 3)
                 {
                     int n; if (!int.TryParse(f[2], out n)) continue;
@@ -107,7 +107,7 @@ namespace CoAInstaller
             Directory.CreateDirectory(temp);
             try
             {
-                status("Preparing the export …");
+                status(L.T("Preparing the export …"));
                 CreateStaging(inst, root);
                 // Empty copies of the tables: the dump then carries the structure of this server.
                 var tables = MySql.Query(inst, root, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'acore_characters' AND table_type = 'BASE TABLE';");
@@ -117,11 +117,11 @@ namespace CoAInstaller
                     create.Append("CREATE TABLE " + StageAuth + ".`" + t + "` LIKE acore_auth.`" + t + "`;\n");
                 MySql.Query(inst, root, create.ToString());
 
-                status("Collecting the characters, items and mail …");
+                status(L.T("Collecting the characters, items and mail …"));
                 var sum = Transfer(inst, root, Script("acore_auth", "acore_characters", StageAuth, StageChars, account, true));
-                if (sum.Characters.Count == 0 && sum.Accounts.Count == 0) throw new InvalidOperationException("The account \"" + account + "\" was not found.");
+                if (sum.Characters.Count == 0 && sum.Accounts.Count == 0) throw new InvalidOperationException(L.F("The account \"{0}\" was not found.", account));
 
-                status("Writing the file …");
+                status(L.T("Writing the file …"));
                 MySql.Dump(inst, root, StageAuth, Path.Combine(temp, "auth.sql"));
                 MySql.Dump(inst, root, StageChars, Path.Combine(temp, "characters.sql"));
                 var manifest = new StringBuilder();
@@ -152,7 +152,7 @@ namespace CoAInstaller
             {
                 var entry = zip.GetEntry("manifest.txt");
                 if (entry == null || zip.GetEntry("auth.sql") == null || zip.GetEntry("characters.sql") == null)
-                    throw new InvalidOperationException("This is not an " + Product.Name + " account file.");
+                    throw new InvalidOperationException(L.F("This is not an {0} account file.", Product.Name));
                 using (var r = new StreamReader(entry.Open(), Encoding.UTF8))
                 {
                     string line;
@@ -165,9 +165,9 @@ namespace CoAInstaller
             }
             int format;
             if (!result.ContainsKey("format") || !int.TryParse(result["format"], out format) || format > FormatVersion)
-                throw new InvalidOperationException("This account file was made by a newer " + Product.Name + ". Please update " + Product.Name + " first.");
+                throw new InvalidOperationException(L.F("This account file was made by a newer {0}. Please update {0} first.", Product.Name));
             if (!result.ContainsKey("accounts") || result["accounts"].Length == 0)
-                throw new InvalidOperationException("The account file names no account.");
+                throw new InvalidOperationException(L.T("The account file names no account."));
             return result;
         }
 
@@ -180,13 +180,13 @@ namespace CoAInstaller
             Directory.CreateDirectory(temp);
             try
             {
-                status("Reading the account file …");
+                status(L.T("Reading the account file …"));
                 ZipFile.ExtractToDirectory(file, temp);
                 CreateStaging(inst, root);
                 MySql.RunFile(inst, root, StageAuth, Path.Combine(temp, "auth.sql"));
                 MySql.RunFile(inst, root, StageChars, Path.Combine(temp, "characters.sql"));
 
-                status("Importing the characters with new ids …");
+                status(L.T("Importing the characters with new ids …"));
                 return Transfer(inst, root, Script(StageAuth, StageChars, "acore_auth", "acore_characters", manifest["accounts"], false));
             }
             finally

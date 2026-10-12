@@ -25,11 +25,18 @@ namespace CoAInstaller
         public static readonly Color SidebarHover = Color.FromArgb(42, 36, 64);
         public static readonly Color SidebarActive = Color.FromArgb(56, 46, 92);
 
-        public static readonly Font Base = new Font("Segoe UI", 10f);
-        public static readonly Font Small = new Font("Segoe UI", 9f);
-        public static readonly Font Bold = new Font("Segoe UI Semibold", 10f);
-        public static readonly Font H1 = new Font("Segoe UI Semibold", 16f);
-        public static readonly Font H2 = new Font("Segoe UI Semibold", 12f);
+        /// <summary>A font of the window's family: Segoe UI, or the one the language asks for (Chinese: Microsoft YaHei UI).</summary>
+        public static Font Face(float size, bool semibold = false, FontStyle style = FontStyle.Regular)
+        {
+            if (!string.IsNullOrEmpty(L.Font))
+                try { return new Font(L.Font, size, semibold ? style | FontStyle.Bold : style); } catch { }
+            return new Font(semibold ? "Segoe UI Semibold" : "Segoe UI", size, style);
+        }
+        public static readonly Font Base = Face(10f);
+        public static readonly Font Small = Face(9f);
+        public static readonly Font Bold = Face(10f, true);
+        public static readonly Font H1 = Face(16f, true);
+        public static readonly Font H2 = Face(12f, true);
         public static readonly Font Mono = new Font("Consolas", 9f);
 
         public static Label Title(string text)
@@ -118,7 +125,7 @@ namespace CoAInstaller
             }
         }
         /// <summary>Text of the right footer button; null hides it.</summary>
-        public virtual string NextText { get { return "Next"; } }
+        public virtual string NextText { get { return L.T("Next"); } }
         public virtual bool CanGoBack { get { return true; } }
         /// <summary>False: the page has no use for the footer with Back / Next / Close.</summary>
         public virtual bool ShowsFooter { get { return true; } }

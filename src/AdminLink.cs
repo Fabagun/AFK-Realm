@@ -80,12 +80,12 @@ namespace CoAInstaller
         /// <summary>Why commands cannot be sent right now, or null when the line is open.</summary>
         public static string Problem(Install inst, ServerControl ctl)
         {
-            if (ctl.World == null) return "The server is not running. Start it to send commands; looking things up works without it.";
-            if (!Enabled(inst)) return "The connection to the server is switched on when the server starts through " + Product.Name + ". Stop and start the server once.";
+            if (ctl.World == null) return L.T("The server is not running. Start it to send commands; looking things up works without it.");
+            if (!Enabled(inst)) return L.F("The connection to the server is switched on when the server starts through {0}. Stop and start the server once.", Product.Name);
             if (!Net.PortOpen(Port(inst)))
                 return Net.PortOpen(ctl.WorldPort)
-                    ? "The connection to the server is switched on when the server starts through " + Product.Name + ". Stop and start the server once."
-                    : "The worldserver is still loading. Commands work as soon as it is ready.";
+                    ? L.F("The connection to the server is switched on when the server starts through {0}. Stop and start the server once.", Product.Name)
+                    : L.T("The worldserver is still loading. Commands work as soon as it is ready.");
             return null;
         }
 
@@ -100,7 +100,7 @@ namespace CoAInstaller
                 // The account was changed or deleted in the meantime: put it back and try once more.
                 EnsureAccount(inst);
                 try { return Post(inst, command); }
-                catch (UnauthorizedAccessException) { throw new InvalidOperationException("The server rejected the " + Product.Name + " administrator account. Stop and start the server once."); }
+                catch (UnauthorizedAccessException) { throw new InvalidOperationException(L.F("The server rejected the {0} administrator account. Stop and start the server once.", Product.Name)); }
             }
         }
 
@@ -130,14 +130,14 @@ namespace CoAInstaller
             catch (WebException ex)
             {
                 var resp = ex.Response as HttpWebResponse;
-                if (resp == null) throw new InvalidOperationException("The server did not answer (" + ex.Message + "). Is it still running?");
+                if (resp == null) throw new InvalidOperationException(L.F("The server did not answer ({0}). Is it still running?", ex.Message));
                 using (resp)
                 {
                     if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden) throw new UnauthorizedAccessException();
                     string text;
                     using (var rd = new StreamReader(resp.GetResponseStream(), Encoding.UTF8)) text = rd.ReadToEnd();
                     string fault = Result(text, "faultstring");
-                    throw new CommandFailedException(fault.Length > 0 ? fault : "The server refused the command (" + (int)resp.StatusCode + ").");
+                    throw new CommandFailedException(fault.Length > 0 ? fault : L.F("The server refused the command ({0}).", (int)resp.StatusCode));
                 }
             }
         }

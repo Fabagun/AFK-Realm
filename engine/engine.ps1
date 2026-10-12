@@ -118,8 +118,28 @@ $JournalSql = Join-Path $PSScriptRoot 'module-journal.sql'
 # =============================================================================
 #  Output and logging
 # =============================================================================
+# A text for the window of AFK Realm in a form it can translate: the English text with places ({0}, {1} ...)
+# and the values, between marks (1: start, 2: next value, 3: end). AFK Realm shows it in the user's language;
+# the log gets the English text (Plain). Values may be such texts themselves.
+function Tr([string]$Format) {
+    $values = @($args | ForEach-Object { [string]$_ })
+    return ([string][char]1 + $Format + (($values | ForEach-Object { [string][char]2 + $_ }) -join '') + [string][char]3)
+}
+function Plain([string]$Text) {
+    if ($null -eq $Text -or $Text.IndexOf([char]1) -lt 0) { return $Text }
+    $rx = New-Object Text.RegularExpressions.Regex ('\x01([^\x01\x03]*)\x03')
+    $evaluator = [Text.RegularExpressions.MatchEvaluator] {
+        param($m)
+        $p = $m.Groups[1].Value.Split([char]2)
+        if ($p.Count -gt 1) { try { return ($p[0] -f [object[]]$p[1..($p.Count - 1)]) } catch { return ($p -join ' ') } }
+        return $p[0]
+    }
+    for ($i = 0; $i -lt 10 -and $rx.IsMatch($Text); $i++) { $Text = $rx.Replace($Text, $evaluator) }
+    return $Text
+}
 function Write-Log {
     param([string]$Text, [ConsoleColor]$Color = [ConsoleColor]::Gray)
+    $Text = Plain $Text
     try { [IO.File]::AppendAllText($Paths.Log, ('{0:yyyy-MM-dd HH:mm:ss} {1}{2}' -f (Get-Date), $Text, [Environment]::NewLine), (New-Object Text.UTF8Encoding($false))) } catch { }
     Write-Host $Text -ForegroundColor $Color
 }
@@ -127,7 +147,7 @@ function Write-Section([string]$Text) { Write-Log ''; Write-Log "=== $Text ===" 
 function Send-Event([string]$Kind, [string]$Text = '') {
     Write-Host ('##AC|{0}|{1}' -f $Kind, ($Text -replace '[\r\n]+', ' '))
 }
-function Enter-Phase([string]$Id, [string]$Text) { Send-Event 'PHASE' "$Id|$Text"; Write-Section $Text }
+function Enter-Phase([string]$Id, [string]$Text) { Send-Event 'PHASE' "$Id|$(Tr $Text)"; Write-Section $Text }
 
 # =============================================================================
 #  Running programs
@@ -155,7 +175,7 @@ function Invoke-Program {
         $ErrorActionPreference = $previousPreference
         Set-Location $previousLocation
     }
-    if ($code -ne 0 -and -not $AllowFailure) { throw ('{0} failed with exit code {1}.' -f (Split-Path $Path -Leaf), $code) }
+    if ($code -ne 0 -and -not $AllowFailure) { throw (Tr '{0} failed with exit code {1}.' (Split-Path $Path -Leaf) $code) }
     return $code
 }
 
@@ -218,12 +238,12 @@ function Save-Download {
                 'BITS' { Start-BitsTransfer -Source $Url -Destination $partial -ErrorAction Stop }
                 'curl' {
                     $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
-                    if (-not (Test-Path $curl)) { throw 'curl.exe is not available.' }
+                    if (-not (Test-Path $curl)) { throw (Tr 'curl.exe is not available.') }
                     [void](Invoke-Program $curl @('-L', '--fail', '--retry', '3', '-o', $partial, $Url))
                 }
             }
-            if (-not (Test-Path $partial) -or (Get-Item $partial).Length -lt $MinBytes) { throw 'The download is incomplete.' }
-            if (-not (Test-FileHash $partial $Sha256)) { throw 'The checksum does not match the expected file.' }
+            if (-not (Test-Path $partial) -or (Get-Item $partial).Length -lt $MinBytes) { throw (Tr 'The download is incomplete.') }
+            if (-not (Test-FileHash $partial $Sha256)) { throw (Tr 'The checksum does not match the expected file.') }
             Move-Item $partial $target -Force
             Write-Log ('Downloaded {0} ({1:N1} MB)' -f $FileName, ((Get-Item $target).Length / 1MB))
             return $target
@@ -232,7 +252,7 @@ function Save-Download {
             Write-Log "  $method failed: $($_.Exception.Message)" Yellow
         }
     }
-    throw ("Could not download $FileName from $Url. " + ($failures -join ' | '))
+    throw (Tr 'Could not download {0} from {1}. {2}' $FileName $Url ($failures -join ' | '))
 }
 
 function Receive-HttpFile([string]$Url, [string]$Destination, [string]$Label) {
@@ -271,7 +291,7 @@ function Expand-Download([string]$Zip, [string]$Destination) {
 # Returns the only top-level folder of an extracted archive (most ZIPs wrap their content in one).
 function Get-SingleFolder([string]$Path) {
     $folders = @(Get-ChildItem $Path -Directory)
-    if ($folders.Count -ne 1) { throw "Unexpected archive layout in $Path." }
+    if ($folders.Count -ne 1) { throw (Tr 'Unexpected archive layout in {0}.' $Path) }
     return $folders[0].FullName
 }
 
@@ -289,7 +309,7 @@ function Find-Program([string]$Name, [string[]]$KnownLocations = @()) {
 function Get-LatestReleaseAsset([string]$Repository, [string]$Pattern) {
     $release = Invoke-RestMethod -UseBasicParsing -Uri "https://api.github.com/repos/$Repository/releases/latest" -Headers @{ 'User-Agent' = 'AFK-Realm' }
     $asset = @($release.assets | Where-Object { $_.name -match $Pattern }) | Select-Object -First 1
-    if (-not $asset) { throw "No download matching '$Pattern' was found in the latest $Repository release." }
+    if (-not $asset) { throw (Tr 'No download matching "{0}" was found in the latest {1} release.' $Pattern $Repository) }
     return $asset
 }
 
@@ -313,7 +333,7 @@ function Resolve-Git {
         $asset = Get-LatestReleaseAsset 'git-for-windows/git' '^MinGit-[\d.]+-64-bit\.zip$'
         $zip = Save-Download $asset.browser_download_url 'MinGit-64-bit.zip' '' 20MB
         Expand-Download $zip (Join-Path $Paths.Deps 'Git')
-        if (-not (Test-Path $portable)) { throw 'git.exe is missing after extracting MinGit.' }
+        if (-not (Test-Path $portable)) { throw (Tr 'git.exe is missing after extracting MinGit.') }
     }
     return Use-Git $portable
 }
@@ -335,7 +355,7 @@ function Resolve-CMake {
         Remove-Item $folder -Recurse -Force -ErrorAction SilentlyContinue
         Move-Item (Get-SingleFolder $temp) $folder
         Remove-Item $temp -Recurse -Force
-        if (-not (Test-Path $portable)) { throw 'cmake.exe is missing after extracting CMake.' }
+        if (-not (Test-Path $portable)) { throw (Tr 'cmake.exe is missing after extracting CMake.') }
     }
     Write-Log "CMake: $portable"
     return $portable
@@ -414,7 +434,7 @@ function Resolve-VisualStudio {
         Write-Log 'Windows is waiting for a restart. If the Visual Studio installation fails, restart Windows and run this again.' Yellow
     }
     $bootstrapper = Save-Download $Downloads.VsBootstrapper 'vs_buildtools.exe' '' 1MB
-    if ((Get-AuthenticodeSignature $bootstrapper).Status -ne 'Valid') { throw 'The Visual Studio installer does not carry a valid Microsoft signature.' }
+    if ((Get-AuthenticodeSignature $bootstrapper).Status -ne 'Valid') { throw (Tr 'The Visual Studio installer does not carry a valid Microsoft signature.') }
 
     $components = "--add $VsWorkload --includeRecommended --wait --norestart"
     $localFolder = Join-Path $Paths.Deps 'VSBuildTools'
@@ -451,8 +471,7 @@ function Resolve-VisualStudio {
         $results += "$($attempt.Text): $code ($message)"
         if ($code -eq 5007) { break }
     }
-    throw ("Visual Studio 2022 Build Tools could not be installed. " + ($results -join ' | ') +
-           ' Install "Build Tools for Visual Studio 2022" with the workload "Desktop development with C++" manually, then run this again.')
+    throw (Tr 'Visual Studio 2022 Build Tools could not be installed. {0} Install "Build Tools for Visual Studio 2022" with the workload "Desktop development with C++" manually, then run this again.' ($results -join ' | '))
 }
 
 # =============================================================================
@@ -474,11 +493,11 @@ function Resolve-OpenSsl {
         $temp = Join-Path $Paths.Deps '_openssl'
         Expand-Download $zip $temp
         $x64 = Get-ChildItem $temp -Directory -Recurse | Where-Object { $_.Name -eq 'x64' -and (Test-Path (Join-Path $_.FullName 'include\openssl\ssl.h')) } | Select-Object -First 1
-        if (-not $x64) { throw 'The OpenSSL archive has an unexpected layout.' }
+        if (-not $x64) { throw (Tr 'The OpenSSL archive has an unexpected layout.') }
         Remove-Item $folder -Recurse -Force -ErrorAction SilentlyContinue
         Copy-Item $x64.FullName $folder -Recurse
         Remove-Item $temp -Recurse -Force
-        if (-not (Test-OpenSslFolder $folder)) { throw 'OpenSSL is incomplete after extraction.' }
+        if (-not (Test-OpenSslFolder $folder)) { throw (Tr 'OpenSSL is incomplete after extraction.') }
     }
     Write-Log "OpenSSL: $folder"
     return $folder
@@ -500,7 +519,7 @@ function Resolve-Boost {
         $code = Start-Installer $installer ('/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR="{0}" /LOG="{1}"' -f $folder, $setupLog)
         $deadline = (Get-Date).AddSeconds(30)
         while (-not (Test-BoostFolder $folder) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
-        if (-not (Test-BoostFolder $folder)) { throw "Boost could not be installed (installer exit code $code). Details: $setupLog" }
+        if (-not (Test-BoostFolder $folder)) { throw (Tr 'Boost could not be installed (installer exit code {0}). Details: {1}' $code $setupLog) }
     }
     Write-Log "Boost: $folder"
     return $folder
@@ -521,7 +540,7 @@ function Install-MySql {
     Move-Item (Get-SingleFolder $temp) $Paths.MySql
     Remove-Item $temp -Recurse -Force
     foreach ($file in 'bin\mysqld.exe', 'bin\mysql.exe', 'bin\mysqladmin.exe', 'include\mysql.h', 'lib\mysqlclient.lib', 'lib\libmysql.dll') {
-        if (-not (Test-Path (Join-Path $Paths.MySql $file))) { throw "The MySQL package is missing $file." }
+        if (-not (Test-Path (Join-Path $Paths.MySql $file))) { throw (Tr 'The MySQL package is missing {0}.' $file) }
     }
 }
 
@@ -568,11 +587,11 @@ function Start-Database {
         [void](Invoke-Program (Join-Path $Paths.MySql 'bin\mysqld.exe') @("--defaults-file=$($Paths.MyIni)", '--initialize-insecure', '--console'))
     }
     if (@(Get-DatabaseProcess).Count -eq 0) {
-        if (Test-Port $DatabasePort) { throw "Port $DatabasePort is already used by another program (another database or repack?). Stop it or choose another port." }
+        if (Test-Port $DatabasePort) { throw (Tr 'Port {0} is already used by another program (another database or repack?). Stop it or choose another port.' $DatabasePort) }
         Start-Process (Join-Path $Paths.MySql 'bin\mysqld.exe') -ArgumentList "--defaults-file=`"$($Paths.MyIni)`"" -WorkingDirectory $Paths.Db -WindowStyle Hidden | Out-Null
     }
     for ($i = 0; $i -lt 90; $i++) { if (Test-Port $DatabasePort) { return }; Start-Sleep -Seconds 1 }
-    throw 'The database did not start. See logs\mysql-error.log.'
+    throw (Tr 'The database did not start. See logs\mysql-error.log.')
 }
 
 # A temporary MySQL option file keeps passwords off the command line and out of the log.
@@ -618,7 +637,7 @@ function Initialize-Database([string]$Password) {
         if (-not (Test-SqlLogin $root)) {
             Remove-Item $root -Force
             $root = New-ClientOptions 'root' ''
-            if (-not (Test-SqlLogin $root)) { throw 'The database rejected the password. Use the password from the first installation.' }
+            if (-not (Test-SqlLogin $root)) { throw (Tr 'The database rejected the password. Use the password from the first installation.') }
         }
         $pw = $Password.Replace("'", "''")
         $sql = New-Object Text.StringBuilder
@@ -657,7 +676,7 @@ function Repair-IncompleteDatabases([string]$Password) {
             $hasTable = [int](Get-SqlValue $options "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$($db.Schema)' AND table_name = '$($db.Data)';")
             $rows = if ($hasTable -gt 0) { [int](Get-SqlValue $options "SELECT COUNT(*) FROM $($db.Schema).$($db.Data);") } else { 0 }
             if ($rows -gt 0) {
-                throw "$($db.Schema) is incomplete ($tables of $expected tables) but already contains data. It was left unchanged; restore it from a backup."
+                throw (Tr '{0} is incomplete ({1} of {2} tables) but already contains data. It was left unchanged; restore it from a backup.' $db.Schema $tables $expected)
             }
             Write-Log "$($db.Schema) was only partly created ($tables of $expected tables) and holds no data yet; recreating it." Yellow
             [void](Invoke-Sql $options "DROP DATABASE $($db.Schema); CREATE DATABASE $($db.Schema) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
@@ -708,7 +727,7 @@ function Update-Databases([string]$Password) {
         } finally {
             foreach ($folder in $held) { Rename-Item ([IO.Path]::Combine($folder, 'data', 'sql.afk-held')) 'sql' }
         }
-        if ($code -ne 0) { throw 'A database update failed. The MySQL error is shown just above in the log.' }
+        if ($code -ne 0) { throw (Tr 'A database update failed. The MySQL error is shown just above in the log.') }
         try {
             Repair-ModuleJournal $root
             foreach ($m in $managed) {
@@ -731,7 +750,7 @@ function Stop-Database([string]$Password) {
         $ErrorActionPreference = $previousPreference
     } finally { Remove-Item $root -Force -ErrorAction SilentlyContinue }
     for ($i = 0; $i -lt 60 -and @(Get-DatabaseProcess).Count -gt 0; $i++) { Start-Sleep -Seconds 1 }
-    if (@(Get-DatabaseProcess).Count -gt 0) { throw 'The database could not be stopped cleanly. Close it manually and check logs\mysql-error.log.' }
+    if (@(Get-DatabaseProcess).Count -gt 0) { throw (Tr 'The database could not be stopped cleanly. Close it manually and check logs\mysql-error.log.') }
     Write-Log 'Database stopped cleanly.'
 }
 
@@ -772,7 +791,7 @@ function Sync-Repository([string]$Git, [hashtable]$Item, [string]$Folder, [switc
     if ($KeepModules) { $clean += @('-e', 'modules/') }
     [void](Invoke-Program $Git $clean)
     $head = Get-ProgramOutput $Git @('-C', $Folder, 'rev-parse', 'HEAD')
-    if ($head -ne $Item.Revision) { throw "$Folder is at $head instead of $($Item.Revision)." }
+    if ($head -ne $Item.Revision) { throw (Tr '{0} is at {1} instead of {2}.' $Folder $head $Item.Revision) }
 }
 
 function Sync-Sources([string]$Git) {
@@ -785,7 +804,7 @@ function Sync-Sources([string]$Git) {
 function Get-RemoteHead([string]$Git, [hashtable]$Item) {
     $remote = Get-ProgramOutput $Git @('ls-remote', $Item.Repo, "refs/heads/$($Item.Branch)")
     $latest = if ($remote) { ($remote -split '\s+')[0] } else { '' }
-    if ($latest -notmatch '^[0-9a-f]{40}$') { throw "Could not reach $($Item.Repo). Check the internet connection." }
+    if ($latest -notmatch '^[0-9a-f]{40}$') { throw (Tr 'Could not reach {0}. Check the internet connection.' $Item.Repo) }
     return $latest
 }
 
@@ -805,8 +824,8 @@ function Find-Updates([string]$Git) {
         $latest = Get-RemoteHead $Git $entry.Item
         $current = if (Test-Path (Join-Path $entry.Folder '.git')) { Get-ProgramOutput $Git @('-C', $entry.Folder, 'rev-parse', 'HEAD') } else { $null }
         if ($current -eq $latest) { Write-Log "$($entry.Name) is up to date."; continue }
-        $from = if ($current) { $current.Substring(0, 8) } else { 'none' }
-        $changes.Add(('{0}: {1} -> {2}' -f $entry.Name, $from, $latest.Substring(0, 8)))
+        $from = if ($current) { $current.Substring(0, 8) } else { Tr 'none' }
+        $changes.Add((Tr '{0}: {1} -> {2}' $entry.Name $from $latest.Substring(0, 8)))
         $entry.Item.Revision = $latest
     }
     $modules = Join-Path $Paths.Source 'modules'
@@ -823,7 +842,7 @@ function Find-Updates([string]$Git) {
         if ($null -eq (Get-ProgramOutput $Git @('-C', $dir.FullName, 'merge', '--ff-only', '@{u}'))) {
             Write-Log "$($dir.Name): $behind new commit(s), but the history has diverged; skipped." Yellow; continue
         }
-        $changes.Add("$($dir.Name): $behind new commit(s)")
+        $changes.Add((Tr '{0}: {1} new commit(s)' $dir.Name $behind))
     }
     return ,$changes
 }
@@ -898,7 +917,7 @@ function Invoke-Compile([string]$CMake) {
         [void](Invoke-Program $CMake ($arguments + '1'))
         return
     }
-    throw "Compiling failed (exit code $code). The first error is usually a few hundred lines above the end of logs\install.log."
+    throw (Tr 'Compiling failed (exit code {0}). The first error is usually a few hundred lines above the end of logs\install.log.' $code)
 }
 
 function Copy-Runtime([string]$OpenSsl) {
@@ -906,7 +925,7 @@ function Copy-Runtime([string]$OpenSsl) {
     foreach ($dll in @(Get-ChildItem $OpenSsl -Recurse -Filter '*.dll' | Where-Object { $_.Name -match '^(libssl|libcrypto)-3' -or $_.Name -eq 'legacy.dll' })) {
         Copy-Item $dll.FullName $Paths.Server -Force
     }
-    if (-not (Get-ChildItem $Paths.Server -Filter 'libssl*.dll')) { throw 'The OpenSSL runtime DLLs were not found.' }
+    if (-not (Get-ChildItem $Paths.Server -Filter 'libssl*.dll')) { throw (Tr 'The OpenSSL runtime DLLs were not found.') }
 }
 
 # =============================================================================
@@ -947,7 +966,7 @@ function Set-ServerConfig([string]$Password) {
     Update-ConfigFiles
     $auth = Join-Path $Paths.Configs 'authserver.conf'
     $world = Join-Path $Paths.Configs 'worldserver.conf'
-    foreach ($file in $auth, $world) { if (-not (Test-Path $file)) { throw "Missing configuration file $file." } }
+    foreach ($file in $auth, $world) { if (-not (Test-Path $file)) { throw (Tr 'Missing configuration file {0}.' $file) } }
     $connection = { param($schema) '"127.0.0.1;{0};acore;{1};{2}"' -f $DatabasePort, $Password, $schema }
     $mysql = '"' + (Get-MySqlTool 'mysql.exe').Replace('\', '/') + '"'
     Set-ConfigValue $auth 'LoginDatabaseInfo' (& $connection 'acore_auth')
@@ -1067,11 +1086,11 @@ function Write-Launchers([string]$Password) {
 
 function Test-Installation {
     $required = @('authserver.exe', 'worldserver.exe', 'libmysql.dll', 'configs\authserver.conf', 'configs\worldserver.conf')
-    foreach ($file in $required) { if (-not (Test-Path (Join-Path $Paths.Server $file))) { throw "Check failed: Server\$file is missing." } }
+    foreach ($file in $required) { if (-not (Test-Path (Join-Path $Paths.Server $file))) { throw (Tr 'Check failed: Server\{0} is missing.' $file) } }
     foreach ($tool in @('map_extractor.exe|mapextractor.exe', 'vmap4_extractor.exe|vmap4extractor.exe', 'vmap4_assembler.exe|vmap4assembler.exe', 'mmaps_generator.exe')) {
-        if (-not ($tool.Split('|') | Where-Object { Test-Path (Join-Path $Paths.Server $_) })) { throw "Check failed: Server\$($tool.Split('|')[0]) is missing." }
+        if (-not ($tool.Split('|') | Where-Object { Test-Path (Join-Path $Paths.Server $_) })) { throw (Tr 'Check failed: Server\{0} is missing.' $tool.Split('|')[0]) }
     }
-    if (-not (Get-ChildItem $Paths.Configs -Recurse -Filter 'playerbots.conf')) { throw 'Check failed: playerbots.conf is missing; the Playerbots module was not built.' }
+    if (-not (Get-ChildItem $Paths.Configs -Recurse -Filter 'playerbots.conf')) { throw (Tr 'Check failed: playerbots.conf is missing; the Playerbots module was not built.') }
     Write-Log 'All checks passed.'
 }
 
@@ -1085,7 +1104,7 @@ function Test-Installation {
 # worldserver applies them a second time.
 
 function Install-ModuleJournal([string]$Root) {
-    if (-not (Test-Path $JournalSql)) { throw "module-journal.sql is missing next to the engine script." }
+    if (-not (Test-Path $JournalSql)) { throw (Tr 'module-journal.sql is missing next to the engine script.') }
     Invoke-Stream (Get-MySqlTool 'mysql.exe') @("--defaults-extra-file=$Root", '--default-character-set=utf8mb4') -InFile $JournalSql
 }
 
@@ -1237,13 +1256,13 @@ function Invoke-ModuleSql([string]$Root, $Module) {
                 'rows'      { Write-Log ('  recorded: {0} table(s), {1} row(s) added or changed, {2} row(s) replaced or removed' -f $f[1], $f[3], $f[2]) }
                 'created'   { Write-Log "  recorded: $($f[1]) new table(s)" }
                 'dropped'   { Write-Log "  recorded: $($f[1]) deleted table(s) (kept as a copy)" }
-                'altered'   { Send-Event 'NOTE' "$($Module.Name) changed the structure of $($f[1]) existing table(s). Removing the module cannot undo that; use a backup if needed."; Write-Log "  $($f[1]) table structure change(s) - not undoable" Yellow }
-                'untracked' { Send-Event 'NOTE' "$($Module.Name) changed $($f[1]) table(s) in a way that could not be recorded. Removing the module cannot undo that; use a backup if needed."; Write-Log "  $($f[1]) unrecorded table change(s) - not undoable" Yellow }
+                'altered'   { Send-Event 'NOTE' (Tr '{0} changed the structure of {1} existing table(s). Removing the module cannot undo that; use a backup if needed.' $Module.Name $f[1]); Write-Log "  $($f[1]) table structure change(s) - not undoable" Yellow }
+                'untracked' { Send-Event 'NOTE' (Tr '{0} changed {1} table(s) in a way that could not be recorded. Removing the module cannot undo that; use a backup if needed.' $Module.Name $f[1]); Write-Log "  $($f[1]) unrecorded table change(s) - not undoable" Yellow }
             }
         }
         if ($failure) {
             [void](Invoke-Sql $Root ('UPDATE afk_modules.modules SET status = ''sql-failed'', note = {0} WHERE name = {1};' -f (ConvertTo-SqlString $failure), (ConvertTo-SqlString $Module.Name)))
-            throw "A database file of the module $($Module.Name) failed ($failure). The changes made so far were recorded, so removing the module undoes them."
+            throw (Tr 'A database file of the module {0} failed ({1}). The changes made so far were recorded, so removing the module undoes them.' $Module.Name $failure)
         }
     }
     [void](Invoke-Sql $Root ('UPDATE afk_modules.modules SET status = ''ok'', note = NULL WHERE name = {0} AND status = ''sql-failed'';' -f (ConvertTo-SqlString $Module.Name)))
@@ -1283,7 +1302,7 @@ function Invoke-ModuleRemoveSql([string]$Root, [string]$Name, [string]$Folder) {
     foreach ($f in $files) {
         Write-Log "$($Name): taking back what it wrote while running ($($f.Name)) ..."
         try { Invoke-Stream (Get-MySqlTool 'mysql.exe') @("--defaults-extra-file=$Root", '--default-character-set=utf8', '--max-allowed-packet=1GB', $f.Db) -InFile $f.Path }
-        catch { Send-Event 'NOTE' "$($Name): $($f.Name) could not be run: $($_.Exception.Message)" }
+        catch { Send-Event 'NOTE' (Tr '{0}: {1} could not be run: {2}' $Name $f.Name $_.Exception.Message) }
     }
 }
 
@@ -1298,9 +1317,9 @@ function Undo-ModuleSql([string]$Root, [string]$Name) {
         if ($f[1] -eq 'kept') { $kept++ }
         if ($f[1] -eq 'manual' -or $f[1] -eq 'skipped') { $manual.Add($f[2]) }
     }
-    if ($kept -gt 0) { Send-Event 'NOTE' "$($Name): some rows were changed again after the module was installed (for example by a server update) and were left as they are. Details are in the log." }
-    if ($manual.Count -gt 0) { Send-Event 'NOTE' ("$($Name): these tables could not be put back automatically: " + (($manual | Select-Object -Unique) -join ', ') + '. A backup from before the module was installed restores them.') }
-    Send-Event 'NOTE' "$($Name) was removed and its database changes were undone."
+    if ($kept -gt 0) { Send-Event 'NOTE' (Tr '{0}: some rows were changed again after the module was installed (for example by a server update) and were left as they are. Details are in the log.' $Name) }
+    if ($manual.Count -gt 0) { Send-Event 'NOTE' (Tr '{0}: these tables could not be put back automatically: {1}. A backup from before the module was installed restores them.' $Name (($manual | Select-Object -Unique) -join ', ')) }
+    Send-Event 'NOTE' (Tr '{0} was removed and its database changes were undone.' $Name)
 }
 
 # The list the GUI reads: name|repo|branch|revision|status|installed|created tables|not undoable tables
@@ -1319,7 +1338,7 @@ function Save-ModuleList([string]$Root) {
 function Get-ModuleName([string]$Url) {
     $name = ($Url.Trim().TrimEnd('/') -split '[/:]')[-1]
     if ($name.EndsWith('.git')) { $name = $name.Substring(0, $name.Length - 4) }
-    if ($name -notmatch '^[\w.\-]+$' -or $name -in '.', '..') { throw "This is not a valid module address: $Url" }
+    if ($name -notmatch '^[\w.\-]+$' -or $name -in '.', '..') { throw (Tr 'This is not a valid module address: {0}' $Url) }
     return $name
 }
 
@@ -1329,10 +1348,10 @@ function Edit-ModuleFolders([string]$Git, [string[]]$Add, [string[]]$Remove) {
     New-Item -ItemType Directory -Force -Path $Paths.Modules | Out-Null
     try {
     foreach ($name in $Remove) {
-        if ($name -notmatch '^[\w.\-]+$' -or $name -eq $Project.Playerbots.Folder) { throw "The module $name cannot be removed." }
+        if ($name -notmatch '^[\w.\-]+$' -or $name -eq $Project.Playerbots.Folder) { throw (Tr 'The module {0} cannot be removed.' $name) }
         $folder = Join-Path $Paths.Modules $name
         if (-not (Test-Path $folder)) { Write-Log "$($name): the folder is already gone."; $state.Removed.Add(@{ Name = $name; Folder = $folder; Aside = $null }); continue }
-        if (Get-ProgramOutput $Git @('-C', $Paths.Source, 'ls-files', "modules/$name")) { throw "$name is part of the CoA core and cannot be removed." }
+        if (Get-ProgramOutput $Git @('-C', $Paths.Source, 'ls-files', "modules/$name")) { throw (Tr '{0} is part of the CoA core and cannot be removed.' $name) }
         New-Item -ItemType Directory -Force -Path $Paths.ModuleTrash | Out-Null
         $aside = Join-Path $Paths.ModuleTrash ("{0}-{1:yyyyMMddHHmmss}" -f $name, (Get-Date))
         Move-Item $folder $aside
@@ -1345,7 +1364,7 @@ function Edit-ModuleFolders([string]$Git, [string[]]$Add, [string[]]$Remove) {
         if (Test-Path $folder) {
             # Left from an earlier attempt that stopped after downloading ("Try again").
             $origin = Get-ProgramOutput $Git @('-C', $folder, 'remote', 'get-url', 'origin')
-            if (-not $origin -or ($origin.TrimEnd('/') -replace '\.git$', '') -ne ($url.Trim().TrimEnd('/') -replace '\.git$', '')) { throw "A module named $name is already installed." }
+            if (-not $origin -or ($origin.TrimEnd('/') -replace '\.git$', '') -ne ($url.Trim().TrimEnd('/') -replace '\.git$', '')) { throw (Tr 'A module named {0} is already installed.' $name) }
             Write-Log "$($name): already downloaded, using it."
             $state.Added.Add($folder)
         } else {
@@ -1354,7 +1373,7 @@ function Edit-ModuleFolders([string]$Git, [string[]]$Add, [string[]]$Remove) {
         }
         $hasCode = @(Get-ChildItem $folder -Recurse -File -Include '*.cpp', '*.h' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\\.git\\' }).Count -gt 0
         $hasSql = Test-Path ([IO.Path]::Combine($folder, 'data', 'sql'))
-        if (-not $hasCode -and -not $hasSql) { throw "$name does not look like an AzerothCore module (no source code and no SQL files)." }
+        if (-not $hasCode -and -not $hasSql) { throw (Tr '{0} does not look like an AzerothCore module (no source code and no SQL files).' $name) }
         $state.Urls[$folder] = $url.Trim()
     }
     } catch { Undo-ModuleFolders $state; throw }
@@ -1371,7 +1390,7 @@ function Complete-ModuleChange([string]$Password, $State) {
         foreach ($r in $State.Removed) {
             if ($r.Aside) { Invoke-ModuleRemoveSql $root $r.Name $r.Aside }
             if ($managed -contains $r.Name) { Undo-ModuleSql $root $r.Name }
-            else { Send-Event 'NOTE' "$($r.Name) was removed. It was not installed through AFK Realm, so its database changes (if any) stay in place." }
+            else { Send-Event 'NOTE' (Tr '{0} was removed. It was not installed through AFK Realm, so its database changes (if any) stay in place.' $r.Name) }
             if ($r.Aside) { Remove-ModuleConfigs $r.Aside }
         }
         foreach ($folder in $State.Added) {
@@ -1381,7 +1400,7 @@ function Complete-ModuleChange([string]$Password, $State) {
             [void](Invoke-Sql $root ('REPLACE INTO afk_modules.modules (name, repo, branch, revision, installed, status) VALUES ({0}, {1}, {2}, {3}, NOW(), ''ok'');' -f
                 (ConvertTo-SqlString $name), (ConvertTo-SqlString $State.Urls[$folder]), (ConvertTo-SqlString "$branch"), (ConvertTo-SqlString "$revision")))
             $hasConf = @(Get-ChildItem (Join-Path $folder 'conf') -Filter '*.conf.dist' -ErrorAction SilentlyContinue).Count -gt 0
-            Send-Event 'NOTE' ("$name was installed." + $(if ($hasConf) { ' Its options are in the server settings.' } else { '' }))
+            Send-Event 'NOTE' $(if ($hasConf) { Tr '{0} was installed. Its options are in the server settings.' $name } else { Tr '{0} was installed.' $name })
         }
         Save-ModuleList $root
     } finally { Remove-Item $root -Force -ErrorAction SilentlyContinue }
@@ -1510,7 +1529,7 @@ function Invoke-ModulePatches([string]$Git, [switch]$Quiet) {
                 Write-Log "$label - already part of $targetName, not needed any more."
             } else {
                 Write-Log "$label - does not fit the current $targetName any more; the server is built without it." Yellow
-                if (-not $Quiet) { Send-Event 'NOTE' ("$label could not be applied: the code it changes has changed. The server is built without it." + $(if ($why) { " ($why)" } else { '' })) }
+                if (-not $Quiet) { Send-Event 'NOTE' $(if ($why) { Tr '{0} could not be applied: the code it changes has changed. The server is built without it. ({1})' (Tr $label) (Tr $why) } else { Tr '{0} could not be applied: the code it changes has changed. The server is built without it.' (Tr $label) }) }
             }
         }
     }
@@ -1559,7 +1578,7 @@ function Set-ModuleSettings {
             if ($previous -ne $value) {
                 Set-ConfigValue $config.FullName $key $value
                 Write-Log "$($manifest.Name): $key in $name set to $value (was $previous)." Green
-                Send-Event 'NOTE' ("$($manifest.Name) set $key to $value in $name (was $previous)." + $(if ($why) { " $why" } else { '' }))
+                Send-Event 'NOTE' $(if ($why) { Tr '{0} set {1} to {2} in {3} (was {4}). {5}' $manifest.Name $key $value $name $previous (Tr $why) } else { Tr '{0} set {1} to {2} in {3} (was {4}).' $manifest.Name $key $value $name $previous })
             }
             $kept.Add(@{ Module = $manifest.Name; File = $name; Key = $key; Value = $value; Previous = $previous })
         }
@@ -1612,7 +1631,7 @@ function Invoke-Stream {
     if ($output) { foreach ($line in ($output.Result -split "`r?`n" | Where-Object { $_ })) { Write-Log $line DarkGray } }
     if ($process.ExitCode -ne 0) {
         $message = ($errors.Result -split "`r?`n" | Where-Object { $_ -and $_ -notmatch 'Using a password' }) -join ' '
-        throw ('{0} failed: {1}' -f (Split-Path $Path -Leaf), $message)
+        throw (Tr '{0} failed: {1}' (Split-Path $Path -Leaf) $message)
     }
 }
 
@@ -1624,7 +1643,7 @@ function Get-ServerDatabases([string]$Options) {
 
 function Read-SnapshotManifest([string]$Folder) {
     $file = Join-Path $Folder 'manifest.txt'
-    if (-not (Test-Path $file)) { throw "$Folder is not a complete snapshot." }
+    if (-not (Test-Path $file)) { throw (Tr '{0} is not a complete snapshot.' $Folder) }
     $result = @{}
     foreach ($line in [IO.File]::ReadAllLines($file)) {
         $i = $line.IndexOf('=')
@@ -1638,7 +1657,7 @@ function New-Snapshot([string]$Password, [string]$Reason) {
     Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
     $drive = New-Object IO.DriveInfo ([IO.Path]::GetPathRoot($InstallRoot))
     if ($drive.AvailableFreeSpace -lt 3GB) {
-        throw ('Not enough free disk space for the backup: {0:N1} GB free on {1}, at least 3 GB are needed.' -f ($drive.AvailableFreeSpace / 1GB), $drive.Name)
+        throw (Tr 'Not enough free disk space for the backup: {0} GB free on {1}, at least 3 GB are needed.' ('{0:N1}' -f ($drive.AvailableFreeSpace / 1GB)) $drive.Name)
     }
     New-Item -ItemType Directory -Force -Path $Paths.Backups | Out-Null
     foreach ($leftover in @(Get-ChildItem $Paths.Backups -Directory -Filter '*.partial')) { Remove-Item $leftover.FullName -Recurse -Force -ErrorAction SilentlyContinue }
@@ -1691,7 +1710,7 @@ function New-Snapshot([string]$Password, [string]$Reason) {
 
 function Restore-Snapshot([string]$Name, [string]$Password) {
     Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
-    if (-not $Name) { throw 'No backup was chosen.' }
+    if (-not $Name) { throw (Tr 'No backup was chosen.') }
     $folder = Join-Path $Paths.Backups $Name
     $manifest = Read-SnapshotManifest $folder
     Assert-ServerStopped
@@ -1701,13 +1720,13 @@ function Restore-Snapshot([string]$Name, [string]$Password) {
     Start-Database
     $root = New-ClientOptions 'root' $Password
     try {
-        if (-not (Test-SqlLogin $root)) { throw 'The database rejected the password.' }
+        if (-not (Test-SqlLogin $root)) { throw (Tr 'The database rejected the password.') }
         $modulesBefore = @(Get-ManagedModules $root | ForEach-Object { $_.Name })
         # Backups made before modules could be installed have no module registry.
         if (-not ($manifest['databases'].Split(',') -contains 'afk_modules')) { [void](Invoke-Sql $root 'DROP DATABASE IF EXISTS afk_modules;') }
         foreach ($db in $manifest['databases'].Split(',') | Where-Object { $_ }) {
             $dump = Join-Path $folder "$db.sql.gz"
-            if (-not (Test-Path $dump)) { throw "The backup is missing $db.sql.gz." }
+            if (-not (Test-Path $dump)) { throw (Tr 'The backup is missing {0}.' "$db.sql.gz") }
             Write-Log "Restoring the database $db ..."
             [void](Invoke-Sql $root "DROP DATABASE IF EXISTS ``$db``; CREATE DATABASE ``$db`` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
             Invoke-Stream (Get-MySqlTool 'mysql.exe') @("--defaults-extra-file=$root", '--max-allowed-packet=512M', "--database=$db") -GzipIn $dump
@@ -1755,13 +1774,13 @@ function Restore-Snapshot([string]$Name, [string]$Password) {
 # =============================================================================
 function Assert-Administrator {
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Please run this as administrator.' }
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw (Tr 'Please run this as administrator.') }
 }
 
 function Assert-ServerStopped {
     $running = @(Get-Process -Name 'worldserver', 'authserver' -ErrorAction SilentlyContinue |
                  Where-Object { try { $_.Path -and $_.Path.StartsWith($Paths.Server, [StringComparison]::OrdinalIgnoreCase) } catch { $false } })
-    if ($running.Count -gt 0) { throw 'The server is still running. Stop the worldserver and authserver first.' }
+    if ($running.Count -gt 0) { throw (Tr 'The server is still running. Stop the worldserver and authserver first.') }
 }
 
 function Read-Password {
@@ -1776,8 +1795,8 @@ function Read-Password {
             Write-Host 'The passwords do not match.' -ForegroundColor Yellow
         }
     }
-    if ($password.Length -lt 10) { throw 'The database password needs at least 10 characters.' }
-    if ($password.IndexOfAny([char[]]';"\') -ge 0) { throw 'The database password must not contain a semicolon, quote or backslash.' }
+    if ($password.Length -lt 10) { throw (Tr 'The database password needs at least 10 characters.') }
+    if ($password.IndexOfAny([char[]]';"\') -ge 0) { throw (Tr 'The database password must not contain a semicolon, quote or backslash.') }
     return $password
 }
 
@@ -1805,7 +1824,7 @@ $password = $null
 try {
     New-Item -ItemType Directory -Force -Path $Paths.Logs, $Paths.Deps, $Paths.Downloads, $Paths.Db, $Paths.Data | Out-Null
     Write-Log "===== $($Project.Name) server builder - $(Get-Date -Format 'yyyy-MM-dd HH:mm') - $InstallRoot ====="
-    if (-not [Environment]::Is64BitOperatingSystem -or [Environment]::OSVersion.Version.Major -lt 10) { throw 'Windows 10 or 11 (64-bit) is required.' }
+    if (-not [Environment]::Is64BitOperatingSystem -or [Environment]::OSVersion.Version.Major -lt 10) { throw (Tr 'Windows 10 or 11 (64-bit) is required.') }
     Assert-Administrator
     Read-Revisions
 
@@ -1844,14 +1863,14 @@ try {
             Send-Event 'DONE' 'uptodate'
             exit 0
         }
-        if ($changes.Count -eq 0) { $changes.Add('The previous build did not finish; building again.') }
+        if ($changes.Count -eq 0) { $changes.Add((Tr 'The previous build did not finish; building again.')) }
         foreach ($change in $changes) { Write-Log "  $change" Cyan; Send-Event 'CHANGE' $change }
     } elseif ($compile -and $action -ne 'Modules') {
         Resolve-LatestRevisions $git
     }
     $moduleAdd = @($AddModules.Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     $moduleRemove = @($RemoveModules.Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-    if ($action -eq 'Modules' -and $moduleAdd.Count -eq 0 -and $moduleRemove.Count -eq 0) { throw 'No module was chosen.' }
+    if ($action -eq 'Modules' -and $moduleAdd.Count -eq 0 -and $moduleRemove.Count -eq 0) { throw (Tr 'No module was chosen.') }
 
     if ($compile) {
         Assert-ServerStopped
@@ -1863,7 +1882,7 @@ try {
             Start-Database
             $what = if ($action -eq 'Modules') { 'module change' } else { $action.ToLower() }
             try { [void](New-Snapshot $password "before $what") }
-            catch { throw ('The backup before the ' + $what + ' failed, so nothing was changed: ' + $_.Exception.Message) }
+            catch { throw (Tr 'The backup before the {0} failed, so nothing was changed: {1}' (Tr $what) $_.Exception.Message) }
             Stop-Database $password
         }
         $cmake = Resolve-CMake
@@ -1906,12 +1925,11 @@ try {
             try { Invoke-ModulePatches $git -Quiet } catch { }
             $names = @($moduleState.Added | ForEach-Object { Split-Path $_ -Leaf })
             if ($names.Count -gt 0) {
-                $why = if ($failedAt -eq 'configure') { 'Preparing the build failed before anything was compiled, so the module is probably not the cause; the CMake error is in logs\install.log. ' }
-                       else { 'The module is probably not compatible with this CoA version; the first compiler error is in logs\install.log. ' }
-                throw ('The server could not be built with ' + ($names -join ', ') + '. The module was taken out again and your server is unchanged. ' +
-                       $why + '(' + $_.Exception.Message + ')')
+                $why = if ($failedAt -eq 'configure') { Tr 'Preparing the build failed before anything was compiled, so the module is probably not the cause; the CMake error is in logs\install.log.' }
+                       else { Tr 'The module is probably not compatible with this CoA version; the first compiler error is in logs\install.log.' }
+                throw (Tr 'The server could not be built with {0}. The module was taken out again and your server is unchanged. {1} ({2})' ($names -join ', ') $why $_.Exception.Message)
             }
-            throw ('The server could not be built without the removed module, so it was put back and your server is unchanged. (' + $_.Exception.Message + ')')
+            throw (Tr 'The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})' $_.Exception.Message)
         }
         Copy-Runtime $openssl
         [IO.File]::WriteAllText($Paths.BuildMarker, (Get-BuildStamp))

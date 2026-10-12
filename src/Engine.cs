@@ -25,44 +25,44 @@ namespace CoAInstaller
     {
         static readonly Phase[] InstallPhases =
         {
-            new Phase("tools",     "Check tools (Git, CMake)", 3),
-            new Phase("vs",        "Visual Studio C++ Build Tools", 15),
-            new Phase("libs",      "Libraries (OpenSSL, Boost)", 7),
-            new Phase("mysql",     "Portable MySQL database", 4),
-            new Phase("source",    "Download the server source code", 5),
-            new Phase("configure", "Prepare the build (CMake)", 3),
-            new Phase("compile",   "Compile the server", 45),
-            new Phase("database",  "Set up the database", 3),
-            new Phase("world",     "Import the CoA world data", 12),
-            new Phase("finish",    "Configuration and final checks", 3),
+            new Phase("tools",     L.T("Check tools (Git, CMake)"), 3),
+            new Phase("vs",        L.T("Visual Studio C++ Build Tools"), 15),
+            new Phase("libs",      L.T("Libraries (OpenSSL, Boost)"), 7),
+            new Phase("mysql",     L.T("Portable MySQL database"), 4),
+            new Phase("source",    L.T("Download the server source code"), 5),
+            new Phase("configure", L.T("Prepare the build (CMake)"), 3),
+            new Phase("compile",   L.T("Compile the server"), 45),
+            new Phase("database",  L.T("Set up the database"), 3),
+            new Phase("world",     L.T("Import the CoA world data"), 12),
+            new Phase("finish",    L.T("Configuration and final checks"), 3),
         };
 
         /// <summary>The steps shown for a mode. Updates back up the server right after the update check.</summary>
         public static Phase[] For(string mode)
         {
-            if (mode == "Backup") return new[] { new Phase("backup", "Back up the server", 1) };
-            if (mode == "Restore") return new[] { new Phase("restore", "Restore the databases", 4), new Phase("files", "Restore the server programs and versions", 1) };
+            if (mode == "Backup") return new[] { new Phase("backup", L.T("Back up the server"), 1) };
+            if (mode == "Restore") return new[] { new Phase("restore", L.T("Restore the databases"), 4), new Phase("files", L.T("Restore the server programs and versions"), 1) };
             if (mode == "Modules")
             {
                 return new[]
                 {
-                    new Phase("tools",     "Check tools (Git, CMake)", 2),
-                    new Phase("backup",    "Back up the current server", 6),
-                    new Phase("vs",        "Visual Studio C++ Build Tools", 3),
-                    new Phase("libs",      "Libraries (OpenSSL, Boost)", 2),
-                    new Phase("mysql",     "Portable MySQL database", 1),
-                    new Phase("modules",   "Download and remove modules", 4),
-                    new Phase("configure", "Prepare the build (CMake)", 4),
-                    new Phase("compile",   "Compile the server", 60),
-                    new Phase("database",  "Database: undo removed modules", 4),
-                    new Phase("world",     "World data check", 1),
-                    new Phase("finish",    "Database: apply and record new modules, final checks", 8),
+                    new Phase("tools",     L.T("Check tools (Git, CMake)"), 2),
+                    new Phase("backup",    L.T("Back up the current server"), 6),
+                    new Phase("vs",        L.T("Visual Studio C++ Build Tools"), 3),
+                    new Phase("libs",      L.T("Libraries (OpenSSL, Boost)"), 2),
+                    new Phase("mysql",     L.T("Portable MySQL database"), 1),
+                    new Phase("modules",   L.T("Download and remove modules"), 4),
+                    new Phase("configure", L.T("Prepare the build (CMake)"), 4),
+                    new Phase("compile",   L.T("Compile the server"), 60),
+                    new Phase("database",  L.T("Database: undo removed modules"), 4),
+                    new Phase("world",     L.T("World data check"), 1),
+                    new Phase("finish",    L.T("Database: apply and record new modules, final checks"), 8),
                 };
             }
             if (mode == "Update" || mode == "Rebuild")
             {
                 var list = InstallPhases.ToList();
-                list.Insert(1, new Phase("backup", "Back up the current server", 4));
+                list.Insert(1, new Phase("backup", L.T("Back up the current server"), 4));
                 return list.ToArray();
             }
             return InstallPhases;
@@ -89,6 +89,10 @@ namespace CoAInstaller
         static readonly Regex WorldRx = new Regex(@"Imported (\d+)/(\d+) world tables", RegexOptions.Compiled);
 
         public int CurrentPhase { get { return phaseIndex; } }
+        /// <summary>A module was installed in this run (the result page points to the READMEs).</summary>
+        public bool ModuleInstalled;
+        // What the engine says before a backup ("The backup before the update failed ..."), for the language files.
+        static readonly string[] BackupReasons = { L.N("update"), L.N("rebuild"), L.N("setup"), L.N("module change") };
 
         public static string ExtractEngine(Install inst)
         {
@@ -133,7 +137,7 @@ namespace CoAInstaller
             {
                 // Give the asynchronous readers a moment to deliver the last lines.
                 System.Threading.Thread.Sleep(500);
-                if (!finished) Finish(proc.ExitCode == 0, proc.ExitCode == 0 ? "ok" : "The installation process ended unexpectedly (code " + proc.ExitCode + ").");
+                if (!finished) Finish(proc.ExitCode == 0, proc.ExitCode == 0 ? "ok" : L.F("The installation process ended unexpectedly (code {0}).", proc.ExitCode));
             };
             proc.Start();
             proc.BeginOutputReadLine();
@@ -154,6 +158,11 @@ namespace CoAInstaller
                 var p = line.Split(new[] { '|' }, 4);
                 string kind = p.Length > 1 ? p[1] : "";
                 string a = p.Length > 2 ? p[2] : "", b = p.Length > 3 ? p[3] : "";
+                // Everything after the kind, for texts that may hold a '|' themselves.
+                string all = line.Length > 6 + kind.Length ? line.Substring(6 + kind.Length) : "";
+                // Texts of the engine come marked for translation (Tr in engine.ps1).
+                if (kind == "PHASE") b = L.Engine(b);
+                else if (kind == "NOTE" && L.Plain(all).Contains(" was installed")) ModuleInstalled = true;
                 switch (kind)
                 {
                     case "PHASE":
@@ -161,22 +170,23 @@ namespace CoAInstaller
                         if (idx >= 0) { phaseIndex = idx; if (PhaseStarted != null) PhaseStarted(idx); if (SubProgress != null) SubProgress(-1, b); }
                         break;
                     case "SOURCES": int.TryParse(a, out totalSources); break;
-                    case "CHANGE": if (Change != null) Change(a); break;
-                    case "NOTE": if (Note != null) Note(a + (b.Length > 0 ? "|" + b : "")); break;
+                    case "CHANGE": if (Change != null) Change(L.Engine(all)); break;
+                    case "NOTE": if (Note != null) Note(L.Engine(all)); break;
                     case "DONE": Finish(true, a); break;
-                    case "FAIL": Finish(false, a); break;
+                    case "FAIL": Finish(false, L.Engine(all)); break;
                 }
                 return;
             }
+            line = L.Plain(line);
             if (LogLine != null) LogLine(line);
             if (SubProgress == null) return;
             var m = DownloadRx.Match(line);
-            if (m.Success) { SubProgress(int.Parse(m.Groups[1].Value) / 100.0, "Download: " + m.Groups[1].Value + " %"); return; }
+            if (m.Success) { SubProgress(int.Parse(m.Groups[1].Value) / 100.0, L.F("Download: {0} %", m.Groups[1].Value)); return; }
             m = WorldRx.Match(line);
             if (m.Success)
             {
                 int n = int.Parse(m.Groups[1].Value), t = Math.Max(1, int.Parse(m.Groups[2].Value));
-                SubProgress((double)n / t, "World data: " + n + " of " + t + " tables");
+                SubProgress((double)n / t, L.F("World data: {0} of {1} tables", n, t));
                 return;
             }
             if (phaseIndex >= 0 && Phases[phaseIndex].Id == "compile")
@@ -186,7 +196,7 @@ namespace CoAInstaller
                 {
                     compiledSources++;
                     double f = totalSources > 0 ? Math.Min(0.99, (double)compiledSources / totalSources) : -1;
-                    SubProgress(f, compiledSources + " files compiled" + (totalSources > 0 ? " (of about " + totalSources + ")" : ""));
+                    SubProgress(f, (totalSources > 0 ? L.F("{0} files compiled (of about {1})", compiledSources, totalSources) : L.F("{0} files compiled", compiledSources)));
                 }
             }
         }

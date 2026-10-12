@@ -50,7 +50,7 @@ namespace CoAInstaller
             if (file == null || !Visible) return;
             try
             {
-                if (!File.Exists(file)) { if (position != 0) { box.Text = "(no log yet – it appears when the server starts)"; position = 0; placeholder = true; } return; }
+                if (!File.Exists(file)) { if (position != 0) { box.Text = L.T("(no log yet – it appears when the server starts)"); position = 0; placeholder = true; } return; }
                 using (var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 {
                     // The servers start a new file at every start.

@@ -20,6 +20,17 @@ namespace CoAInstaller
         public bool Locked;               // managed by AFK Realm, shown read-only
         public string Label;              // friendly name in the popular list
         public string DescriptionSource = "";   // how the description was found (for checks)
+        public string DescriptionBody;          // the description of the template without the note on shared options
+        public string SharedWith = "";          // the other options the description of the template is for
+        /// <summary>The description in the language shown: a module's lang file can carry its options' descriptions.</summary>
+        public string ShownDescription
+        {
+            get
+            {
+                if (DescriptionBody == null) return L.Outside(Description);
+                return L.Outside(DescriptionBody) + (SharedWith.Length > 0 ? "\n\n" + L.F("This description is shared with: {0}", SharedWith) : "");
+            }
+        }
         public readonly List<string> BlockKeys = new List<string>();
         public readonly List<KeyValuePair<string, string>> Choices = new List<KeyValuePair<string, string>>();
 
@@ -43,26 +54,26 @@ namespace CoAInstaller
         public string Display(string raw)
         {
             string v = Unquote(raw);
-            if (Kind == OptionKind.Bool) return v == "1" ? "On" : v == "0" ? "Off" : v;
+            if (Kind == OptionKind.Bool) return v == "1" ? L.T("On") : v == "0" ? L.T("Off") : v;
             if (Kind == OptionKind.Choice)
-                foreach (var c in Choices) if (c.Key == v) return v + " – " + c.Value;
+                foreach (var c in Choices) if (c.Key == v) return v + " – " + L.Outside(c.Value);
             return v;
         }
         /// <summary>Checks a value typed by the user and returns the raw text to store, or throws with a readable message.</summary>
         public string ToRaw(string input)
         {
             string v = (input ?? "").Trim();
-            if (v.IndexOf('\n') >= 0 || v.IndexOf('\r') >= 0) throw new FormatException("The value must be on one line.");
-            if (Kind == OptionKind.Bool && v != "0" && v != "1") throw new FormatException(Key + " can only be 0 (off) or 1 (on).");
+            if (v.IndexOf('\n') >= 0 || v.IndexOf('\r') >= 0) throw new FormatException(L.T("The value must be on one line."));
+            if (Kind == OptionKind.Bool && v != "0" && v != "1") throw new FormatException(L.F("{0} can only be 0 (off) or 1 (on).", Key));
             if (Kind == OptionKind.Number || Kind == OptionKind.Choice)
             {
                 double d;
                 if (!double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out d))
-                    throw new FormatException(Key + " needs a number (use a dot for decimals, e.g. 1.5).");
+                    throw new FormatException(L.F("{0} needs a number (use a dot for decimals, e.g. 1.5).", Key));
             }
             if (Quoted)
             {
-                if (v.IndexOf('"') >= 0) throw new FormatException("The value must not contain quotation marks.");
+                if (v.IndexOf('"') >= 0) throw new FormatException(L.T("The value must not contain quotation marks."));
                 return "\"" + v + "\"";
             }
             return v;
@@ -101,8 +112,8 @@ namespace CoAInstaller
                     if (!m.Success || file.Values.ContainsKey(m.Groups[1].Value)) continue;
                     file.Values[m.Groups[1].Value] = m.Groups[2].Value;
                     if (!file.ByKey.ContainsKey(m.Groups[1].Value))
-                        file.Add(new ConfigOption { Key = m.Groups[1].Value, Section = "Other (not in the template)", DefaultRaw = null,
-                            Quoted = m.Groups[2].Value.StartsWith("\""), Description = LockedKeys.IsMatch(m.Groups[1].Value) ? "Written by " + Product.Name + " so the server can work." : "This option is not part of the current template. It may be outdated." });
+                        file.Add(new ConfigOption { Key = m.Groups[1].Value, Section = L.T("Other (not in the template)"), DefaultRaw = null,
+                            Quoted = m.Groups[2].Value.StartsWith("\""), Description = LockedKeys.IsMatch(m.Groups[1].Value) ? L.F("Written by {0} so the server can work.", Product.Name) : L.T("This option is not part of the current template. It may be outdated.") });
                 }
             }
             return file;
@@ -140,8 +151,12 @@ namespace CoAInstaller
                     else if (line.StartsWith("###")) { block = new List<string>(); blockUsed = false; }
                     else
                     {
-                        // A blank line between comments starts the description of the next option.
-                        if (blockUsed || (block.Count > 0 && previous.Length == 0)) { block = new List<string>(); blockUsed = false; }
+                        // A blank line between comments starts the description of the next option, and so does
+                        // a key name of its own after a "#" line, when the block so far described a named option.
+                        bool nextName = Regex.IsMatch(line, @"^#[ \t]{2,}[A-Za-z][\w.\-]*\.[\w.\-]+[ \t]*$") && SpacerLine.IsMatch(previous) &&
+                                        block.Any(b => !SpacerLine.IsMatch(b) && !Regex.IsMatch(b, @"^#[ \t]{2,}[A-Za-z][\w.\-]*[ \t]*$")) &&
+                                        byName.Values.Any(v => ReferenceEquals(v, block));
+                        if (blockUsed || nextName || (block.Count > 0 && previous.Length == 0)) { block = new List<string>(); blockUsed = false; }
                         block.Add(line);
                         // AzerothCore style names the keys at the top of their block; the option
                         // lines can come much later, so the block is remembered per key name.
@@ -160,7 +175,7 @@ namespace CoAInstaller
                     if (m.Success && !ByKey.ContainsKey(m.Groups[1].Value))
                     {
                         var o = new ConfigOption { Key = m.Groups[1].Value, DefaultRaw = m.Groups[2].Value, Quoted = m.Groups[2].Value.StartsWith("\"") };
-                        o.Section = top.Length > 0 && sub.Length > 0 ? top + " › " + sub : (sub.Length > 0 ? sub : (top.Length > 0 ? top : "General"));
+                        o.Section = top.Length > 0 && sub.Length > 0 ? top + " › " + sub : (sub.Length > 0 ? sub : (top.Length > 0 ? top : L.T("General")));
                         List<string> named;
                         bool byKey = byName.TryGetValue(o.Key, out named);
                         o.DescriptionSource = byKey ? "named" : (block.Count > 0 ? "above" : "none");
@@ -218,9 +233,10 @@ namespace CoAInstaller
             if (sharedKeys > 1)
             {
                 var others = keyLines.Select(k => k.Trim()).Where(k => k.Length > 0 && !k.Equals(o.Key, StringComparison.OrdinalIgnoreCase)).ToList();
-                if (others.Count > 0) sb.AppendLine().Append("This description is shared with: ").AppendLine(string.Join(", ", others));
+                if (others.Count > 0) o.SharedWith = string.Join(", ", others);
             }
-            o.Description = Regex.Replace(sb.ToString().Trim(), @"\n\s{10,}", "\n    ");
+            o.DescriptionBody = Regex.Replace(sb.ToString().Trim(), @"\n\s{10,}", "\n    ");
+            o.Description = o.DescriptionBody + (o.SharedWith.Length > 0 ? "\n\nThis description is shared with: " + o.SharedWith : "");
 
             // Value lists like "0 - (Disabled)  1 - (Enabled)" belong to a single option only.
             if (sharedKeys <= 1)
@@ -286,44 +302,44 @@ namespace CoAInstaller
         // file, key, friendly label - grouped by the section shown in the popular list
         static readonly string[][] PopularDefs =
         {
-            new[] { "Experience and levels", "worldserver.conf", "Rate.XP.Global", "XP rate for everything (multiplier)" },
-            new[] { "Experience and levels", "worldserver.conf", "Rate.XP.Kill", "XP from kills" },
-            new[] { "Experience and levels", "worldserver.conf", "Rate.XP.Quest", "XP from quests" },
-            new[] { "Experience and levels", "worldserver.conf", "Rate.XP.Explore", "XP from exploring" },
-            new[] { "Experience and levels", "worldserver.conf", "Rate.Rest.InGame", "Rested XP gain while logged in" },
-            new[] { "Experience and levels", "worldserver.conf", "MaxPlayerLevel", "Maximum player level" },
-            new[] { "Experience and levels", "worldserver.conf", "StartPlayerLevel", "Start level of new characters" },
-            new[] { "Experience and levels", "worldserver.conf", "StartPlayerMoney", "Start money of new characters (copper)" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "Rate.Drop.Money", "Money drop rate" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "Rate.Drop.Item.Uncommon", "Drop rate: uncommon (green) items" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "Rate.Drop.Item.Rare", "Drop rate: rare (blue) items" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "Rate.Drop.Item.Epic", "Drop rate: epic (purple) items" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "Rate.Reputation.Gain", "Reputation gain rate" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "Rate.Honor", "Honor rate" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "SkillGain.Crafting", "Crafting skill-up rate" },
-            new[] { "Loot, money and reputation", "worldserver.conf", "SkillGain.Gathering", "Gathering skill-up rate" },
-            new[] { "Convenience", "worldserver.conf", "InstantFlightPaths", "Instant flight paths" },
-            new[] { "Convenience", "worldserver.conf", "AllFlightPaths", "New characters know all flight paths" },
-            new[] { "Convenience", "worldserver.conf", "Instance.IgnoreLevel", "Enter dungeons at any level" },
-            new[] { "Convenience", "worldserver.conf", "Instance.IgnoreRaid", "Enter raids without a raid group" },
-            new[] { "Convenience", "worldserver.conf", "DurabilityLoss.OnDeath", "Durability loss on death (%)" },
-            new[] { "Convenience", "worldserver.conf", "AllowTwoSide.Interaction.Group", "Groups with the other faction" },
-            new[] { "Convenience", "worldserver.conf", "AllowTwoSide.Interaction.Guild", "Guilds with the other faction" },
-            new[] { "Convenience", "worldserver.conf", "AllowTwoSide.Interaction.Chat", "Chat with the other faction" },
-            new[] { "Convenience", "worldserver.conf", "PlayerLimit", "Player limit (0 = no limit)" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.Enabled", "Playerbots on" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.RandomBotAutologin", "Random bots populate the world" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.MinRandomBots", "Random bots: minimum count" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.MaxRandomBots", "Random bots: maximum count" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.RandomBotMinLevel", "Random bots: lowest level" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.RandomBotMaxLevel", "Random bots: highest level" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.DisabledWithoutRealPlayer", "Random bots only while a real player is online" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.SyncLevelWithPlayers", "Random bot levels follow the players" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.MaxAddedBots", "Bots per player (party bots)" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.AutoDoQuests", "Bots do quests on their own" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.RandomBotJoinBG", "Bots join battlegrounds" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.RandomBotTalk", "Bots chat" },
-            new[] { "Playerbots", "modules\\playerbots.conf", "AiPlayerbot.BotActiveAlone", "Bots active without players nearby (%)" },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "Rate.XP.Global", L.T("XP rate for everything (multiplier)") },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "Rate.XP.Kill", L.T("XP from kills") },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "Rate.XP.Quest", L.T("XP from quests") },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "Rate.XP.Explore", L.T("XP from exploring") },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "Rate.Rest.InGame", L.T("Rested XP gain while logged in") },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "MaxPlayerLevel", L.T("Maximum player level") },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "StartPlayerLevel", L.T("Start level of new characters") },
+            new[] { L.T("Experience and levels"), "worldserver.conf", "StartPlayerMoney", L.T("Start money of new characters (copper)") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "Rate.Drop.Money", L.T("Money drop rate") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "Rate.Drop.Item.Uncommon", L.T("Drop rate: uncommon (green) items") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "Rate.Drop.Item.Rare", L.T("Drop rate: rare (blue) items") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "Rate.Drop.Item.Epic", L.T("Drop rate: epic (purple) items") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "Rate.Reputation.Gain", L.T("Reputation gain rate") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "Rate.Honor", L.T("Honor rate") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "SkillGain.Crafting", L.T("Crafting skill-up rate") },
+            new[] { L.T("Loot, money and reputation"), "worldserver.conf", "SkillGain.Gathering", L.T("Gathering skill-up rate") },
+            new[] { L.T("Convenience"), "worldserver.conf", "InstantFlightPaths", L.T("Instant flight paths") },
+            new[] { L.T("Convenience"), "worldserver.conf", "AllFlightPaths", L.T("New characters know all flight paths") },
+            new[] { L.T("Convenience"), "worldserver.conf", "Instance.IgnoreLevel", L.T("Enter dungeons at any level") },
+            new[] { L.T("Convenience"), "worldserver.conf", "Instance.IgnoreRaid", L.T("Enter raids without a raid group") },
+            new[] { L.T("Convenience"), "worldserver.conf", "DurabilityLoss.OnDeath", L.T("Durability loss on death (%)") },
+            new[] { L.T("Convenience"), "worldserver.conf", "AllowTwoSide.Interaction.Group", L.T("Groups with the other faction") },
+            new[] { L.T("Convenience"), "worldserver.conf", "AllowTwoSide.Interaction.Guild", L.T("Guilds with the other faction") },
+            new[] { L.T("Convenience"), "worldserver.conf", "AllowTwoSide.Interaction.Chat", L.T("Chat with the other faction") },
+            new[] { L.T("Convenience"), "worldserver.conf", "PlayerLimit", L.T("Player limit (0 = no limit)") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.Enabled", L.T("Playerbots on") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.RandomBotAutologin", L.T("Random bots populate the world") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.MinRandomBots", L.T("Random bots: minimum count") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.MaxRandomBots", L.T("Random bots: maximum count") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.RandomBotMinLevel", L.T("Random bots: lowest level") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.RandomBotMaxLevel", L.T("Random bots: highest level") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.DisabledWithoutRealPlayer", L.T("Random bots only while a real player is online") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.SyncLevelWithPlayers", L.T("Random bot levels follow the players") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.MaxAddedBots", L.T("Bots per player (party bots)") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.AutoDoQuests", L.T("Bots do quests on their own") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.RandomBotJoinBG", L.T("Bots join battlegrounds") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.RandomBotTalk", L.T("Bots chat") },
+            new[] { L.T("Playerbots"), "modules\\playerbots.conf", "AiPlayerbot.BotActiveAlone", L.T("Bots active without players nearby (%)") },
         };
 
         public static ConfigSet Load(Install inst)

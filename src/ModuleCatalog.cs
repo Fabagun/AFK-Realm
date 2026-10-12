@@ -57,16 +57,16 @@ namespace CoAInstaller
             {
                 new ModuleEntry { Name = "mod-playerbots-auctions", FullName = "aspollon/mod-playerbots-auctions", Branch = "main", Own = true,
                     Url = "https://github.com/aspollon/mod-playerbots-auctions", CloneUrl = "https://github.com/aspollon/mod-playerbots-auctions.git",
-                    Description = "The bots use the auction house like players: they sell their loot, buy and bid, craft and gather" },
+                    Description = L.N("The bots use the auction house like players: they sell their loot, buy and bid, craft and gather") },
                 new ModuleEntry { Name = "mod-world-journey", FullName = "aspollon/mod-world-journey", Branch = "main", Own = true,
                     Url = "https://github.com/aspollon/mod-world-journey", CloneUrl = "https://github.com/aspollon/mod-world-journey.git",
-                    Description = "The whole world - old world, Outland and Northrend - as one journey from 1 to 60, for the classes of CoA" },
+                    Description = L.N("The whole world - old world, Outland and Northrend - as one journey from 1 to 60, for the classes of CoA") },
                 new ModuleEntry { Name = "mod-classic-classes", FullName = "aspollon/mod-classic-classes", Branch = "main", Own = true,
                     Url = "https://github.com/aspollon/mod-classic-classes", CloneUrl = "https://github.com/aspollon/mod-classic-classes.git",
-                    Description = "The classic classes - Warrior to Druid, as Warcraft Reborn plays them - next to the classes of CoA, for players and bots" },
+                    Description = L.N("The classic classes - Warrior to Druid, as Warcraft Reborn plays them - next to the classes of CoA, for players and bots") },
                 new ModuleEntry { Name = "mod-custom-races", FullName = "aspollon/mod-custom-races", Branch = "main", Own = true,
                     Url = "https://github.com/aspollon/mod-custom-races", CloneUrl = "https://github.com/aspollon/mod-custom-races.git",
-                    Description = "The races the game client carries - Goblin, Worgen, Pandaren, Vrykul and more - playable for players and bots" },
+                    Description = L.N("The races the game client carries - Goblin, Worgen, Pandaren, Vrykul and more - playable for players and bots") },
             };
         }
         static readonly Dictionary<string, ModuleAnalysis> analyses = new Dictionary<string, ModuleAnalysis>(StringComparer.OrdinalIgnoreCase);
@@ -90,7 +90,7 @@ namespace CoAInstaller
             {
                 var resp = ex.Response as HttpWebResponse;
                 if (resp != null && (resp.StatusCode == HttpStatusCode.Forbidden || (int)resp.StatusCode == 429))
-                    throw new InvalidOperationException("GitHub only allows a limited number of requests per hour without signing in, and that limit is used up. Please try again later.");
+                    throw new InvalidOperationException(L.T("GitHub only allows a limited number of requests per hour without signing in, and that limit is used up. Please try again later."));
                 throw;
             }
         }
@@ -132,8 +132,8 @@ namespace CoAInstaller
             }
             catch (Exception ex)
             {
-                if (cached != null) { warning = "The module list could not be updated (" + ex.Message + ") The list from " + File.GetLastWriteTime(cache).ToString("g") + " is shown."; return cached; }
-                throw new InvalidOperationException("The module list could not be loaded from GitHub. " + ex.Message);
+                if (cached != null) { warning = L.F("The module list could not be updated ({0}) The list from {1} is shown.", ex.Message, File.GetLastWriteTime(cache).ToString("g")); return cached; }
+                throw new InvalidOperationException(L.T("The module list could not be loaded from GitHub.") + " " + ex.Message);
             }
         }
 
@@ -160,7 +160,7 @@ namespace CoAInstaller
                 }
                 if (items.Length < 100) break;
             }
-            if (list.Count == 0) throw new InvalidOperationException("GitHub returned an empty module list.");
+            if (list.Count == 0) throw new InvalidOperationException(L.T("GitHub returned an empty module list."));
             return list;
         }
 
@@ -252,7 +252,7 @@ namespace CoAInstaller
                 if (entry == null)
                 {
                     entry = new ModuleEntry { Name = name, FullName = full ?? "", Url = full != null ? "https://github.com/" + full : url, CloneUrl = url,
-                        Description = info != null ? "" : "Added by hand" };
+                        Description = info != null ? "" : L.N("Added by hand") };
                     result.Add(entry);
                 }
                 entry.State = state;
@@ -292,7 +292,7 @@ namespace CoAInstaller
             string full = string.IsNullOrEmpty(m.FullName) ? GitHubName(m.CloneUrl) : m.FullName;
             if (full == null)
             {
-                a.Add(1, "This module is not on GitHub, so " + Product.Name + " cannot check it beforehand. Read its description before installing.");
+                a.Add(1, L.F("This module is not on GitHub, so {0} cannot check it beforehand. Read its description before installing.", Product.Name));
                 return a;
             }
             if (!m.InCatalog)
@@ -343,35 +343,36 @@ namespace CoAInstaller
                 !addonFolders.Any(f => f.Length > 0 && p.StartsWith(f + "/", StringComparison.OrdinalIgnoreCase)));
 
             if (!code && dbs.Count == 0)
-                a.Add(2, "This does not look like a server module (no source code and no SQL files).");
+                a.Add(2, L.T("This does not look like a server module (no source code and no SQL files)."));
             bool manifest = paths.Any(p => p.Equals(ManifestName, StringComparison.OrdinalIgnoreCase));
             if (manifest && patches.Count > 0)
-                a.Add(0, "It brings " + patches.Count + (patches.Count == 1 ? " change" : " changes") + " for the CoA core or Playerbots. " + Product.Name +
-                    " applies them with every build and leaves one out when it no longer fits or is no longer needed.");
+                a.Add(0, patches.Count == 1
+                    ? L.F("It brings 1 change for the CoA core or Playerbots. {0} applies it with every build and leaves it out when it no longer fits or is no longer needed.", Product.Name)
+                    : L.F("It brings {0} changes for the CoA core or Playerbots. {1} applies them with every build and leaves one out when it no longer fits or is no longer needed.", patches.Count, Product.Name));
             else if (patches.Count > 0 || Regex.IsMatch(readme, @"git\s+apply|patch\s+-p\d|apply\s+(the\s+)?(core\s+)?patch|core\s+patch", RegexOptions.IgnoreCase))
-                a.Add(2, "It needs changes to the server core (a patch). " + Product.Name + " cannot apply those, so the module will most likely not work or not compile.");
+                a.Add(2, L.F("It needs changes to the server core (a patch). {0} cannot apply those, so the module will most likely not work or not compile.", Product.Name));
             if (!(manifest && clientFiles) && Regex.IsMatch(readme, @"\.mpq\b|client[\s-]+(side\s+)?patch|patch-[a-z0-9]\.mpq|client\s+dbc|dbc\s+files?\s+(to|for|in)\s+(the\s+)?client", RegexOptions.IgnoreCase))
-                a.Add(1, "The README mentions files for the game client (MPQ/DBC patches). Every player may need them; see the README.");
+                a.Add(1, L.T("The README mentions files for the game client (MPQ/DBC patches). Every player may need them; see the README."));
             if (!m.Name.Equals("mod-eluna", StringComparison.OrdinalIgnoreCase) && (lua || Regex.IsMatch(readme, @"\beluna\b", RegexOptions.IgnoreCase)))
-                a.Add(1, "It uses Lua scripts, which need the Eluna module (mod-eluna) as well.");
+                a.Add(1, L.T("It uses Lua scripts, which need the Eluna module (mod-eluna) as well."));
             var needs = Regex.Matches(readme, @"(?i)(?:requires?|needs?|depends\s+on|dependency)[^\n]{0,80}?\b(mod-[a-z0-9\-_]+)")
                 .Cast<Match>().Select(x => x.Groups[1].Value).Where(x => !x.Equals(m.Name, StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (needs.Count > 0) a.Add(1, "The README says it needs: " + string.Join(", ", needs) + ".");
-            if (m.Archived) a.Add(1, "Its author has archived it, so it gets no more fixes.");
+            if (needs.Count > 0) a.Add(1, L.F("The README says it needs: {0}.", string.Join(", ", needs)));
+            if (m.Archived) a.Add(1, L.T("Its author has archived it, so it gets no more fixes."));
             if (m.Pushed > DateTime.MinValue && m.Pushed < DateTime.UtcNow.AddYears(-2))
-                a.Add(1, "Last changed " + m.Pushed.ToString("MMMM yyyy", CultureInfo.InvariantCulture) + ". Older modules often do not compile with the current core.");
+                a.Add(1, L.F("Last changed {0}. Older modules often do not compile with the current core.", m.Pushed.ToString("MMMM yyyy", L.Culture)));
             if (dbs.Count > 0)
-                a.Add(0, "Database changes (" + string.Join(", ", dbs) + ") are applied and recorded automatically, so removing the module undoes them.");
+                a.Add(0, L.F("Database changes ({0}) are applied and recorded automatically, so removing the module undoes them.", string.Join(", ", dbs)));
             if (ignored.Count > 0)
-                a.Add(1, "SQL files in data/sql/" + string.Join(", data/sql/", ignored) + " are not applied by the server (often old files that are no longer needed). Check the README.");
+                a.Add(1, L.F("SQL files in {0} are not applied by the server (often old files that are no longer needed). Check the README.", "data/sql/" + string.Join(", data/sql/", ignored)));
             if (looseSql.Count > 0 && dbs.Count == 0)
-                a.Add(1, "It has SQL files outside data/sql (" + looseSql.Count + "), which the server does not apply by itself. Check the README.");
+                a.Add(1, L.F("It has SQL files outside data/sql ({0}), which the server does not apply by itself. Check the README.", looseSql.Count));
             var addons = paths.Select(p => Regex.Match(p, @"^(.+/)?([\w.\-]+)/\2\.toc$", RegexOptions.IgnoreCase)).Where(x => x.Success).Select(x => x.Groups[2].Value).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (manifest && addons.Count > 0)
-                a.Add(0, "It brings an add-on for the game client (" + string.Join(", ", addons) + "). " + Product.Name + " offers to put it into your game after installing, " +
-                    "and can pack it into a ZIP for other players.");
-            if (conf) a.Add(0, "Its options appear in the server settings after installing.");
-            if (code && dbs.Count == 0 && !conf) a.Add(0, "Source code only: nothing to set up.");
+                a.Add(0, L.F("It brings an add-on for the game client ({0}). {1} offers to put it into your game after installing, " +
+                    "and can pack it into a ZIP for other players.", string.Join(", ", addons), Product.Name));
+            if (conf) a.Add(0, L.T("Its options appear in the server settings after installing."));
+            if (code && dbs.Count == 0 && !conf) a.Add(0, L.T("Source code only: nothing to set up."));
             return a;
         }
     }

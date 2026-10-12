@@ -37,6 +37,7 @@ namespace CoAInstaller
         {
             public List<string> Modules = new List<string>();
             public List<string> Why = new List<string>();
+            public List<string> WhyEnglish = new List<string>();
             public bool ClearCache;
             internal List<FileSpec> Files = new List<FileSpec>();
             internal List<EditSpec> Edits = new List<EditSpec>();
@@ -116,7 +117,7 @@ namespace CoAInstaller
                 {
                     plan.Modules.Add(module);
                     string why = clientPart.TryGetValue("why", out v) ? Convert.ToString(v) : "";
-                    if (why.Length > 0) plan.Why.Add(module + ": " + why);
+                    if (why.Length > 0) { plan.Why.Add(module + ": " + L.Outside(why)); plan.WhyEnglish.Add(module + ": " + why); }
                     plan.ClearCache |= clientPart.TryGetValue("clearCache", out v) && v is bool && (bool)v;
                 }
             }
@@ -314,11 +315,11 @@ namespace CoAInstaller
             foreach (var group in plan.Edits.Where(e => e.ImportRace == null && e.SectionRules == null && e.AddFile == null).GroupBy(e => e.File, StringComparer.OrdinalIgnoreCase))
             {
                 byte[] bytes;
-                string source = "this server's modules";
+                string source = L.T("this server's modules");
                 if (!files.TryGetValue(group.Key, out bytes))
                 {
                     bytes = FromClient(client, group.Key, out source);
-                    if (bytes == null) throw new InvalidOperationException("The game client has no " + group.Key + ", which module " + group.First().Module + " changes. Is this the game folder of Conquest of Azeroth?");
+                    if (bytes == null) throw new InvalidOperationException(L.F("The game client has no {0}, which module {1} changes. Is this the game folder of Conquest of Azeroth?", group.Key, group.First().Module));
                 }
                 foreach (var edit in group)
                     bytes = edit.DropRows != null ? DropRows(bytes, edit, group.Key) : edit.AddRows != null ? AddRows(bytes, edit, group.Key) :
@@ -327,7 +328,7 @@ namespace CoAInstaller
                         edit.SetRows != null ? SetRows(bytes, edit, group.Key) :
                         edit.CopyRows != null ? CopyRows(bytes, edit, group.Key) : InsertAfter(bytes, edit, group.Key);
                 files[group.Key] = bytes;
-                if (notes != null) notes.Add(group.Key + " (from " + source + ")");
+                if (notes != null) notes.Add(L.F("{0} (from {1})", group.Key, source));
             }
             // imported races, then the rules of the character creation for every added race
             Func<string, byte[]> load = name =>
@@ -351,8 +352,8 @@ namespace CoAInstaller
                 int race, baseRace;
                 if (pack == null)
                     throw new InvalidOperationException(Text(e.ImportRace, "folder").Length == 0
-                        ? "The race " + Text(e.ImportRace, "key") + " comes from a race folder, but no race folder is set (module " + e.Module + "). Open its setup page and save it."
-                        : "The race folder " + Text(e.ImportRace, "folder") + " has no race \"" + Text(e.ImportRace, "key") + "\" (module " + e.Module + ").");
+                        ? L.F("The race {0} comes from a race folder, but no race folder is set (module {1}). Open its setup page and save it.", Text(e.ImportRace, "key"), e.Module)
+                        : L.F("The race folder {0} has no race \"{1}\" (module {2}).", Text(e.ImportRace, "folder"), Text(e.ImportRace, "key"), e.Module));
                 if (!int.TryParse(Text(e.ImportRace, "id"), out race) || race <= 0) continue;
                 if (!int.TryParse(Text(e.ImportRace, "base"), out baseRace)) baseRace = BaseRaceId(Text(e.ImportRace, "base"));
                 string name = Text(e.ImportRace, "name");
@@ -426,7 +427,7 @@ namespace CoAInstaller
             var lines = text.Replace("\r\n", "\n").Split('\n').ToList();
             if (lines.Any(l => l.Trim().Equals(edit.Line.Trim(), StringComparison.OrdinalIgnoreCase))) return bytes;
             int at = lines.FindIndex(l => l.Trim().Equals(edit.InsertAfter.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (at < 0) throw new InvalidOperationException(file + " of the game client has no line \"" + edit.InsertAfter + "\", after which module " + edit.Module + " adds its own. The client may have changed; update the module.");
+            if (at < 0) throw new InvalidOperationException(L.F("{0} of the game client has no line \"{1}\", after which module {2} adds its own. The client may have changed; update the module.", file, edit.InsertAfter, edit.Module));
             lines.Insert(at + 1, edit.Line);
             bool bom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
             var result = Encoding.UTF8.GetBytes(string.Join(nl, lines));
@@ -441,7 +442,7 @@ namespace CoAInstaller
             int field = edit.DropRows.TryGetValue("field", out v) ? Convert.ToInt32(v) : 0;
             var listed = (edit.DropRows.TryGetValue("values", out v) ? v as object[] : null) ?? new object[0];
             var values = new HashSet<uint>(listed.Select(x => Convert.ToUInt32(x)));
-            if (field < 0 || field >= table.Fields) throw new InvalidOperationException(file + " has no field " + field + " (module " + edit.Module + ").");
+            if (field < 0 || field >= table.Fields) throw new InvalidOperationException(L.F("{0} has no field {1} (module {2}).", file, field, edit.Module));
             table.Records.RemoveAll(r => table.Field(r, 0) < idBelow && values.Contains(table.Field(r, field)));
             return table.ToBytes();
         }
@@ -459,12 +460,12 @@ namespace CoAInstaller
             var lists = ((edit.AddRows.TryGetValue("cross", out v) ? v as object[] : null) ?? new object[0])
                 .Select(l => ((l as object[]) ?? new object[0]).Select(x => Convert.ToUInt32(x)).ToArray()).ToList();
             if (lists.Count != table.Fields || lists.Any(l => l.Length == 0))
-                throw new InvalidOperationException(file + " has " + table.Fields + " fields; module " + edit.Module + " gives values for " + lists.Count + ".");
+                throw new InvalidOperationException(L.F("{0} has {1} fields; module {2} gives values for {3}.", file, table.Fields, edit.Module, lists.Count));
             int width = table.Fields > 0 ? table.RecordSize / table.Fields : 0;
             if ((width != 1 && width != 2 && width != 4) || width * table.Fields != table.RecordSize)
-                throw new InvalidOperationException(file + " has a row layout module " + edit.Module + " cannot add rows to.");
+                throw new InvalidOperationException(L.F("{0} has a row layout module {1} cannot add rows to.", file, edit.Module));
             if (width < 4 && lists.Any(l => l.Any(x => x >= (1u << (8 * width)))))
-                throw new InvalidOperationException(file + " stores " + width + " byte(s) per field; a value of module " + edit.Module + " does not fit.");
+                throw new InvalidOperationException(L.F("{0} stores {1} byte(s) per field; a value of module {2} does not fit.", file, width, edit.Module));
             var have = new HashSet<string>();
             // A row the table holds twice takes a place in the client's list for nothing: the second one goes.
             table.Records.RemoveAll(r => !have.Add(Convert.ToBase64String(r)));
@@ -488,13 +489,13 @@ namespace CoAInstaller
             // the character creation of the CoA client takes 30 classes per race in CharBaseInfo.dbc).
             int most = edit.AddRows.TryGetValue("maxRows", out v) ? Convert.ToInt32(v) : int.MaxValue;
             if (table.Records.Count > most)
-                throw new InvalidOperationException(file + " would have " + table.Records.Count + " rows, more than the " + most +
-                    " the game takes (module " + edit.Module + "). Another module may have added rows to it too.");
+                throw new InvalidOperationException(L.F("{0} would have {1} rows, more than the {2} the game takes (module {3}). Another module may have added rows to it too.",
+                    file, table.Records.Count, most, edit.Module));
             int perFirst = edit.AddRows.TryGetValue("maxPerRace", out v) ? Convert.ToInt32(v) : int.MaxValue;
             var crowded = table.Records.GroupBy(r => table.Field(r, 0)).FirstOrDefault(g => g.Count() > perFirst);
             if (crowded != null)
-                throw new InvalidOperationException(file + " would have " + crowded.Count() + " rows for " + crowded.Key + ", more than the " + perFirst +
-                    " the game takes (module " + edit.Module + "). Another module may have added rows to it too.");
+                throw new InvalidOperationException(L.F("{0} would have {1} rows for {2}, more than the {3} the game takes (module {4}). Another module may have added rows to it too.",
+                    file, crowded.Count(), crowded.Key, perFirst, edit.Module));
             return table.ToBytes();
         }
 
@@ -518,7 +519,7 @@ namespace CoAInstaller
             var match = offsets("match"); var set = offsets("set");
             var key = ((edit.CloneRows.TryGetValue("key", out v) ? v as object[] : null) ?? new object[0]).Select(x => Convert.ToInt32(x)).ToArray();
             if (match.Count == 0 || set.Count == 0 || table.RecordSize < 4 || match.Keys.Concat(set.Keys).Concat(key).Any(o => o < 4 || o >= table.RecordSize))
-                throw new InvalidOperationException("The rows module " + edit.Module + " copies in " + file + " are not described in a way it can use.");
+                throw new InvalidOperationException(L.F("The rows module {0} copies in {1} are not described in a way it can use.", edit.Module, file));
             Func<byte[], string> keyOf = r => string.Join(",", key.Select(o => r[o]));
             bool replace = edit.CloneRows.TryGetValue("replace", out v) && v is bool && (bool)v;
             var have = new Dictionary<string, byte[]>();
@@ -561,7 +562,7 @@ namespace CoAInstaller
             };
             var match = fields("match"); var set = fields("set");
             if (match.Count == 0 || set.Count == 0 || match.Keys.Concat(set.Keys).Any(f => f < 0 || f >= table.Fields))
-                throw new InvalidOperationException("The fields module " + edit.Module + " changes in " + file + " are not described in a way it can use.");
+                throw new InvalidOperationException(L.F("The fields module {0} changes in {1} are not described in a way it can use.", edit.Module, file));
             int changed = 0;
             foreach (var row in table.Records.Where(r => match.All(m => table.Field(r, m.Key) == m.Value)))
             {
@@ -569,7 +570,7 @@ namespace CoAInstaller
                 changed++;
             }
             if (changed == 0)
-                throw new InvalidOperationException(file + " of the game client has no row module " + edit.Module + " changes. The client may have changed; update the module.");
+                throw new InvalidOperationException(L.F("{0} of the game client has no row module {1} changes. The client may have changed; update the module.", file, edit.Module));
             return table.ToBytes();
         }
 
@@ -605,7 +606,7 @@ namespace CoAInstaller
                 if (tables.TryGetValue(name, out t)) return t;
                 byte[] bytes; string source;
                 if (!files.TryGetValue(name, out bytes)) bytes = FromClient(client, name, out source);
-                if (bytes == null) throw new InvalidOperationException("The game client has no " + name + ".");
+                if (bytes == null) throw new InvalidOperationException(L.F("The game client has no {0}.", name));
                 return tables[name] = DbcTable.Parse(bytes, name);
             };
             foreach (var g in groups.Values)
@@ -633,7 +634,7 @@ namespace CoAInstaller
                     shift[s.Key] = next - s.Value[0];
                     next += s.Value[1] - s.Value[0] + 1;
                 }
-                if (next > uint.MaxValue) throw new InvalidOperationException("Too many rows to copy into " + g[0].File + ".");
+                if (next > uint.MaxValue) throw new InvalidOperationException(L.F("Too many rows to copy into {0}.", g[0].File));
                 foreach (var e in g)
                 {
                     long n;
@@ -659,7 +660,7 @@ namespace CoAInstaller
             var key = ((edit.CopyRows.TryGetValue("key", out v) ? v as object[] : null) ?? new object[0]).Select(x => Convert.ToInt32(x)).ToArray();
             if (key.Length == 0) key = Enumerable.Range(newId ? 1 : 0, Math.Max(0, table.Fields - (newId ? 1 : 0))).ToArray();
             if (match.Count == 0 || set.Count == 0 || match.Keys.Concat(set.Keys).Concat(key).Any(f => f < 0 || f >= table.Fields))
-                throw new InvalidOperationException("The rows module " + edit.Module + " copies in " + file + " are not described in a way it can use.");
+                throw new InvalidOperationException(L.F("The rows module {0} copies in {1} are not described in a way it can use.", edit.Module, file));
             Func<byte[], string> keyOf = r => string.Join(",", key.Select(f => table.Field(r, f)));
             var have = new HashSet<string>(table.Records.Select(keyOf));
             uint next = table.Records.Count == 0 ? 1 : table.Records.Max(r => table.Field(r, 0)) + 1;
@@ -704,7 +705,7 @@ namespace CoAInstaller
             int size = table.RecordSize;
             if (empty.Length != 2 || copy.Length != 2 || empty[0] < 4 || empty[1] > size || (empty[1] - empty[0]) % 4 != 0 || copy[0] < 4 || copy[1] > size ||
                 copy[0] >= copy[1] || same.Any(o => o < 4 || o >= size) || match.Keys.Any(o => o < 4 || o >= size) || preferAt >= size)
-                throw new InvalidOperationException("The rows module " + edit.Module + " fills in " + file + " are not described in a way it can use.");
+                throw new InvalidOperationException(L.F("The rows module {0} fills in {1} are not described in a way it can use.", edit.Module, file));
             Func<byte[], bool> isEmpty = r => { for (int o = empty[0]; o < empty[1]; o += 4) if (BitConverter.ToInt32(r, o) > 0) return false; return true; };
             var donors = table.Records.Where(r => !isEmpty(r)).ToList();
             foreach (var row in table.Records)
@@ -756,7 +757,7 @@ namespace CoAInstaller
             catch { return ""; }
         }
 
-        const string Foreign = "Data\\" + ArchiveName + " in the game folder was not made by " + Product.Name + ". Rename or remove it, then install again.";
+        static string Foreign { get { return L.F("Data\\{0} in the game folder was not made by {1}. Rename or remove it, then install again.", ArchiveName, Product.Name); } }
 
         // ---------------------------------------------------------------------------- files next to the exe
 
@@ -773,8 +774,8 @@ namespace CoAInstaller
         {
             foreach (var r in plan.RootFiles)
                 if (string.IsNullOrEmpty(r.From) || !File.Exists(r.From))
-                    throw new InvalidOperationException(r.Module + " wants " + r.To + " next to the game, from " + (string.IsNullOrEmpty(r.From) ? "a file not chosen yet" : r.From) +
-                        ", which is not there. Open its setup page and choose the file again, or switch that option off.");
+                    throw new InvalidOperationException(L.F("{0} wants {1} next to the game, from {2}, which is not there. Open its setup page and choose the file again, or switch that option off.",
+                        r.Module, r.To, string.IsNullOrEmpty(r.From) ? L.T("a file not chosen yet") : r.From));
         }
 
         /// <summary>The files next to the exe put there before: name -> hash.</summary>
@@ -823,7 +824,7 @@ namespace CoAInstaller
                         File.Move(dest, dest + ".afk-backup");
                     File.Copy(r.From, dest, true);
                     now[r.To] = want;
-                    notes.Add(r.To + " placed next to the game");
+                    notes.Add(L.F("{0} placed next to the game", r.To));
                 }
                 foreach (var p in placed)
                 {
@@ -833,12 +834,12 @@ namespace CoAInstaller
                     {
                         File.Delete(dest);
                         if (File.Exists(dest + ".afk-backup")) File.Move(dest + ".afk-backup", dest);
-                        notes.Add(p.Key + " taken away");
+                        notes.Add(L.F("{0} taken away", p.Key));
                     }
                 }
             }
-            catch (IOException ex) { throw new InvalidOperationException("A file next to the game could not be changed (" + ex.Message + "). Close the game and its launcher first."); }
-            catch (UnauthorizedAccessException ex) { throw new InvalidOperationException("A file next to the game could not be changed (" + ex.Message + ")."); }
+            catch (IOException ex) { throw new InvalidOperationException(L.F("A file next to the game could not be changed ({0}). Close the game and its launcher first.", ex.Message)); }
+            catch (UnauthorizedAccessException ex) { throw new InvalidOperationException(L.F("A file next to the game could not be changed ({0}).", ex.Message)); }
             Directory.CreateDirectory(Path.GetDirectoryName(RootRecord(inst)));
             if (now.Count == 0) { if (File.Exists(RootRecord(inst))) File.Delete(RootRecord(inst)); }
             else File.WriteAllLines(RootRecord(inst), now.Select(p => p.Key + "\t" + p.Value), new UTF8Encoding(false));
@@ -922,18 +923,18 @@ namespace CoAInstaller
                 if (!string.IsNullOrEmpty(installed) && WasOurs(inst))
                 {
                     try { File.Delete(path); }
-                    catch (IOException) { throw new InvalidOperationException("Data\\" + ArchiveName + " is in use. Close the game and its launcher first."); }
+                    catch (IOException) { throw new InvalidOperationException(L.F("Data\\{0} is in use. Close the game and its launcher first.", ArchiveName)); }
                     File.Delete(RecordFile(inst));
-                    return "the client patch removed (no module needs it any more)" + (gone.Count > 0 ? ", " + string.Join(", ", gone) : "");
+                    return L.T("the client patch removed (no module needs it any more)") + (gone.Count > 0 ? ", " + string.Join(", ", gone) : "");
                 }
                 return string.Join(", ", gone);
             }
             if (installed == "") throw new InvalidOperationException(Foreign);
             CheckRootFiles(plan);
             var notes = new List<string>();
-            progress("Building the client patch from your game client …", 0, 0);
+            progress(L.T("Building the client patch from your game client …"), 0, 0);
             var files = Build(inst, client, plan, notes);
-            progress("Writing Data\\" + ArchiveName + " …", 0, 0);
+            progress(L.F("Writing Data\\{0} …", ArchiveName), 0, 0);
             string temp = path + ".new";
             MpqArchive.Write(temp, files);
             try
@@ -944,15 +945,15 @@ namespace CoAInstaller
             catch (IOException)
             {
                 try { File.Delete(temp); } catch { }
-                throw new InvalidOperationException("Data\\" + ArchiveName + " is in use. Close the game and its launcher first.");
+                throw new InvalidOperationException(L.F("Data\\{0} is in use. Close the game and its launcher first.", ArchiveName));
             }
             lock (wantedStamps) { wantedStamps.Clear(); wantedStamps[InputsKey(inst, client, plan)] = Encoding.UTF8.GetString(files[StampName]); }
             notes.AddRange(RaceImport.Sync(client, plan.Imports, progress));
-            progress("Placing the files next to the game …", 0, 0);
+            progress(L.T("Placing the files next to the game …"), 0, 0);
             notes.AddRange(SyncRootFiles(inst, client, plan));
             Directory.CreateDirectory(Path.GetDirectoryName(RecordFile(inst)));
             File.WriteAllLines(RecordFile(inst), new[] { ArchiveName }.Concat(plan.Modules), new UTF8Encoding(false));
-            return "the client patch Data\\" + ArchiveName + " built for " + string.Join(", ", plan.Modules) + (notes.Count > 0 ? " (changes " + string.Join(", ", notes) + ")" : "");
+            return L.F("the client patch Data\\{0} built for {1}", ArchiveName, string.Join(", ", plan.Modules)) + (notes.Count > 0 ? " " + L.F("(changes {0})", string.Join(", ", notes)) : "");
         }
 
         /// <summary>Puts the patch into a ZIP for other players, as Data\patch-Y.MPQ.</summary>
@@ -961,7 +962,7 @@ namespace CoAInstaller
         public static void AddToZip(ZipArchive zip, Install inst, string client, Plan plan, Action<string, int, int> progress)
         {
             if (progress == null) progress = (t, a, b) => { };
-            progress("Building the client patch from your game client …", 0, 0);
+            progress(L.T("Building the client patch from your game client …"), 0, 0);
             var files = Build(inst, client, plan, null);
             string temp = Path.GetTempFileName();
             try
@@ -975,7 +976,7 @@ namespace CoAInstaller
             int n = 0;
             foreach (var w in plan.Imports)
             {
-                progress("Packing the files of the " + w.Pack.Name + " into the ZIP …", n++, plan.Imports.Count);
+                progress(L.F("Packing the files of the {0} into the ZIP …", w.Pack.Name), n++, plan.Imports.Count);
                 string race = RaceImport.BuildTemp(w);
                 try { zip.CreateEntryFromFile(race, "Data/" + RaceImport.ArchiveName(w.Race), CompressionLevel.Fastest); }
                 finally { try { File.Delete(race); } catch { } }

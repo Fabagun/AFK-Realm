@@ -21,16 +21,16 @@ namespace CoAInstaller
 
         readonly Install inst;
         readonly TextBox search = new TextBox { Font = Ui.Base, Width = 260, Margin = new Padding(0, 3, 10, 3) };
-        readonly CheckBox hideOld = new CheckBox { Text = "Hide modules not changed for 2 years", AutoSize = true, Checked = true, Font = Ui.Base, Margin = new Padding(0, 6, 10, 0) };
-        readonly CheckBox onlyInstalled = new CheckBox { Text = "Installed only", AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 10, 0) };
+        readonly CheckBox hideOld = new CheckBox { Text = L.T("Hide modules not changed for 2 years"), AutoSize = true, Checked = true, Font = Ui.Base, Margin = new Padding(0, 6, 10, 0) };
+        readonly CheckBox onlyInstalled = new CheckBox { Text = L.T("Installed only"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 10, 0) };
         readonly ListView list = new ListView { View = View.Details, CheckBoxes = true, FullRowSelect = true, HideSelection = false, MultiSelect = false, Dock = DockStyle.Fill, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle };
         readonly Label status = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 8, 0, 0) };
         readonly Label detailName = new Label { AutoSize = true, Font = Ui.H2, ForeColor = Ui.Text, MaximumSize = new Size(330, 0), Margin = new Padding(0, 0, 0, 2) };
         readonly Label detailText = new Label { AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, MaximumSize = new Size(330, 0), Margin = new Padding(0, 2, 0, 6) };
-        readonly LinkLabel detailLink = new LinkLabel { AutoSize = true, Font = Ui.Small, Text = "Open on GitHub", Margin = new Padding(0, 0, 0, 8) };
+        readonly LinkLabel detailLink = new LinkLabel { AutoSize = true, Font = Ui.Small, Text = L.T("Open on GitHub"), Margin = new Padding(0, 0, 0, 8) };
         readonly FlowLayoutPanel checks = Ui.Column();
-        readonly Button readme = Ui.Secondary("Show README");
-        readonly Button apply = Ui.Primary("Apply changes …");
+        readonly Button readme = Ui.Secondary(L.T("Show README"));
+        readonly Button apply = Ui.Primary(L.T("Apply changes …"));
         readonly TextBox customUrl = new TextBox { Font = Ui.Base, Width = 380, Margin = new Padding(0, 3, 8, 3) };
 
         // The modules made for AFK Realm stand above the catalog, in a section of their own.
@@ -44,25 +44,25 @@ namespace CoAInstaller
         public ModulesDialog(Install i)
         {
             inst = i;
-            Text = Product.Name + " – Modules"; Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = Product.Name + " – " + L.T("Modules"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(1080, 660); MinimumSize = new Size(900, 520);
 
             var top = Ui.Column(); top.Dock = DockStyle.Top; top.AutoSize = true; top.Padding = new Padding(16, 12, 16, 4);
-            top.Controls.Add(Ui.Para("Tick a module to install it, untick it to remove it, then choose \"Apply changes\". " + Product.Name +
+            top.Controls.Add(Ui.Para(L.F("Tick a module to install it, untick it to remove it, then choose \"Apply changes\". {0}" +
                 " backs up the server, downloads the modules and rebuilds the server. Database changes of modules installed here are recorded, " +
-                "so removing a module also undoes them. \"Modules by " + Product.Name + "\" are made for this server; the rest of the list comes from the AzerothCore module catalog, and not every module there works with CoA.", 1040));
+                "so removing a module also undoes them. \"Modules by {0}\" are made for this server; the rest of the list comes from the AzerothCore module catalog, and not every module there works with CoA.", Product.Name), 1040));
             var filter = Ui.Row();
-            filter.Controls.Add(new Label { Text = "Search", AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
+            filter.Controls.Add(new Label { Text = L.T("Search"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
             filter.Controls.Add(search); filter.Controls.Add(hideOld); filter.Controls.Add(onlyInstalled);
-            var reload = Ui.Secondary("Reload list"); reload.Click += (s, e) => LoadList(true);
+            var reload = Ui.Secondary(L.T("Reload list")); reload.Click += (s, e) => LoadList(true);
             filter.Controls.Add(reload);
             top.Controls.Add(filter);
 
-            list.Columns.Add("Module", 205);
-            list.Columns.Add("Description", 240);
+            list.Columns.Add(L.T("Module"), 205);
+            list.Columns.Add(L.T("Description"), 240);
             list.Columns.Add("★", 40, HorizontalAlignment.Right);
-            list.Columns.Add("Last change", 90);
-            list.Columns.Add("Status", 115);
+            list.Columns.Add(L.T("Last change"), 90);
+            list.Columns.Add(L.T("Status"), 115);
             var listPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16, 4, 8, 4) };
             listPanel.Controls.Add(list);
             listPanel.Controls.Add(ownPanel);
@@ -75,14 +75,14 @@ namespace CoAInstaller
             readme.Visible = false; detailLink.Visible = false;
 
             var urlRow = Ui.Row(); urlRow.Dock = DockStyle.Bottom; urlRow.Padding = new Padding(16, 2, 16, 4); urlRow.AutoSize = true;
-            urlRow.Controls.Add(new Label { Text = "Not in the list? Git address:", AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
+            urlRow.Controls.Add(new Label { Text = L.T("Not in the list? Git address:"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
             urlRow.Controls.Add(customUrl);
-            var addUrl = Ui.Secondary("Add"); addUrl.Click += (s, e) => AddCustom();
+            var addUrl = Ui.Secondary(L.T("Add")); addUrl.Click += (s, e) => AddCustom();
             urlRow.Controls.Add(addUrl);
             urlRow.Controls.Add(status);
 
             var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 58, Padding = new Padding(14, 10, 14, 10), FlowDirection = FlowDirection.RightToLeft, BackColor = Ui.Panel, WrapContents = false };
-            var close = Ui.Secondary("Close"); close.Click += (s, e) => Close();
+            var close = Ui.Secondary(L.T("Close")); close.Click += (s, e) => Close();
             bottom.Controls.Add(close); bottom.Controls.Add(apply);
 
             Controls.Add(listPanel);
@@ -122,14 +122,14 @@ namespace CoAInstaller
             if (ownSelected != null && !mine.Contains(ownSelected)) ownSelected = null;
             if (mine.Count > 0)
             {
-                ownPanel.Controls.Add(new Label { Text = "Modules by " + Product.Name, AutoSize = true, Font = Ui.H2, ForeColor = Ui.Accent, Margin = new Padding(0, 0, 0, 2) });
+                ownPanel.Controls.Add(new Label { Text = L.F("Modules by {0}", Product.Name), AutoSize = true, Font = Ui.H2, ForeColor = Ui.Accent, Margin = new Padding(0, 0, 0, 2) });
                 foreach (var m in mine)
                 {
                     var entry = m;
                     var row = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, Tag = entry, Margin = new Padding(0, 0, 0, 2), Padding = new Padding(2, 2, 6, 2),
                         BackColor = entry == ownSelected ? Ui.Panel : Color.White };
                     var tick = new CheckBox { Text = entry.Name, AutoSize = true, Font = Ui.Bold, Checked = ticked.Contains(entry), Enabled = entry.State != ModuleState.PartOfCoA, Margin = new Padding(2, 1, 10, 0) };
-                    var text = new Label { Text = entry.Description, AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 4, 10, 0), MaximumSize = new Size(360, 0) };
+                    var text = new Label { Text = L.Outside(entry.Description), AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 4, 10, 0), MaximumSize = new Size(360, 0) };
                     var state = new Label { Text = StatusText(entry), AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 5, 0, 0) };
                     ownStatus[entry] = state;
                     tick.CheckedChanged += (s, e) =>
@@ -152,7 +152,7 @@ namespace CoAInstaller
                     row.Controls.Add(tick); row.Controls.Add(text); row.Controls.Add(state);
                     ownPanel.Controls.Add(row);
                 }
-                ownPanel.Controls.Add(new Label { Text = "AzerothCore module catalog", AutoSize = true, Font = Ui.H2, ForeColor = Ui.Text, Margin = new Padding(0, 8, 0, 2) });
+                ownPanel.Controls.Add(new Label { Text = L.T("AzerothCore module catalog"), AutoSize = true, Font = Ui.H2, ForeColor = Ui.Text, Margin = new Padding(0, 8, 0, 2) });
             }
             ownPanel.ResumeLayout();
         }
@@ -166,14 +166,14 @@ namespace CoAInstaller
 
         void LoadList(bool refresh)
         {
-            status.Text = "Loading the module list from GitHub …";
+            status.Text = L.T("Loading the module list from GitHub …");
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 List<ModuleEntry> catalog = null, merged = new List<ModuleEntry>(); string warning = null, error = null;
                 try { catalog = ModuleCatalog.LoadCatalog(inst, refresh, out warning); }
                 catch (Exception ex) { error = ex.Message; }
                 try { merged = ModuleCatalog.Merge(inst, catalog); }
-                catch (Exception ex) { error = (error != null ? error + " " : "") + "The installed modules could not be read: " + ex.Message; }
+                catch (Exception ex) { error = (error != null ? error + " " : "") + L.T("The installed modules could not be read:") + " " + ex.Message; }
                 try
                 {
                     BeginInvoke((Action)(() =>
@@ -185,7 +185,7 @@ namespace CoAInstaller
                         FillOwn();
                         Fill();
                         ShowDetails();
-                        status.Text = error ?? warning ?? (all.Count(m => m.InCatalog) + " modules in the catalog.");
+                        status.Text = error ?? warning ?? L.F("{0} modules in the catalog.", all.Count(m => m.InCatalog));
                         status.ForeColor = error != null || warning != null ? Ui.Warn : Ui.Muted;
                     }));
                 }
@@ -202,13 +202,13 @@ namespace CoAInstaller
             var shown = all.Where(m => !m.Own &&
                     (!hideOld.Checked || m.Installed || ticked.Contains(m) || m.Pushed == DateTime.MinValue || m.Pushed > DateTime.UtcNow.AddYears(-2)) &&
                     (!onlyInstalled.Checked || m.Installed) &&
-                    (q.Length == 0 || m.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 || m.Description.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    (q.Length == 0 || m.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 || m.Description.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 || L.Outside(m.Description).IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 ||
                      m.FullName.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0))
                 .OrderByDescending(m => m.Installed).ThenByDescending(m => ticked.Contains(m)).ThenByDescending(m => m.Stars).ThenBy(m => m.Name);
             foreach (var m in shown)
             {
                 var it = new ListViewItem(m.Name) { Tag = m, Checked = ticked.Contains(m) };
-                it.SubItems.Add(m.Description);
+                it.SubItems.Add(L.Outside(m.Description));
                 it.SubItems.Add(m.InCatalog && m.Stars > 0 ? m.Stars.ToString() : "");
                 it.SubItems.Add(m.Pushed > DateTime.MinValue ? m.Pushed.ToLocalTime().ToString("yyyy-MM-dd") : "");
                 it.SubItems.Add(StatusText(m));
@@ -226,12 +226,12 @@ namespace CoAInstaller
             bool tick = ticked.Contains(m);
             switch (m.State)
             {
-                case ModuleState.PartOfCoA: return m.IsPlayerbots ? "included" : "part of CoA";
+                case ModuleState.PartOfCoA: return m.IsPlayerbots ? L.T("included") : L.T("part of CoA");
                 case ModuleState.Managed:
-                    if (!tick) return "will be removed";
-                    return m.Status == "sql-failed" ? "database step failed" : m.Status == "missing" ? "folder missing" : "installed";
-                case ModuleState.ByHand: return tick ? "added by hand" : "will be removed";
-                default: return tick ? "will be installed" : "";
+                    if (!tick) return L.T("will be removed");
+                    return m.Status == "sql-failed" ? L.T("database step failed") : m.Status == "missing" ? L.T("folder missing") : L.T("installed");
+                case ModuleState.ByHand: return tick ? L.T("added by hand") : L.T("will be removed");
+                default: return tick ? L.T("will be installed") : "";
             }
         }
 
@@ -265,14 +265,14 @@ namespace CoAInstaller
 
         static string ClashText(ModuleEntry m, ModuleEntry clash)
         {
-            return "Another module named \"" + m.Name + "\" (" + (clash.FullName.Length > 0 ? clash.FullName : clash.CloneUrl) + ") is already chosen. Only one module of the same name can be installed.";
+            return L.F("Another module named \"{0}\" ({1}) is already chosen. Only one module of the same name can be installed.", m.Name, clash.FullName.Length > 0 ? clash.FullName : clash.CloneUrl);
         }
 
         void UpdateApply()
         {
             int n = all.Count(m => m.State != ModuleState.PartOfCoA && m.Installed != ticked.Contains(m));
             apply.Enabled = n > 0;
-            apply.Text = n > 0 ? "Apply " + n + (n == 1 ? " change …" : " changes …") : "Apply changes …";
+            apply.Text = n == 1 ? L.T("Apply 1 change …") : n > 1 ? L.F("Apply {0} changes …", n) : L.T("Apply changes …");
         }
 
         void ShowDetails()
@@ -281,29 +281,29 @@ namespace CoAInstaller
             checks.Controls.Clear();
             if (m == null) { detailName.Text = detailText.Text = ""; readme.Visible = detailLink.Visible = false; return; }
             detailName.Text = m.Name;
-            detailText.Text = (m.Description.Length > 0 ? m.Description : "") + (m.FullName.Length > 0 ? "\n" + m.FullName : "");
+            detailText.Text = (m.Description.Length > 0 ? L.Outside(m.Description) : "") + (m.FullName.Length > 0 ? "\n" + m.FullName : "");
             detailLink.Visible = m.Url.StartsWith("http");
             readme.Visible = false;
             if (m.IsPlayerbots)
             {
-                AddCheck(0, "Playerbots is already included: " + Product.Name + " always builds the CoA version (Zyth45/mod-playerbots, branch coa) and keeps it up to date with every server update.");
+                AddCheck(0, L.F("Playerbots is already included: {0} always builds the CoA version (Zyth45/mod-playerbots, branch coa) and keeps it up to date with every server update.", Product.Name));
                 if (m.FullName.Length > 0 && !m.FullName.Equals("Zyth45/mod-playerbots", StringComparison.OrdinalIgnoreCase))
-                    AddCheck(-1, "This entry is a different version (" + m.FullName + ") that does not fit CoA. Nothing needs to be installed here.");
+                    AddCheck(-1, L.F("This entry is a different version ({0}) that does not fit CoA. Nothing needs to be installed here.", m.FullName));
                 return;
             }
-            if (m.State == ModuleState.PartOfCoA) { AddCheck(0, "This module is already part of the CoA core."); return; }
-            if (m.Own) AddCheck(0, "Made for " + Product.Name + " and the CoA server it builds.");
+            if (m.State == ModuleState.PartOfCoA) { AddCheck(0, L.T("This module is already part of the CoA core.")); return; }
+            if (m.Own) AddCheck(0, L.F("Made for {0} and the CoA server it builds.", Product.Name));
             if (m.State == ModuleState.Managed)
             {
-                AddCheck(0, "Installed through " + Product.Name + (m.InstalledOn.Length > 0 ? " on " + m.InstalledOn : "") + ". Removing it undoes its recorded database changes.");
-                if (m.CreatedTables.Length > 0) AddCheck(1, "Removing it deletes its own tables and the data in them: " + string.Join(", ", m.CreatedTables));
-                if (m.ManualTables.Length > 0) AddCheck(1, "Changes to " + string.Join(", ", m.ManualTables) + " cannot be undone automatically; a backup from before the module restores them.");
-                if (m.Status == "sql-failed") AddCheck(2, "One of its database files failed. Removing the module undoes what was applied.");
-                if (m.Status == "missing") AddCheck(2, "Its folder is missing. Removing it undoes its database changes.");
+                AddCheck(0, (m.InstalledOn.Length > 0 ? L.F("Installed through {0} on {1}.", Product.Name, m.InstalledOn) : L.F("Installed through {0}.", Product.Name)) + " " + L.T("Removing it undoes its recorded database changes."));
+                if (m.CreatedTables.Length > 0) AddCheck(1, L.T("Removing it deletes its own tables and the data in them:") + " " + string.Join(", ", m.CreatedTables));
+                if (m.ManualTables.Length > 0) AddCheck(1, L.F("Changes to {0} cannot be undone automatically; a backup from before the module restores them.", string.Join(", ", m.ManualTables)));
+                if (m.Status == "sql-failed") AddCheck(2, L.T("One of its database files failed. Removing the module undoes what was applied."));
+                if (m.Status == "missing") AddCheck(2, L.T("Its folder is missing. Removing it undoes its database changes."));
             }
-            if (m.State == ModuleState.ByHand) AddCheck(1, "Added by hand, not through " + Product.Name + ". Removing it takes the module out, but its database changes stay.");
+            if (m.State == ModuleState.ByHand) AddCheck(1, L.F("Added by hand, not through {0}. Removing it takes the module out, but its database changes stay.", Product.Name));
             if (m.Installed) { readme.Visible = m.FullName.Length > 0; return; }
-            var loading = new Label { Text = "Checking the module …", AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted };
+            var loading = new Label { Text = L.T("Checking the module …"), AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted };
             checks.Controls.Add(loading);
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
@@ -315,12 +315,12 @@ namespace CoAInstaller
                     {
                         if (Selected != m) return;
                         checks.Controls.Clear();
-                        if (m.Own) AddCheck(0, "Made for " + Product.Name + " and the CoA server it builds.");
-                        if (error != null) { AddCheck(m.Own ? -1 : 1, "The module could not be checked" + (m.Own ? " online right now" : "") + ": " + error); return; }
+                        if (m.Own) AddCheck(0, L.F("Made for {0} and the CoA server it builds.", Product.Name));
+                        if (error != null) { AddCheck(m.Own ? -1 : 1, (m.Own ? L.T("The module could not be checked online right now:") : L.T("The module could not be checked:")) + " " + error); return; }
                         foreach (var c in a.Checks.OrderByDescending(c => c.Key)) AddCheck(c.Key, c.Value);
-                        AddCheck(-1, "Check the README for anything you need to set up yourself, for example in the game.");
+                        AddCheck(-1, L.T("Check the README for anything you need to set up yourself, for example in the game."));
                         readme.Visible = a.ReadmeText.Length > 0;
-                        detailText.Text = (m.Description.Length > 0 ? m.Description : "") + (m.FullName.Length > 0 ? "\n" + m.FullName : "");
+                        detailText.Text = (m.Description.Length > 0 ? L.Outside(m.Description) : "") + (m.FullName.Length > 0 ? "\n" + m.FullName : "");
                     }));
                 }
                 catch { }
@@ -344,7 +344,7 @@ namespace CoAInstaller
             Cursor = Cursors.WaitCursor;
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
-                string text; try { text = ModuleCatalog.Analyze(m).ReadmeText; } catch (Exception ex) { text = "The README could not be loaded: " + ex.Message; }
+                string text; try { text = ModuleCatalog.Analyze(m).ReadmeText; } catch (Exception ex) { text = L.T("The README could not be loaded:") + " " + ex.Message; }
                 try { BeginInvoke((Action)(() => { Cursor = Cursors.Default; using (var d = new TextDialog(m.Name + " – README", text)) d.ShowDialog(this); })); } catch { }
             });
         }
@@ -353,14 +353,14 @@ namespace CoAInstaller
         {
             string url = customUrl.Text.Trim();
             if (!Regex.IsMatch(url, @"^https://[^\s""';]+$"))
-            { Ui.Error(this, "Please enter the https address of the module's Git repository, for example https://github.com/azerothcore/mod-transmog"); return; }
+            { Ui.Error(this, L.T("Please enter the https address of the module's Git repository, for example") + " https://github.com/azerothcore/mod-transmog"); return; }
             string name = ModuleCatalog.FolderName(url);
-            if (!Regex.IsMatch(name, @"^[\w.\-]+$")) { Ui.Error(this, "This address does not end in a module name."); return; }
+            if (!Regex.IsMatch(name, @"^[\w.\-]+$")) { Ui.Error(this, L.T("This address does not end in a module name.")); return; }
             string full = ModuleCatalog.GitHubName(url);
             var known = all.FirstOrDefault(m => (full != null && m.FullName.Equals(full, StringComparison.OrdinalIgnoreCase)) || m.CloneUrl.Equals(url, StringComparison.OrdinalIgnoreCase));
             if (known == null)
             {
-                known = new ModuleEntry { Name = name, FullName = full ?? "", Url = full != null ? "https://github.com/" + full : url, CloneUrl = full != null ? "https://github.com/" + full + ".git" : url, Description = "Added from an address" };
+                known = new ModuleEntry { Name = name, FullName = full ?? "", Url = full != null ? "https://github.com/" + full : url, CloneUrl = full != null ? "https://github.com/" + full + ".git" : url, Description = L.N("Added from an address") };
                 all.Add(known);
             }
             customUrl.Text = "";
@@ -380,7 +380,7 @@ namespace CoAInstaller
             var remove = all.Where(m => m.Installed && !ticked.Contains(m)).ToList();
             if (add.Count + remove.Count == 0) return;
             UseWaitCursor = true; apply.Enabled = false;
-            status.Text = "Checking the chosen modules …"; status.ForeColor = Ui.Muted;
+            status.Text = L.T("Checking the chosen modules …"); status.ForeColor = Ui.Muted;
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 var found = new Dictionary<ModuleEntry, ModuleAnalysis>();
@@ -396,7 +396,7 @@ namespace CoAInstaller
             bool blocking = false;
             if (add.Count > 0)
             {
-                b.AppendLine("INSTALL");
+                b.AppendLine(L.T("INSTALL"));
                 b.AppendLine();
                 foreach (var m in add)
                 {
@@ -404,37 +404,40 @@ namespace CoAInstaller
                     ModuleAnalysis a;
                     if (found.TryGetValue(m, out a))
                         foreach (var c in a.Checks.Where(c => c.Key > 0).OrderByDescending(c => c.Key)) { b.AppendLine("     " + (c.Key == 2 ? "✖ " : "⚠ ") + c.Value); if (c.Key == 2) blocking = true; }
-                    else if (failed.ContainsKey(m)) b.AppendLine("     ⚠ Could not be checked: " + failed[m]);
+                    else if (failed.ContainsKey(m)) b.AppendLine("     ⚠ " + L.T("Could not be checked:") + " " + failed[m]);
                     b.AppendLine();
                 }
             }
             if (remove.Count > 0)
             {
-                b.AppendLine("REMOVE");
+                b.AppendLine(L.T("REMOVE"));
                 b.AppendLine();
                 foreach (var m in remove)
                 {
                     b.AppendLine("  " + m.Name);
-                    if (m.State == ModuleState.ByHand) b.AppendLine("     ⚠ Added by hand: its database changes (if any) stay in place.");
+                    if (m.State == ModuleState.ByHand) b.AppendLine("     ⚠ " + L.T("Added by hand: its database changes (if any) stay in place."));
                     else
                     {
-                        b.AppendLine("     ✔ Its recorded database changes are undone.");
-                        if (m.CreatedTables.Length > 0) b.AppendLine("     ⚠ Its tables are deleted with their data: " + string.Join(", ", m.CreatedTables));
-                        if (m.ManualTables.Length > 0) b.AppendLine("     ⚠ Not undoable automatically: " + string.Join(", ", m.ManualTables) + " (a backup restores them)");
+                        b.AppendLine("     ✔ " + L.T("Its recorded database changes are undone."));
+                        if (m.CreatedTables.Length > 0) b.AppendLine("     ⚠ " + L.T("Its tables are deleted with their data:") + " " + string.Join(", ", m.CreatedTables));
+                        if (m.ManualTables.Length > 0) b.AppendLine("     ⚠ " + L.F("Not undoable automatically: {0} (a backup restores them)", string.Join(", ", m.ManualTables)));
                     }
-                    b.AppendLine("     Items or spells that players got from the module may disappear or stop working.");
+                    b.AppendLine("     " + L.T("Items or spells that players got from the module may disappear or stop working."));
                     b.AppendLine();
                 }
             }
-            b.AppendLine("WHAT HAPPENS");
+            b.AppendLine(L.T("WHAT HAPPENS"));
             b.AppendLine();
-            b.AppendLine(Product.Name + " stops the server, backs it up, " + (add.Count > 0 ? "downloads the modules, " : "") +
-                "rebuilds it" + (remove.Count > 0 ? ", undoes the database changes of the removed modules" : "") +
-                (add.Count > 0 ? " and applies the new modules' database changes with a record of them" : "") + ". This can take a while.");
-            if (add.Count > 0) b.AppendLine("If the server cannot be built with a new module, the module is taken out again and the server stays as it is.");
-            if (blocking) b.AppendLine("\n✖ At least one module will most likely not work. Install it anyway only if you know what you are doing.");
+            var steps = new List<string> { L.T("stops the server"), L.T("backs it up") };
+            if (add.Count > 0) steps.Add(L.T("downloads the modules"));
+            steps.Add(L.T("rebuilds it"));
+            if (remove.Count > 0) steps.Add(L.T("undoes the database changes of the removed modules"));
+            if (add.Count > 0) steps.Add(L.T("applies the new modules' database changes with a record of them"));
+            b.AppendLine(L.F("{0}: {1}. This can take a while.", Product.Name, string.Join(", ", steps)));
+            if (add.Count > 0) b.AppendLine(L.T("If the server cannot be built with a new module, the module is taken out again and the server stays as it is."));
+            if (blocking) b.AppendLine("\n✖ " + L.T("At least one module will most likely not work. Install it anyway only if you know what you are doing."));
 
-            using (var d = new TextDialog("Apply module changes", b.ToString(), blocking ? "Install anyway" : "Apply changes"))
+            using (var d = new TextDialog(L.T("Apply module changes"), b.ToString(), blocking ? L.T("Install anyway") : L.T("Apply changes")))
             {
                 if (d.ShowDialog(this) != DialogResult.OK) return;
             }
@@ -454,11 +457,11 @@ namespace CoAInstaller
             Text = title; Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(780, 560); MinimumSize = new Size(500, 300);
             var box = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, WordWrap = true, Dock = DockStyle.Fill,
-                Font = new Font("Consolas", 10f), BackColor = Color.White, BorderStyle = BorderStyle.None, Text = (text ?? "").Replace("\r\n", "\n").Replace("\n", "\r\n") };
+                Font = L.Font != null ? Ui.Face(10f) : new Font("Consolas", 10f), BackColor = Color.White, BorderStyle = BorderStyle.None, Text = (text ?? "").Replace("\r\n", "\n").Replace("\n", "\r\n") };
             var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
             panel.Controls.Add(box);
             var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 58, Padding = new Padding(14, 10, 14, 10), FlowDirection = FlowDirection.RightToLeft, BackColor = Ui.Panel, WrapContents = false };
-            var close = Ui.Secondary(confirm == null ? "Close" : "Cancel"); close.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+            var close = Ui.Secondary(confirm == null ? L.T("Close") : L.T("Cancel")); close.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
             bottom.Controls.Add(close);
             if (confirm != null)
             {

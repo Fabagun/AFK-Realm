@@ -15,9 +15,9 @@ namespace CoAInstaller
         readonly ServerControl ctl;
                 readonly Label busy = Ui.Hint("");
         readonly Label mapState = Ui.Hint("");
-        readonly Button start = Ui.Primary("Start server");
-        readonly Button stop = Ui.Secondary("Stop server");
-        readonly Button restart = Ui.Secondary("Restart server");
+        readonly Button start = Ui.Primary(L.T("Start server"));
+        readonly Button stop = Ui.Secondary(L.T("Stop server"));
+        readonly Button restart = Ui.Secondary(L.T("Restart server"));
         readonly TextBox accName = Ui.Input(200), accPw1 = Ui.Input(200, true), accPw2 = Ui.Input(200, true);
         readonly ComboBox accLevel = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200, Font = Ui.Base };
         readonly TextBox realm = Ui.Input(200);
@@ -49,10 +49,10 @@ namespace CoAInstaller
         readonly ComboBox planMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 290, Font = Ui.Base, Margin = new Padding(0, 2, 8, 2) };
         readonly TextBox planValue = Ui.Input(70), planWarn = Ui.Input(44);
         readonly Label planUnit = new Label { AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 6, 14, 0) };
-        readonly Label planWarnLead = new Label { Text = "Tell players", AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 6, 6, 0) };
-        readonly Label planWarnTail = new Label { Text = "minutes before", AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 6, 14, 0) };
-        readonly Button planApply = Ui.Secondary("Apply");
-        readonly Button planPostpone = Ui.Secondary("Postpone by an hour");
+        readonly Label planWarnLead = new Label { Text = L.T("Tell players"), AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 6, 6, 0) };
+        readonly Label planWarnTail = new Label { Text = L.T("minutes before"), AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 6, 14, 0) };
+        readonly Button planApply = Ui.Secondary(L.T("Apply"));
+        readonly Button planPostpone = Ui.Secondary(L.T("Postpone by an hour"));
         readonly Label planState = Ui.Hint("");
         DateTime? restartAt;                    // the announced restart, once players have to be told
         readonly HashSet<int> restartTold = new HashSet<int>();
@@ -60,7 +60,7 @@ namespace CoAInstaller
         int memoryOver;                         // status checks in a row with the worldserver over its limit
         bool autoRestarting;
         string lastAutoRestart = "";
-        readonly Button consoles = Ui.Secondary("Open server consoles …");
+        readonly Button consoles = Ui.Secondary(L.T("Open server consoles …"));
         ConsolesDialog consolesWindow;
 
         /// <summary>
@@ -102,14 +102,14 @@ namespace CoAInstaller
         /// what is open.
         void ShowClientState(Action<string> then = null)
         {
-            clientState.Text = "Checking the game client …";
+            clientState.Text = L.T("Checking the game client …");
             clientState.ForeColor = Ui.Muted;
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 string pending = ClientAddons.Pending(inst);
                 Action apply = () =>
                 {
-                    clientState.Text = pending.Length == 0 ? "" : "Not everything the installed modules bring for the game client is in your game yet.";
+                    clientState.Text = pending.Length == 0 ? "" : L.T("Not everything the installed modules bring for the game client is in your game yet.");
                     clientState.ForeColor = Ui.Warn;
                     NavItem item;
                     if (nav.TryGetValue("modules", out item)) { item.Badge = pending.Length == 0 ? null : "!"; item.Invalidate(); }
@@ -153,7 +153,7 @@ namespace CoAInstaller
             {
                 if (offerClient)
                 {
-                    using (var d = new ClientDialog(inst, "A module brings a new or changed add-on or client patch for the game client (or one is no longer needed)."))
+                    using (var d = new ClientDialog(inst, L.T("A module brings a new or changed add-on or client patch for the game client (or one is no longer needed).")))
                         d.ShowDialog(this);
                     ShowClientState();
                 }
@@ -169,7 +169,7 @@ namespace CoAInstaller
         readonly FlowLayoutPanel shown = Ui.Column();
         readonly Dictionary<string, List<Control>> sections = new Dictionary<string, List<Control>>();
         readonly Dictionary<string, NavItem> nav = new Dictionary<string, NavItem>();
-        readonly StatusPill dbPill = new StatusPill("Database"), authPill = new StatusPill("Login (authserver)"), worldPill = new StatusPill("Game world (worldserver)");
+        readonly StatusPill dbPill = new StatusPill(L.T("Database")), authPill = new StatusPill(L.T("Login (authserver)")), worldPill = new StatusPill(L.T("Game world (worldserver)"));
         readonly Label uptime = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(4, 2, 0, 0), BackColor = Ui.Canvas };
         string current;
         const int CardWidth = 780;
@@ -212,18 +212,19 @@ namespace CoAInstaller
         public ManagerPage(MainForm main) : base(main)
         {
             inst = main.Target; ctl = new ServerControl(inst);
+            L.AddModules(ModuleCatalog.ModulesDir(inst));   // the texts the modules bring in the language shown
             AutoScroll = false; Padding = new Padding(0); BackColor = Ui.Canvas;
             Body.Visible = false;
 
             // --- side bar
-            AddNav("server", "Server", "server");
-            AddNav("bots", "Bots", "bots");
-            AddNav("settings", "Settings", "settings");
-            AddNav("modules", "Modules", "modules");
-            AddNav("gm", "Game master", "gamemaster");
-            AddNav("accounts", "Accounts", "accounts");
-            AddNav("database", "Database", "database");
-            AddNav("maintenance", "Maintenance", "maintenance");
+            AddNav("server", L.T("Server"), "server");
+            AddNav("bots", L.T("Bots"), "bots");
+            AddNav("settings", L.T("Settings"), "settings");
+            AddNav("modules", L.T("Modules"), "modules");
+            AddNav("gm", L.T("Game master"), "gamemaster");
+            AddNav("accounts", L.T("Accounts"), "accounts");
+            AddNav("database", L.T("Database"), "database");
+            AddNav("maintenance", L.T("Maintenance"), "maintenance");
             var navList = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, Dock = DockStyle.Fill, BackColor = Ui.Sidebar, Padding = new Padding(0, 16, 0, 0) };
             foreach (var n in nav.Values) navList.Controls.Add(n);
             var foot = new Label { Dock = DockStyle.Bottom, Height = 54, ForeColor = Color.FromArgb(150, 145, 175), Font = Ui.Small, BackColor = Ui.Sidebar,
@@ -277,13 +278,14 @@ namespace CoAInstaller
             uptime.TextChanged += (s, e) => fit();
             serverBanner.VisibleChanged += (s, e) => fit();
             toolBanner.VisibleChanged += (s, e) => fit();
-            serverUpdate.LinkClicked += (s, e) => RunEngine("Update", "Install the server update now?\n\n" +
-                (patchWarnings.Count > 0 ? "⚠ Checked beforehand: " + (patchWarnings.Count == 1 ? "a patch of a module does" : "some patches of modules do") +
-                    " not fit the new code:\n  " + string.Join("\n  ", patchWarnings) + "\nYou can update anyway - the server then runs without " +
-                    (patchWarnings.Count == 1 ? "that change" : "these changes") + " - or wait until the module is adapted.\n\n" : "") +
-                (serverNews.Count > 0 ? "New:\n  " + string.Join("\n  ", serverNews) + "\n" +
-                    (serverNewsLimited != null ? "(GitHub counts the changes again from " + serverNewsLimited.Value.ToString("HH:mm") + ")\n" : "") + "\n" : "") +
-                "The current server is backed up first, then rebuilt with the newest code, which can take a while. A running server is stopped cleanly first.");
+            serverUpdate.LinkClicked += (s, e) => RunEngine("Update", L.T("Install the server update now?") + "\n\n" +
+                (patchWarnings.Count > 0 ? "⚠ " + (patchWarnings.Count == 1 ? L.T("Checked beforehand: a patch of a module does not fit the new code:") : L.T("Checked beforehand: some patches of modules do not fit the new code:")) +
+                    "\n  " + string.Join("\n  ", patchWarnings) + "\n" +
+                    (patchWarnings.Count == 1 ? L.T("You can update anyway - the server then runs without that change - or wait until the module is adapted.")
+                        : L.T("You can update anyway - the server then runs without these changes - or wait until the module is adapted.")) + "\n\n" : "") +
+                (serverNews.Count > 0 ? L.T("New:") + "\n  " + string.Join("\n  ", serverNews) + "\n" +
+                    (serverNewsLimited != null ? L.F("(GitHub counts the changes again from {0})", serverNewsLimited.Value.ToString("HH:mm")) + "\n" : "") + "\n" : "") +
+                L.T("The current server is backed up first, then rebuilt with the newest code, which can take a while. A running server is stopped cleanly first."));
             toolUpdate.LinkClicked += (s, e) => UpdateTool();
 
             shown.Location = new Point(28, 24); shown.BackColor = Ui.Canvas; shown.Margin = new Padding(0, 0, 0, 30);
@@ -291,9 +293,8 @@ namespace CoAInstaller
             Controls.Add(scroller); Controls.Add(statusBar); Controls.Add(sidebar);
 
             // --- Server
-            var restartCard = Section("server", "Scheduled restart", "A world that has run for many hours can grow slow and use more and more memory; a restart gives it back. " + Product.Name +
-                " can do that on its own: players are told in the game beforehand, then the server is stopped cleanly and started again. This works while the server runs and " + Product.Name + " stays open.", "server");
-            planMode.Items.AddRange(new object[] { "Off", "After the server has run for", "Every day at", "When the worldserver uses more than" });
+            var restartCard = Section("server", L.T("Scheduled restart"), L.F("A world that has run for many hours can grow slow and use more and more memory; a restart gives it back. {0} can do that on its own: players are told in the game beforehand, then the server is stopped cleanly and started again. This works while the server runs and {0} stays open.", Product.Name), "server");
+            planMode.Items.AddRange(new object[] { L.T("Off"), L.T("After the server has run for"), L.T("Every day at"), L.T("When the worldserver uses more than") });
             var planRow = Ui.Row();
             planRow.Controls.Add(planMode); planRow.Controls.Add(planValue); planRow.Controls.Add(planUnit);
             restartCard.Add(planRow);
@@ -311,119 +312,109 @@ namespace CoAInstaller
             planApply.Click += (s, e) => ApplyPlan();
             planPostpone.Click += (s, e) => PostponeRestart();
 
-            var mapCard = Section("server", "Map data", "The worldserver needs the maps, vmaps and mmaps of the game and CoA's own DBC tables. They are made once from your game client.", "globe");
+            var mapCard = Section("server", L.T("Map data"), L.T("The worldserver needs the maps, vmaps and mmaps of the game and CoA's own DBC tables. They are made once from your game client."), "globe");
             mapCard.Add(mapState);
-            var mapBtn = mapCard.Add(Ui.Secondary("Create map data from the game client …"));
+            var mapBtn = mapCard.Add(Ui.Secondary(L.T("Create map data from the game client …")));
             mapBtn.Click += (s, e) => { using (var d = new MapDataDialog(inst)) d.ShowDialog(this); };
 
             // --- Settings
-            var settingsCard = Section("settings", "Server settings", "XP and drop rates, Playerbots, convenience options and every other setting of the worldserver and its modules, each with its description.", "settings");
-            var settingsBtn = settingsCard.Add(Ui.Primary("Open server settings …"));
+            var settingsCard = Section("settings", L.T("Server settings"), L.T("XP and drop rates, Playerbots, convenience options and every other setting of the worldserver and its modules, each with its description."), "settings");
+            var settingsBtn = settingsCard.Add(Ui.Primary(L.T("Open server settings …")));
             settingsBtn.Click += (s, e) =>
             {
-                if (!File.Exists(inst.WorldConf)) { Ui.Error(this, "worldserver.conf was not found. Run \"Repair setup\" first."); return; }
+                if (!File.Exists(inst.WorldConf)) { Ui.Error(this, L.T("worldserver.conf was not found. Run \"Repair setup\" first.")); return; }
                 using (var d = new SettingsDialog(inst, ctl.World != null)) d.ShowDialog(this);
             };
 
-            var nameCard = Section("settings", "Server name", "The name players see in the realm list when they log in. The game client keeps each character's interface settings " +
-                "in a folder named after the server (WTF\\Account\\<account>\\<server name>), so after renaming it starts with fresh ones unless you rename that folder too.", "server");
-            var nameRow = Ui.Row(); nameRow.Controls.Add(Ui.FieldLabel("Server name")); nameRow.Controls.Add(realmName);
-            var rename = Ui.Secondary("Rename"); nameRow.Controls.Add(rename);
+            var nameCard = Section("settings", L.T("Server name"), L.T("The name players see in the realm list when they log in. The game client keeps each character's interface settings in a folder named after the server (WTF\\Account\\<account>\\<server name>), so after renaming it starts with fresh ones unless you rename that folder too."), "server");
+            var nameRow = Ui.Row(); nameRow.Controls.Add(Ui.FieldLabel(L.T("Server name"))); nameRow.Controls.Add(realmName);
+            var rename = Ui.Secondary(L.T("Rename")); nameRow.Controls.Add(rename);
             rename.Click += (s, e) => ApplyRealmName();
             realmName.MaxLength = 32;
             nameCard.Add(nameRow);
             nameCard.Add(nameNote);
 
-            var realmCard = Section("settings", "Play with others", "Enter the address other players use to reach your PC, for example your Radmin VPN or Hamachi IP (26.x.x.x / 25.x.x.x) " +
-                "or your LAN IP. " + Product.Name + " then adjusts everything needed and allows the servers through the Windows Firewall. " +
-                "You keep playing via 127.0.0.1 yourself. Other players put this address into their realmlist.wtf.", "globe");
-            var realmRow = Ui.Row(); realmRow.Controls.Add(Ui.FieldLabel("Realm address")); realmRow.Controls.Add(realm);
-            var apply = Ui.Secondary("Apply"); realmRow.Controls.Add(apply);
+            var realmCard = Section("settings", L.T("Play with others"), L.F("Enter the address other players use to reach your PC, for example your Radmin VPN or Hamachi IP (26.x.x.x / 25.x.x.x) or your LAN IP. {0} then adjusts everything needed and allows the servers through the Windows Firewall. You keep playing via 127.0.0.1 yourself. Other players put this address into their realmlist.wtf.", Product.Name), "globe");
+            var realmRow = Ui.Row(); realmRow.Controls.Add(Ui.FieldLabel(L.T("Realm address"))); realmRow.Controls.Add(realm);
+            var apply = Ui.Secondary(L.T("Apply")); realmRow.Controls.Add(apply);
             apply.Click += (s, e) => ApplyRealm();
             realmCard.Add(realmRow);
 
             // --- Modules
-            var modulesCard = Section("modules", "Manage modules", "Add or remove modules: those made for this server and the AzerothCore module catalog. The server is backed up and rebuilt; " +
-                "database changes of modules installed here are recorded, so removing a module undoes them.", "modules");
-            var modulesBtn = modulesCard.Add(Ui.Primary("Manage modules …"));
+            var modulesCard = Section("modules", L.T("Manage modules"), L.T("Add or remove modules: those made for this server and the AzerothCore module catalog. The server is backed up and rebuilt; database changes of modules installed here are recorded, so removing a module undoes them."), "modules");
+            var modulesBtn = modulesCard.Add(Ui.Primary(L.T("Manage modules …")));
             modulesBtn.Click += (s, e) => ManageModules();
 
-            journeyCard = Section("modules", "World Journey", "The old world, Outland and Northrend as one journey from 1 to 60: where each part begins, how the level window works, " +
-                "how hard creatures are and what follows the journey.", "journey");
+            journeyCard = Section("modules", L.T("World Journey"), L.T("The old world, Outland and Northrend as one journey from 1 to 60: where each part begins, how the level window works, how hard creatures are and what follows the journey."), "journey");
             journeyCard.Stripe = Ui.Accent;
-            var journeyBtn = journeyCard.Add(Ui.Primary("Set up World Journey …"));
+            var journeyBtn = journeyCard.Add(Ui.Primary(L.T("Set up World Journey …")));
             journeyBtn.Click += (s, e) => OpenSetup(new JourneySetup(inst));
 
-            auctionCard = Section("modules", "Auction house bots", "How the bots of mod-playerbots-auctions trade: how often they come, what they sell and buy, their prices, crafting, " +
-                "deals by chat, the Trading Post and their chatter.", "auction");
+            auctionCard = Section("modules", L.T("Auction house bots"), L.T("How the bots of mod-playerbots-auctions trade: how often they come, what they sell and buy, their prices, crafting, deals by chat, the Trading Post and their chatter."), "auction");
             auctionCard.Stripe = Ui.Accent;
-            var auctionBtn = auctionCard.Add(Ui.Primary("Set up the auction house bots …"));
+            var auctionBtn = auctionCard.Add(Ui.Primary(L.T("Set up the auction house bots …")));
             auctionBtn.Click += (s, e) => OpenSetup(new AuctionSetup(inst));
 
-            classicCard = Section("modules", "Classic classes", "Which classic classes - Warrior to Druid - can be played next to the classes of Conquest of Azeroth, by players and bots.", "gamemaster");
+            classicCard = Section("modules", L.T("Classic classes"), L.T("Which classic classes - Warrior to Druid - can be played next to the classes of Conquest of Azeroth, by players and bots."), "gamemaster");
             classicCard.Stripe = Ui.Accent;
-            var classicBtn = classicCard.Add(Ui.Primary("Set up the classic classes …"));
+            var classicBtn = classicCard.Add(Ui.Primary(L.T("Set up the classic classes …")));
             classicBtn.Click += (s, e) => OpenSetup(new ClassicSetup(inst));
 
-            racesCard = Section("modules", "Custom races", "Which races of the game client - Goblin, Worgen, Pandaren, Vrykul and more - can be played, and the stock race each leans on: " +
-                "where it starts, its quests, racial abilities and faction.", "accounts");
+            racesCard = Section("modules", L.T("Custom races"), L.T("Which races of the game client - Goblin, Worgen, Pandaren, Vrykul and more - can be played, and the stock race each leans on: where it starts, its quests, racial abilities and faction."), "accounts");
             racesCard.Stripe = Ui.Accent;
-            var racesBtn = racesCard.Add(Ui.Primary("Set up the races …"));
+            var racesBtn = racesCard.Add(Ui.Primary(L.T("Set up the races …")));
             racesBtn.Click += (s, e) =>
             {
-                Busy.Run(this, "Reading the races of your game client and your race folder …", report => RacesSetup.Preload(inst));
+                Busy.Run(this, L.T("Reading the races of your game client and your race folder …"), report => RacesSetup.Preload(inst));
                 var before = PlayableCustomRaces();
                 OpenSetup(new RacesSetup(inst));
                 OfferBotsForRaces(before);
             };
 
-            var clientCard = Section("modules", "Game client", "Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). " + Product.Name +
-                " puts them into your game and clears its cache when a module asks for it; for other players it packs them into a ZIP.", "client");
+            var clientCard = Section("modules", L.T("Game client"), L.F("Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). {0} puts them into your game and clears its cache when a module asks for it; for other players it packs them into a ZIP.", Product.Name), "client");
             clientCard.Add(clientState);
-            var clientBtn = clientCard.Add(Ui.Secondary("Game client …"));
+            var clientBtn = clientCard.Add(Ui.Secondary(L.T("Game client …")));
             clientBtn.Click += (s, e) => { using (var d = new ClientDialog(inst)) d.ShowDialog(this); ShowClientState(); };
 
             // --- Game master
             BuildBotsSection();
 
-            var gmCard = Section("gm", "Game master tools", "Help players on the running server: give, complete and reward quests (found by NPC name or around a character), " +
-                "unstuck, revive, level, gold and mail, announcements, and a console for every other GM command.", "gamemaster");
-            var gmBtn = gmCard.Add(Ui.Primary("Open game master tools …"));
+            var gmCard = Section("gm", L.T("Game master tools"), L.T("Help players on the running server: give, complete and reward quests (found by NPC name or around a character), unstuck, revive, level, gold and mail, announcements, and a console for every other GM command."), "gamemaster");
+            var gmBtn = gmCard.Add(Ui.Primary(L.T("Open game master tools …")));
             gmBtn.Click += (s, e) =>
             {
-                if (ctl.Db == null) { Ui.Error(this, "The database is not running. Start the server first."); return; }
+                if (ctl.Db == null) { Ui.Error(this, L.T("The database is not running. Start the server first.")); return; }
                 using (var d = new GameMasterDialog(inst, ctl)) d.ShowDialog(this);
             };
 
             // --- Accounts
-            var accCard = Section("accounts", "Create account", "A new login for the game, with the access level you choose.", "accounts");
-            accLevel.Items.AddRange(new object[] { "Player", "Moderator (GM 1)", "Game Master (GM 2)", "Administrator (GM 3)" });
+            var accCard = Section("accounts", L.T("Create account"), L.T("A new login for the game, with the access level you choose."), "accounts");
+            accLevel.Items.AddRange(new object[] { L.T("Player"), L.T("Moderator (GM 1)"), L.T("Game Master (GM 2)"), L.T("Administrator (GM 3)") });
             accLevel.SelectedIndex = 0;
-            accCard.Add(Field("Account name", accName));
-            accCard.Add(Field("Password", accPw1));
-            accCard.Add(Field("Repeat password", accPw2));
-            accCard.Add(Field("Access level", accLevel));
-            var create = accCard.Add(Ui.Primary("Create account"));
+            accCard.Add(Field(L.T("Account name"), accName));
+            accCard.Add(Field(L.T("Password"), accPw1));
+            accCard.Add(Field(L.T("Repeat password"), accPw2));
+            accCard.Add(Field(L.T("Access level"), accLevel));
+            var create = accCard.Add(Ui.Primary(L.T("Create account")));
             create.Click += (s, e) => CreateAccount();
-            var manageCard = Section("accounts", "Player accounts", "The accounts of real players with their characters: a new password, the access level, deleting, and moving an account to another server (export and import).", "accounts");
-            var manage = manageCard.Add(Ui.Secondary("Manage player accounts …"));
+            var manageCard = Section("accounts", L.T("Player accounts"), L.T("The accounts of real players with their characters: a new password, the access level, deleting, and moving an account to another server (export and import)."), "accounts");
+            var manage = manageCard.Add(Ui.Secondary(L.T("Manage player accounts …")));
             manage.Click += (s, e) => { using (var d = new AccountsDialog(inst, ctl)) d.ShowDialog(this); };
 
             // --- Database
-            var dbCard = Section("database", "Database editor", "Look into the server's tables, change values and run SQL without a separate program. Read-only until you allow changes; " +
-                "meant for people who know what the tables are for - a wrong change can break the server, so back it up first.", "database");
-            var dbBtn = dbCard.Add(Ui.Primary("Open the database editor …"));
+            var dbCard = Section("database", L.T("Database editor"), L.T("Look into the server's tables, change values and run SQL without a separate program. Read-only until you allow changes; meant for people who know what the tables are for - a wrong change can break the server, so back it up first."), "database");
+            var dbBtn = dbCard.Add(Ui.Primary(L.T("Open the database editor …")));
             dbBtn.Click += (s, e) =>
             {
-                if (ctl.Db == null) { Ui.Error(this, "The database is not running. Start the server first."); return; }
+                if (ctl.Db == null) { Ui.Error(this, L.T("The database is not running. Start the server first.")); return; }
                 using (var d = new DatabaseDialog(inst, ctl))
                 {
                     d.ShowDialog(this);
                     if (d.BackUpNow) RunEngine("Backup", null, false);
                 }
             };
-            var backupCard = Section("database", "Backups", "Before every update and module change " + Product.Name + " saves the whole server: programs, settings, all databases. Restore one when something went wrong.", "database");
-            var backups = backupCard.Add(Ui.Secondary("Backups …"));
+            var backupCard = Section("database", L.T("Backups"), L.F("Before every update and module change {0} saves the whole server: programs, settings, all databases. Restore one when something went wrong.", Product.Name), "database");
+            var backups = backupCard.Add(Ui.Secondary(L.T("Backups …")));
             backups.Click += (s, e) =>
             {
                 using (var d = new BackupsDialog(inst))
@@ -435,23 +426,22 @@ namespace CoAInstaller
             };
 
             // --- Maintenance
-            var updCard = Section("maintenance", "Updates", "Checks the CoA core, Playerbots and your modules for new versions; the server is backed up first and rebuilt only when something changed.", "maintenance");
-            var upd = updCard.Add(Ui.Primary("Check for updates and install"));
-            upd.Click += (s, e) => RunEngine("Update", "Check for updates?\n\nIf there are new versions of CoA or Playerbots, the current server is backed up first and then recompiled, which can take a while. A running server is stopped cleanly first.");
-            var repairCard = Section("maintenance", "Repair and reset", "\"Repair setup\" sets up the database and configuration again without recompiling; characters and accounts are kept. " +
-                "\"Reset random bots\" deletes every random bot and lets the server create new ones.", "maintenance");
+            var updCard = Section("maintenance", L.T("Updates"), L.T("Checks the CoA core, Playerbots and your modules for new versions; the server is backed up first and rebuilt only when something changed."), "maintenance");
+            var upd = updCard.Add(Ui.Primary(L.T("Check for updates and install")));
+            upd.Click += (s, e) => RunEngine("Update", L.T("Check for updates?\n\nIf there are new versions of CoA or Playerbots, the current server is backed up first and then recompiled, which can take a while. A running server is stopped cleanly first."));
+            var repairCard = Section("maintenance", L.T("Repair and reset"), L.T("\"Repair setup\" sets up the database and configuration again without recompiling; characters and accounts are kept. \"Reset random bots\" deletes every random bot and lets the server create new ones."), "maintenance");
             var r = Ui.Row();
-            var repair = Ui.Secondary("Repair setup");
-            repair.Click += (s, e) => RunEngine("Setup", "Set up the database and configuration again (without recompiling)?\n\nCharacters and accounts are kept.");
-            var botReset = Ui.Secondary("Reset random bots …");
+            var repair = Ui.Secondary(L.T("Repair setup"));
+            repair.Click += (s, e) => RunEngine("Setup", L.T("Set up the database and configuration again (without recompiling)?\n\nCharacters and accounts are kept."));
+            var botReset = Ui.Secondary(L.T("Reset random bots …"));
             botReset.Click += (s, e) => ResetBots();
             r.Controls.Add(repair); r.Controls.Add(botReset);
             repairCard.Add(r);
-            var filesCard = Section("maintenance", "Files", "The server's folder and its logs, or another server.", "server");
+            var filesCard = Section("maintenance", L.T("Files"), L.T("The server's folder and its logs, or another server."), "server");
             var r2 = Ui.Row();
-            var openDir = Ui.Secondary("Open folder"); openDir.Click += (s, e) => Process.Start("explorer.exe", "\"" + inst.Root + "\"");
-            var openLogs = Ui.Secondary("Open server logs"); openLogs.Click += (s, e) => Process.Start("explorer.exe", "\"" + inst.ServerDir + "\"");
-            var other = Ui.Secondary("Other server / new install"); other.Click += (s, e) => Main.Navigate(new WelcomePage(Main), true);
+            var openDir = Ui.Secondary(L.T("Open folder")); openDir.Click += (s, e) => Process.Start("explorer.exe", "\"" + inst.Root + "\"");
+            var openLogs = Ui.Secondary(L.T("Open server logs")); openLogs.Click += (s, e) => Process.Start("explorer.exe", "\"" + inst.ServerDir + "\"");
+            var other = Ui.Secondary(L.T("Other server / new install")); other.Click += (s, e) => Main.Navigate(new WelcomePage(Main), true);
             r2.Controls.Add(openDir); r2.Controls.Add(openLogs); r2.Controls.Add(other);
             filesCard.Add(r2);
 
@@ -479,26 +469,26 @@ namespace CoAInstaller
                 var other = new Install(k.Root);
                 bool here = k.Root.Equals(inst.Root, StringComparison.OrdinalIgnoreCase);
                 var item = new ToolStripMenuItem((here ? "✓  " : "     ") + ServerPicker.NameOf(k) + "   —   " + k.Root) { Enabled = !here && other.IsInstalled };
-                if (!other.IsInstalled && !here) item.Text += "   (not found)";
+                if (!other.IsInstalled && !here) item.Text += "   " + L.T("(not found)");
                 string root = k.Root;
                 item.Click += (s, e) => SwitchTo(root);
                 menu.Items.Add(item);
             }
             menu.Items.Add(new ToolStripSeparator());
-            var add = new ToolStripMenuItem("Add an existing server …");
+            var add = new ToolStripMenuItem(L.T("Add an existing server …"));
             add.Click += (s, e) =>
             {
-                using (var d = new FolderBrowserDialog { Description = "Choose the server folder (the one containing \"Server\", \"DB\" and \"Dependencies\")." })
+                using (var d = new FolderBrowserDialog { Description = L.T("Choose the server folder (the one containing \"Server\", \"DB\" and \"Dependencies\").") })
                 {
                     if (d.ShowDialog(this) != DialogResult.OK) return;
-                    if (!new Install(d.SelectedPath).IsInstalled) { Ui.Error(this, "No finished server was found in this folder."); return; }
+                    if (!new Install(d.SelectedPath).IsInstalled) { Ui.Error(this, L.T("No finished server was found in this folder.")); return; }
                     Settings.Remember(new Install(d.SelectedPath).Root, null);
                     SwitchTo(new Install(d.SelectedPath).Root);
                 }
             };
-            var fresh = new ToolStripMenuItem("Install a new server …");
+            var fresh = new ToolStripMenuItem(L.T("Install a new server …"));
             fresh.Click += (s, e) => Main.Navigate(new FolderPage(Main), true);
-            var forget = new ToolStripMenuItem("Remove from this list");
+            var forget = new ToolStripMenuItem(L.T("Remove from this list"));
             foreach (var k in Settings.KnownServers.Where(k => !k.Root.Equals(inst.Root, StringComparison.OrdinalIgnoreCase)))
             {
                 string root = k.Root;
@@ -514,11 +504,11 @@ namespace CoAInstaller
         void SwitchTo(string root)
         {
             var target = new Install(root);
-            if (!target.IsInstalled) { Ui.Error(this, "No finished server was found in " + root + "."); return; }
+            if (!target.IsInstalled) { Ui.Error(this, L.F("No finished server was found in {0}.", root)); return; }
             if (ctl.World != null || ctl.Auth != null)
             {
-                if (!Ui.Confirm(this, "This server is running and keeps running. " + Product.Name + " then looks after the other server: the scheduled restart of this one " +
-                    "pauses until you switch back.\n\nTwo servers cannot run at the same time on the same ports: stop this one before you start the other.\n\nSwitch anyway?")) return;
+                if (!Ui.Confirm(this, L.F("This server is running and keeps running. {0} then looks after the other server: the scheduled restart of this one " +
+                    "pauses until you switch back.", Product.Name) + "\n\n" + L.T("Two servers cannot run at the same time on the same ports: stop this one before you start the other.") + "\n\n" + L.T("Switch anyway?"))) return;
             }
             Main.Target = target;
             Settings.LastInstall = target.Root;
@@ -560,7 +550,7 @@ namespace CoAInstaller
             Settings.LastInstall = inst.Root;
             RefreshStatus(); poll.Start();
             LoadRealm();
-            if (SelfUpdate.JustUpdated) { SelfUpdate.JustUpdated = false; busy.Text = Product.Name + " was updated to version " + Product.Version + "."; }
+            if (SelfUpdate.JustUpdated) { SelfUpdate.JustUpdated = false; busy.Text = L.F("{0} was updated to version {1}.", Product.Name, Product.Version); }
             CheckForUpdates();
             OfferClient();
         }
@@ -576,10 +566,10 @@ namespace CoAInstaller
         /// tooltip and in the question before the update.</summary>
         static string NewsSummary(List<string> news)
         {
-            var parts = news.ConvertAll(n => n.Split(':')[0]);
+            var parts = news.ConvertAll(n => n.Split(':', '：')[0]);
             if (parts.Count <= 3) return string.Join(", ", parts);
             int modules = parts.Count - 2;
-            return parts[0] + ", " + parts[1] + " and " + modules + " more";
+            return L.F("{0}, {1} and {2} more", parts[0], parts[1], modules);
         }
 
         /// <summary>Asks in the background whether newer server code or a newer AFK Realm exists.</summary>
@@ -593,18 +583,18 @@ namespace CoAInstaller
                         if (r.Server.Count > 0)
                         {
                             serverNews = r.Server; serverNewsLimited = r.LimitedUntil; patchWarnings = r.PatchWarnings;
-                            serverUpdate.Text = "Server update available: " + NewsSummary(r.Server) + "  –  click to install" +
-                                (r.PatchWarnings.Count > 0 ? "  ·  ⚠ " + r.PatchWarnings.Count + (r.PatchWarnings.Count == 1 ? " module patch would not fit" : " module patches would not fit") : "");
+                            serverUpdate.Text = L.F("Server update available: {0}  –  click to install", NewsSummary(r.Server)) +
+                                (r.PatchWarnings.Count > 0 ? "  ·  ⚠ " + (r.PatchWarnings.Count == 1 ? L.T("1 module patch would not fit") : L.F("{0} module patches would not fit", r.PatchWarnings.Count)) : "");
                             bannerTip.SetToolTip(serverUpdate, string.Join("\n", r.Server) +
                                 (r.PatchWarnings.Count > 0 ? "\n\n" + string.Join("\n", r.PatchWarnings) : "") +
-                                (r.LimitedUntil != null ? "\n(GitHub counts the changes again from " + r.LimitedUntil.Value.ToString("HH:mm") + ")" : ""));
+                                (r.LimitedUntil != null ? "\n" + L.F("(GitHub counts the changes again from {0})", r.LimitedUntil.Value.ToString("HH:mm")) : ""));
                             serverBanner.Visible = true;
                             nav["maintenance"].Badge = "new"; nav["maintenance"].Invalidate();
                         }
                         if (r.ToolVersion != null)
                         {
                             toolUrl = r.ToolUrl; toolVersion = r.ToolVersion; toolDownload = r.ToolDownload; toolSha256 = r.ToolSha256;
-                            toolUpdate.Text = "New: " + Product.Name + " " + r.ToolVersion + " is available  –  click to " + (toolDownload != null ? "update" : "download");
+                            toolUpdate.Text = toolDownload != null ? L.F("New: {0} {1} is available  –  click to update", Product.Name, r.ToolVersion) : L.F("New: {0} {1} is available  –  click to download", Product.Name, r.ToolVersion);
                             toolBanner.Visible = true;
                         }
                     };
@@ -629,15 +619,15 @@ namespace CoAInstaller
         {
             if (toolUrl == null) return;
             if (toolDownload == null) { Process.Start(toolUrl); return; }      // a release without the exe: show its page
-            if (!Ui.Confirm(this, "Update " + Product.Name + " to version " + toolVersion + " now?\n\n" +
-                "The new version is downloaded from GitHub, then " + Product.Name + " restarts. A running server keeps running.")) return;
+            if (!Ui.Confirm(this, L.F("Update {0} to version {1} now?", Product.Name, toolVersion) + "\n\n" +
+                L.F("The new version is downloaded from GitHub, then {0} restarts. A running server keeps running.", Product.Name))) return;
             string copy = Path.Combine(inst.Root, "Builder", Product.FileStem + ".exe");
-            Main.RunBusy(busy, st => { st("Downloading the update ..."); SelfUpdate.Download(toolDownload, toolSha256, st); st("Installing the update ..."); SelfUpdate.Replace(copy); },
+            Main.RunBusy(busy, st => { st(L.T("Downloading the update ...")); SelfUpdate.Download(toolDownload, toolSha256, st); st(L.T("Installing the update ...")); SelfUpdate.Replace(copy); },
                 ex =>
                 {
                     if (ex == null) { SelfUpdate.Restart(); return; }
                     busy.Text = "";
-                    if (Ui.Confirm(this, "The update could not be installed:\n\n" + ex.Message + "\n\nOpen the download page instead?")) Process.Start(toolUrl);
+                    if (Ui.Confirm(this, L.T("The update could not be installed:") + "\n\n" + ex.Message + "\n\n" + L.T("Open the download page instead?"))) Process.Start(toolUrl);
                 });
         }
 
@@ -667,15 +657,15 @@ namespace CoAInstaller
                     {
                         polling = false;
                         ShowState(dbPill, db, true); ShowState(authPill, auth, true); ShowState(worldPill, world, worldReady);
-                        uptime.Text = worldReady && worldStart != DateTime.MinValue ? "Running for " + RestartPlan.Span(DateTime.Now - worldStart) + (worldMemory > 0 ? "  ·  " + (worldMemory / 1073741824.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " GB of memory" : "") : "";
+                        uptime.Text = worldReady && worldStart != DateTime.MinValue ? L.F("Running for {0}", RestartPlan.Span(DateTime.Now - worldStart)) + (worldMemory > 0 ? "  ·  " + L.F("{0} GB of memory", (worldMemory / 1073741824.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)) : "") : "";
                         start.Enabled = !(auth && world);
                         stop.Enabled = db || auth || world;
                         restart.Enabled = auth || world;
                         Schedule(worldReady, worldStart, worldMemory);
                         mapState.ForeColor = maps && dbc ? Ui.Ok : Ui.Warn;
-                        mapState.Text = !maps ? "Map data is still missing. The worldserver cannot run without it."
-                            : !dbc ? "The CoA DBC tables are missing. Use \"Create map data\" and tick \"Only refresh the CoA DBC tables\"."
-                            : "Map data is present.";
+                        mapState.Text = !maps ? L.T("Map data is still missing. The worldserver cannot run without it.")
+                            : !dbc ? L.T("The CoA DBC tables are missing. Use \"Create map data\" and tick \"Only refresh the CoA DBC tables\".")
+                            : L.T("Map data is present.");
                     }));
                 }
                 catch { polling = false; }
@@ -683,15 +673,15 @@ namespace CoAInstaller
         }
         static void ShowState(StatusPill p, bool running, bool ready)
         {
-            p.Set(!running ? "stopped" : ready ? "running" : "loading …", !running ? Ui.Muted : ready ? Ui.Ok : Ui.Warn);
+            p.Set(!running ? L.T("stopped") : ready ? L.T("running") : L.T("loading …"), !running ? Ui.Muted : ready ? Ui.Ok : Ui.Warn);
         }
 
         void StartServer()
         {
             if (RestartInProgress()) return;
-            if (!inst.HasMapData && !Ui.Confirm(this, "Map data is missing. The worldserver will not run properly without it.\n\nStart anyway?")) return;
+            if (!inst.HasMapData && !Ui.Confirm(this, L.T("Map data is missing. The worldserver will not run properly without it.\n\nStart anyway?"))) return;
             if (inst.HasMapData && !inst.HasClientDbc)
-            { Ui.Error(this, "The CoA DBC tables are missing, so the worldserver would stop right away.\n\nOpen \"Create map data\", choose your CoA game folder and tick \"Only refresh the CoA DBC tables\"."); return; }
+            { Ui.Error(this, L.T("The CoA DBC tables are missing, so the worldserver would stop right away.\n\nOpen \"Create map data\", choose your CoA game folder and tick \"Only refresh the CoA DBC tables\".")); return; }
             Process world = null;
             Main.RunBusy(busy, st =>
                 {
@@ -704,7 +694,7 @@ namespace CoAInstaller
                 {
                     RefreshStatus(); LoadRealm();
                     if (err != null) { busy.Text = ""; Ui.Error(this, err.Message); return; }
-                    busy.Text = "The worldserver is loading. You can keep using " + Product.Name + " meanwhile.";
+                    busy.Text = L.F("The worldserver is loading. You can keep using {0} meanwhile.", Product.Name);
                     ctl.WatchWorld(world, (ready, problem) =>
                     {
                         try
@@ -712,7 +702,7 @@ namespace CoAInstaller
                             BeginInvoke((Action)(() =>
                             {
                                 RefreshStatus();
-                                if (ready) busy.Text = "The server is running. You can log in now.";
+                                if (ready) busy.Text = L.T("The server is running. You can log in now.");
                                 else { busy.Text = ""; Ui.Error(this, problem); }
                             }));
                         }
@@ -738,9 +728,10 @@ namespace CoAInstaller
         {
             var added = PlayableCustomRaces().Where(r => !before.Contains(r)).ToList();
             if (added.Count == 0 || !File.Exists(Path.Combine(inst.ConfigDir, "modules", "playerbots.conf"))) return;
-            ResetBots((added.Count == 1 ? "A new race is playable: " : "New races are playable: ") + string.Join(", ", added) + ".\n\n" +
-                "The random bots keep the races they were made with; only new bots can be of the new " + (added.Count == 1 ? "race" : "races") +
-                ". To see them among the bots soon, make the random bots anew.\n\n");
+            var names = added.Select(RaceName).ToList();
+            ResetBots((added.Count == 1 ? L.F("A new race is playable: {0}.", names[0]) : L.F("New races are playable: {0}.", string.Join(", ", names))) + "\n\n" +
+                (added.Count == 1 ? L.T("The random bots keep the races they were made with; only new bots can be of the new race. To see them among the bots soon, make the random bots anew.")
+                    : L.T("The random bots keep the races they were made with; only new bots can be of the new races. To see them among the bots soon, make the random bots anew.")) + "\n\n");
         }
 
         void OfferBotReset(List<KeyValuePair<string, string>> modules)
@@ -748,23 +739,23 @@ namespace CoAInstaller
             ModuleBots.MarkOffered(inst, modules.Select(m => m.Key));
             if (!File.Exists(Path.Combine(inst.ConfigDir, "modules", "playerbots.conf"))) return;
             string why = string.Join("\n", modules.Select(m => "• " + m.Key + (m.Value.Length > 0 ? ": " + m.Value : "")));
-            ResetBots("A new module changes what the random bots are made of:\n\n" + why + "\n\n");
+            ResetBots(L.T("A new module changes what the random bots are made of:") + "\n\n" + why + "\n\n");
         }
 
         void ResetBots(string reason = null)
         {
-            if (!Ui.Confirm(this, (reason ?? "") + "Delete all random bots and create new ones?\n\n" +
-                "This removes every random bot account with its characters, guilds, arena teams and mail. " +
-                "Your own accounts and characters are kept, including bots you created on your own accounts.\n\n" +
-                "The server is stopped first. Deleting can take a while; the new bots are created at the next server start." +
-                (reason != null ? "\n\nNot now? \"Reset random bots …\" under Maintenance does the same later." : ""))) return;
+            if (!Ui.Confirm(this, (reason ?? "") + L.T("Delete all random bots and create new ones?") + "\n\n" +
+                L.T("This removes every random bot account with its characters, guilds, arena teams and mail. " +
+                "Your own accounts and characters are kept, including bots you created on your own accounts.") + "\n\n" +
+                L.T("The server is stopped first. Deleting can take a while; the new bots are created at the next server start.") +
+                (reason != null ? "\n\n" + L.T("Not now? \"Reset random bots …\" under Maintenance does the same later.") : ""))) return;
             Main.RunBusy(busy, st => ctl.ResetRandomBots(st),
                 err =>
                 {
                     RefreshStatus();
                     if (err != null) { busy.Text = ""; Ui.Error(this, err.Message); return; }
-                    busy.Text = "All random bots were deleted.";
-                    if (Ui.Confirm(this, "All random bots were deleted.\n\nStart the server now? The new bots are created while it starts, which takes a bit longer than usual."))
+                    busy.Text = L.T("All random bots were deleted.");
+                    if (Ui.Confirm(this, L.T("All random bots were deleted.\n\nStart the server now? The new bots are created while it starts, which takes a bit longer than usual.")))
                         StartServer();
                 });
         }
@@ -783,8 +774,8 @@ namespace CoAInstaller
         void StopServer()
         {
             if (RestartInProgress()) return;
-            if (!Ui.Confirm(this, "Stop the server now? All players are saved and logged out.")) return;
-            Main.RunBusy(busy, st => { ctl.StopAll(st, true); st("Server is stopped."); },
+            if (!Ui.Confirm(this, L.T("Stop the server now? All players are saved and logged out."))) return;
+            Main.RunBusy(busy, st => { ctl.StopAll(st, true); st(L.T("Server is stopped.")); },
                 err => { if (err != null) { busy.Text = ""; Ui.Error(this, err.Message); } RefreshStatus(); });
         }
 
@@ -792,8 +783,8 @@ namespace CoAInstaller
         void RestartServer()
         {
             if (RestartInProgress()) return;
-            if (!Ui.Confirm(this, "Restart the server now? All players are saved and logged out; they can log in again once the world has loaded.")) return;
-            Main.RunBusy(busy, st => { ctl.StopAll(st, false); st("Server is stopped. Starting it again ..."); },
+            if (!Ui.Confirm(this, L.T("Restart the server now? All players are saved and logged out; they can log in again once the world has loaded."))) return;
+            Main.RunBusy(busy, st => { ctl.StopAll(st, false); st(L.T("Server is stopped. Starting it again ...")); },
                 err =>
                 {
                     RefreshStatus();
@@ -803,6 +794,9 @@ namespace CoAInstaller
         }
 
         // ---- scheduled restart -----------------------------------------------------------------
+
+        /// <summary>The name of a race of mod-custom-races (its key, "ZandalariTroll"), as the game says it, in the language shown.</summary>
+        static string RaceName(string key) { return L.Outside(System.Text.RegularExpressions.Regex.Replace(key, "(?<=[a-z])(?=[A-Z])", " ")); }
 
         void ShowPlanFields()
         {
@@ -814,7 +808,7 @@ namespace CoAInstaller
             planValue.Text = mode == RestartPlan.AfterUptime ? plan.Hours.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
                 : mode == RestartPlan.Daily ? plan.DailyText
                 : mode == RestartPlan.Memory ? plan.MemoryGb.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "";
-            planUnit.Text = mode == RestartPlan.AfterUptime ? "hours" : mode == RestartPlan.Daily ? "(24-hour clock)" : mode == RestartPlan.Memory ? "GB of memory" : "";
+            planUnit.Text = mode == RestartPlan.AfterUptime ? L.T("hours") : mode == RestartPlan.Daily ? L.T("(24-hour clock)") : mode == RestartPlan.Memory ? L.T("GB of memory") : "";
             planWarn.Text = plan.WarnMinutes.ToString();
             planApply.Margin = new Padding(8, 0, 0, 0);
         }
@@ -824,18 +818,18 @@ namespace CoAInstaller
             int mode = planMode.SelectedIndex;
             double hours = plan.Hours, gb = plan.MemoryGb; int daily = plan.DailyMinutes, warn = plan.WarnMinutes;
             if (mode == RestartPlan.AfterUptime && !RestartPlan.ParseHours(planValue.Text, out hours))
-            { Ui.Error(this, "Enter after how many hours the server is restarted, for example 6 or 5.5 (at least half an hour)."); return; }
+            { Ui.Error(this, L.T("Enter after how many hours the server is restarted, for example 6 or 5.5 (at least half an hour).")); return; }
             if (mode == RestartPlan.Daily && !RestartPlan.ParseTime(planValue.Text, out daily))
-            { Ui.Error(this, "Enter the time of day on the 24-hour clock, for example 05:00 or 17:30."); return; }
+            { Ui.Error(this, L.T("Enter the time of day on the 24-hour clock, for example 05:00 or 17:30.")); return; }
             if (mode == RestartPlan.Memory && !RestartPlan.ParseGb(planValue.Text, out gb))
-            { Ui.Error(this, "Enter the memory limit in GB, for example 8 (at least 1)."); return; }
+            { Ui.Error(this, L.T("Enter the memory limit in GB, for example 8 (at least 1).")); return; }
             if (mode != RestartPlan.Off && (!int.TryParse(planWarn.Text.Trim(), out warn) || warn < 0 || warn > 60))
-            { Ui.Error(this, "Enter how many minutes before the restart players are told: 0 to 60."); return; }
+            { Ui.Error(this, L.T("Enter how many minutes before the restart players are told: 0 to 60.")); return; }
             bool announced = restartAt != null && restartTold.Count > 0;
             plan.Mode = mode; plan.Hours = hours; plan.DailyMinutes = daily; plan.MemoryGb = gb; plan.WarnMinutes = warn;
-            try { plan.Save(inst); } catch (Exception ex) { Ui.Error(this, "The setting could not be saved:\n" + ex.Message); return; }
+            try { plan.Save(inst); } catch (Exception ex) { Ui.Error(this, L.T("The setting could not be saved:") + "\n" + ex.Message); return; }
             restartAt = null; restartTold.Clear(); restartSnooze = DateTime.MinValue; memoryOver = 0;
-            if (announced) Announce("The announced restart is off.", false);
+            if (announced) Announce("The announced restart is off.", false);      // in the game: in English, like the game client
             ShowPlanFields();
             RefreshStatus();
         }
@@ -852,7 +846,7 @@ namespace CoAInstaller
         bool RestartInProgress()
         {
             if (!autoRestarting) return false;
-            Ui.Error(this, "The scheduled restart is running right now. Wait until the server is up again.");
+            Ui.Error(this, L.T("The scheduled restart is running right now. Wait until the server is up again."));
             return true;
         }
 
@@ -907,8 +901,8 @@ namespace CoAInstaller
                 }
             }
 
-            string running = "Worldserver: running for " + RestartPlan.Span(now - worldStart) +
-                (worldMemory > 0 ? ", " + gb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " GB of memory. " : ". ");
+            string running = (worldMemory > 0 ? L.F("Worldserver: running for {0}, {1} GB of memory.", RestartPlan.Span(now - worldStart), gb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture))
+                : L.F("Worldserver: running for {0}.", RestartPlan.Span(now - worldStart))) + " ";
             if (restartAt != null)
             {
                 var left = restartAt.Value - now;
@@ -931,32 +925,32 @@ namespace CoAInstaller
                 }
                 planPostpone.Visible = true;
                 planState.ForeColor = Ui.Warn;
-                planState.Text = running + "Restart in " + RestartPlan.Span(left) + (restartTold.Count > 0 ? " - players have been told." : ".");
+                planState.Text = running + (restartTold.Count > 0 ? L.F("Restart in {0} - players have been told.", RestartPlan.Span(left)) : L.F("Restart in {0}.", RestartPlan.Span(left)));
                 return;
             }
 
             planPostpone.Visible = false;
             planState.ForeColor = Ui.Muted;
             string next = "";
-            if (now < restartSnooze) next = "The restart is postponed until " + restartSnooze.ToString("HH:mm") + ".";
+            if (now < restartSnooze) next = L.F("The restart is postponed until {0}.", restartSnooze.ToString("HH:mm"));
             else if (plan.Mode == RestartPlan.AfterUptime)
-                next = "Next restart at " + worldStart.AddHours(plan.Hours).ToString("HH:mm") + ", in " + RestartPlan.Span(worldStart.AddHours(plan.Hours) - now) + ".";
+                next = L.F("Next restart at {0}, in {1}.", worldStart.AddHours(plan.Hours).ToString("HH:mm"), RestartPlan.Span(worldStart.AddHours(plan.Hours) - now));
             else if (plan.Mode == RestartPlan.Daily)
             {
                 var due = now.Date.AddMinutes(plan.DailyMinutes);
                 if (now > due.AddHours(1) || worldStart > due.AddMinutes(-plan.WarnMinutes - 1)) due = due.AddDays(1);
-                next = "Next restart " + (due.Date == now.Date ? "today" : "tomorrow") + " at " + plan.DailyText + ".";
+                next = due.Date == now.Date ? L.F("Next restart today at {0}.", plan.DailyText) : L.F("Next restart tomorrow at {0}.", plan.DailyText);
             }
             else if (plan.Mode == RestartPlan.Memory && worldMemory <= 0)
             {
-                next = "Windows does not tell how much memory the worldserver uses, so this rule cannot work here. Choose one of the others.";
+                next = L.T("Windows does not tell how much memory the worldserver uses, so this rule cannot work here. Choose one of the others.");
                 planState.ForeColor = Ui.Warn;
             }
             else if (plan.Mode == RestartPlan.Memory)
             {
                 next = over && now - worldStart < TimeSpan.FromMinutes(20)
-                    ? "That is over the limit of " + plan.MemoryGb.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " GB already, shortly after the start: the limit is too low for this server and is not applied before the world has run for 20 minutes."
-                    : "Restart at " + plan.MemoryGb.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " GB.";
+                    ? L.F("That is over the limit of {0} GB already, shortly after the start: the limit is too low for this server and is not applied before the world has run for 20 minutes.", plan.MemoryGb.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))
+                    : L.F("Restart at {0} GB.", plan.MemoryGb.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
                 if (over && now - worldStart < TimeSpan.FromMinutes(20)) planState.ForeColor = Ui.Warn;
             }
             planState.Text = running + next;
@@ -973,8 +967,8 @@ namespace CoAInstaller
             restartAt = null; restartTold.Clear(); memoryOver = 0;
             planPostpone.Visible = false;
             planState.ForeColor = Ui.Warn;
-            planState.Text = "The scheduled restart is running ...";
-            Action<string> st = t => { try { BeginInvoke((Action)(() => busy.Text = "Scheduled restart: " + t)); } catch { } };
+            planState.Text = L.T("The scheduled restart is running ...");
+            Action<string> st = t => { try { BeginInvoke((Action)(() => busy.Text = L.T("Scheduled restart:") + " " + t)); } catch { } };
             RestartLog("Restarting the server.");
             var thread = new System.Threading.Thread(() =>
             {
@@ -985,7 +979,7 @@ namespace CoAInstaller
                     ctl.StartDatabase(st); ctl.StartAuth(st);
                     try { AdminLink.Prepare(inst); } catch { }
                     Process world = ctl.StartWorld(st);
-                    st("the worldserver is loading.");
+                    st(L.T("the worldserver is loading."));
                     var done = new System.Threading.ManualResetEvent(false);
                     ctl.WatchWorld(world, (ready, why) => { if (!ready) problem = why; done.Set(); });
                     done.WaitOne();
@@ -998,9 +992,9 @@ namespace CoAInstaller
                     {
                         autoRestarting = false;
                         string when = DateTime.Now.ToString("HH:mm");
-                        lastAutoRestart = problem == null ? "" : "The scheduled restart at " + when + " failed. Details are in logs\\scheduled-restart.log.";
-                        busy.Text = problem == null ? "The server was restarted as scheduled at " + when + " and is running again."
-                            : "The scheduled restart at " + when + " failed: " + problem.Split('\n')[0];
+                        lastAutoRestart = problem == null ? "" : L.F("The scheduled restart at {0} failed. Details are in logs\\scheduled-restart.log.", when);
+                        busy.Text = problem == null ? L.F("The server was restarted as scheduled at {0} and is running again.", when)
+                            : L.F("The scheduled restart at {0} failed:", when) + " " + problem.Split('\n')[0];
                         RefreshStatus();
                     }));
                 }
@@ -1016,11 +1010,11 @@ namespace CoAInstaller
             string name = accName.Text.Trim(), pw = accPw1.Text, pw2 = accPw2.Text; int level = accLevel.SelectedIndex;
             string err = Accounts.Validate(name, pw, pw2);
             if (err != null) { Ui.Error(this, err); return; }
-            Main.RunBusy(busy, st => { EnsureDatabase(st); st("Creating account ..."); Accounts.Create(inst, name, pw, level); },
+            Main.RunBusy(busy, st => { EnsureDatabase(st); st(L.T("Creating account ...")); Accounts.Create(inst, name, pw, level); },
                 ex =>
                 {
-                    if (ex != null) { busy.Text = ""; Ui.Error(this, "The account could not be created:\n" + ex.Message); return; }
-                    busy.Text = "Account \"" + name.ToUpperInvariant() + "\" was created.";
+                    if (ex != null) { busy.Text = ""; Ui.Error(this, L.T("The account could not be created:") + "\n" + ex.Message); return; }
+                    busy.Text = L.F("Account \"{0}\" was created.", name.ToUpperInvariant());
                     accPw1.Text = accPw2.Text = "";
                     RefreshStatus();
                 });
@@ -1037,11 +1031,11 @@ namespace CoAInstaller
             string n = realmName.Text.Trim();
             string err = Accounts.CheckRealmName(n);
             if (err != null) { Ui.Error(this, err); return; }
-            Main.RunBusy(nameNote, st => { EnsureDatabase(st); st("Renaming the server ..."); Accounts.SetRealmName(inst, n); },
+            Main.RunBusy(nameNote, st => { EnsureDatabase(st); st(L.T("Renaming the server ...")); Accounts.SetRealmName(inst, n); },
                 ex =>
                 {
                     if (ex != null) { nameNote.Text = ""; Ui.Error(this, ex.Message); return; }
-                    nameNote.Text = "The server is now called \"" + n + "\". Restart the auth- and worldserver for it to take effect.";
+                    nameNote.Text = L.F("The server is now called \"{0}\". Restart the auth- and worldserver for it to take effect.", n);
                     RefreshStatus(); LoadRealm();
                 });
         }
@@ -1050,12 +1044,12 @@ namespace CoAInstaller
             string a = realm.Text.Trim();
             System.Net.IPAddress ip;
             if (!System.Net.IPAddress.TryParse(a, out ip) || ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
-            { Ui.Error(this, "Please enter an IPv4 address, for example 26.66.211.210 or 192.168.1.20."); return; }
-            Main.RunBusy(busy, st => { EnsureDatabase(st); st("Setting the realm address ..."); Accounts.SetRealmAddress(inst, a); },
+            { Ui.Error(this, L.T("Please enter an IPv4 address, for example 26.66.211.210 or 192.168.1.20.")); return; }
+            Main.RunBusy(busy, st => { EnsureDatabase(st); st(L.T("Setting the realm address ...")); Accounts.SetRealmAddress(inst, a); },
                 ex =>
                 {
                     if (ex != null) { busy.Text = ""; Ui.Error(this, ex.Message); return; }
-                    busy.Text = "Realm address set: " + a + ". Restart the auth- and worldserver for it to take effect.";
+                    busy.Text = L.F("Realm address set: {0}. Restart the auth- and worldserver for it to take effect.", a);
                     RefreshStatus();
                 });
         }
@@ -1084,27 +1078,27 @@ namespace CoAInstaller
     {
         readonly Install inst;
         readonly TextBox wow = Ui.Input(420);
-        readonly CheckBox mmaps = new CheckBox { Text = "Also create mmaps (pathfinding for bots and creatures, highly recommended; may take a long time)", Checked = true, AutoSize = true, MaximumSize = new Size(560, 0) };
-        readonly CheckBox dbcOnly = new CheckBox { Text = "Only refresh the CoA DBC tables (for a server that already has maps)", Checked = false, AutoSize = true, MaximumSize = new Size(560, 0) };
+        readonly CheckBox mmaps = new CheckBox { Text = L.T("Also create mmaps (pathfinding for bots and creatures, highly recommended; may take a long time)"), Checked = true, AutoSize = true, MaximumSize = new Size(560, 0) };
+        readonly CheckBox dbcOnly = new CheckBox { Text = L.T("Only refresh the CoA DBC tables (for a server that already has maps)"), Checked = false, AutoSize = true, MaximumSize = new Size(560, 0) };
 
         public MapDataDialog(Install i)
         {
             inst = i;
-            Text = "Create map data"; Font = Ui.Base; BackColor = Color.White;
+            Text = L.T("Create map data"); Font = Ui.Base; BackColor = Color.White;
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(620, 370);
             var col = Ui.Column(); col.Padding = new Padding(22); col.Dock = DockStyle.Fill;
-            col.Controls.Add(Ui.Heading("Map data from the game client"));
-            col.Controls.Add(Ui.Para("Choose the folder of your CoA game client (the one with the \"Data\" folder). The extraction runs in its own window. " +
-                "When it finishes, the data is moved into the server automatically. Keep the game and its launcher closed meanwhile.", 570));
+            col.Controls.Add(Ui.Heading(L.T("Map data from the game client")));
+            col.Controls.Add(Ui.Para(L.T("Choose the folder of your CoA game client (the one with the \"Data\" folder). The extraction runs in its own window. " +
+                "When it finishes, the data is moved into the server automatically. Keep the game and its launcher closed meanwhile."), 570));
             var row = Ui.Row(); row.Controls.Add(wow);
-            var browse = Ui.Secondary("Browse …");
-            browse.Click += (s, e) => { using (var d = new FolderBrowserDialog { Description = "Choose the game folder (it contains the \"Data\" folder)" }) if (d.ShowDialog(this) == DialogResult.OK) wow.Text = d.SelectedPath; };
+            var browse = Ui.Secondary(L.T("Browse …"));
+            browse.Click += (s, e) => { using (var d = new FolderBrowserDialog { Description = L.T("Choose the game folder (it contains the \"Data\" folder)") }) if (d.ShowDialog(this) == DialogResult.OK) wow.Text = d.SelectedPath; };
             row.Controls.Add(browse); col.Controls.Add(row);
             col.Controls.Add(mmaps);
             if (inst.NeedsClientDbc) col.Controls.Add(dbcOnly);
             dbcOnly.CheckedChanged += (s, e) => mmaps.Enabled = !dbcOnly.Checked;
-            var go = Ui.Primary("Start extraction"); go.Margin = new Padding(0, 16, 0, 0);
+            var go = Ui.Primary(L.T("Start extraction")); go.Margin = new Padding(0, 16, 0, 0);
             go.Click += (s, e) => Run();
             col.Controls.Add(go);
             Controls.Add(col);
@@ -1117,11 +1111,11 @@ namespace CoAInstaller
             string dir = wow.Text.Trim().TrimEnd('\\');
             string clientData = Path.Combine(dir, "Data");
             if (dir.Length == 0 || !Directory.Exists(clientData) || !Directory.EnumerateFiles(clientData, "*.mpq").Any())
-            { Ui.Error(this, "This is not a game folder: it needs a \"Data\" folder with the game's .MPQ archives."); return; }
+            { Ui.Error(this, L.T("This is not a game folder: it needs a \"Data\" folder with the game's .MPQ archives.")); return; }
             bool coaDbc = inst.NeedsClientDbc;
             bool onlyDbc = coaDbc && dbcOnly.Checked;
             if (coaDbc && (!File.Exists(inst.PythonExe) || !File.Exists(inst.MpqCliExe)))
-            { Ui.Error(this, "The tools for the CoA DBC extraction are missing. Run \"Repair\" once, then try again."); return; }
+            { Ui.Error(this, L.T("The tools for the CoA DBC extraction are missing. Run \"Repair\" once, then try again.")); return; }
 
             string[] tools = onlyDbc ? new string[0] : new[] { "map_extractor.exe", "vmap4_extractor.exe", "vmap4_assembler.exe", "mmaps_generator.exe", "mmaps-config.yaml" };
             try
@@ -1134,9 +1128,10 @@ namespace CoAInstaller
                 // Some OpenSSL/MySQL DLLs are needed by the tools as well.
                 if (!onlyDbc) foreach (var dll in Directory.GetFiles(inst.ServerDir, "*.dll")) File.Copy(dll, Path.Combine(dir, Path.GetFileName(dll)), true);
             }
-            catch (Exception ex) { Ui.Error(this, "The tools could not be copied into the game folder:\n" + ex.Message); return; }
+            catch (Exception ex) { Ui.Error(this, L.T("The tools could not be copied into the game folder:") + "\n" + ex.Message); return; }
 
             string data = inst.DataDir;
+            // The window of the extraction speaks English: the console's code page cannot show every language.
             var b = new System.Text.StringBuilder();
             b.AppendLine("@echo off");
             b.AppendLine("title Creating map data - please keep this window open");
@@ -1196,7 +1191,7 @@ namespace CoAInstaller
             string bat = Path.Combine(dir, "CoA-Create-Map-Data.bat");
             File.WriteAllText(bat, b.ToString(), System.Text.Encoding.Default);
             Process.Start(new ProcessStartInfo("cmd.exe", "/c \"\"" + bat + "\"\"") { UseShellExecute = true, WorkingDirectory = dir });
-            MessageBox.Show(this, "The extraction is now running in a new window. Keep it open until it says DONE.", Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, L.T("The extraction is now running in a new window. Keep it open until it says DONE."), Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
             Close();
         }
     }

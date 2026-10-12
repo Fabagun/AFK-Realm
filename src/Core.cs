@@ -23,7 +23,7 @@ namespace CoAInstaller
         public const string Name = "AFK Realm";                   // window titles, dialogs
         public const string ShortName = "AFK Realm";              // desktop shortcut, firewall rules
         public const string FileStem = "AFK-Realm";                // exe name, settings folder
-        public const string Version = "0.9.4-preview";            // pre-release until testers confirm it works
+        public const string Version = "0.9.5-preview";            // pre-release until testers confirm it works
         public const string Tagline = "build, run and tweak your own server the lazy way";
         public const string BuildsFor = "Conquest of AzerothCore";
         public const string WindowTitle = Name + " (preview)";
@@ -109,9 +109,9 @@ namespace CoAInstaller
         public static DbLogin FromConfig(Install inst)
         {
             string v = Conf.Get(inst.WorldConf, "LoginDatabaseInfo");
-            if (v == null) throw new InvalidOperationException("LoginDatabaseInfo was not found in worldserver.conf.");
+            if (v == null) throw new InvalidOperationException(L.T("LoginDatabaseInfo was not found in worldserver.conf."));
             var p = v.Split(';');
-            if (p.Length < 5) throw new InvalidOperationException("LoginDatabaseInfo in worldserver.conf is incomplete.");
+            if (p.Length < 5) throw new InvalidOperationException(L.T("LoginDatabaseInfo in worldserver.conf is incomplete."));
             return new DbLogin { Host = p[0], Port = int.Parse(p[1]), User = p[2], Password = p[3] };
         }
         /// <summary>The setup script gives root the same password as the acore user.</summary>
@@ -161,7 +161,7 @@ namespace CoAInstaller
                     if (p.ExitCode != 0)
                     {
                         string message = string.Join(" ", err.Split('\n').Where(l => !l.Contains("Using a password")).Select(l => l.Trim())).Trim();
-                        throw new InvalidOperationException(message.Length > 0 ? message : "The database did not answer (mysql.exe ended with code " + p.ExitCode + ").");
+                        throw new InvalidOperationException(message.Length > 0 ? message : L.F("The database did not answer (mysql.exe ended with code {0}).", p.ExitCode));
                     }
                     return output.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
                 }
@@ -199,7 +199,7 @@ namespace CoAInstaller
                     if (p.ExitCode != 0)
                     {
                         string message = string.Join(" ", err.Split('\n').Where(l => !l.Contains("Using a password")).Select(l => l.Trim())).Trim();
-                        throw new InvalidOperationException(message.Length > 0 ? message : "The database did not answer (mysql.exe ended with code " + p.ExitCode + ").");
+                        throw new InvalidOperationException(message.Length > 0 ? message : L.F("The database did not answer (mysql.exe ended with code {0}).", p.ExitCode));
                     }
                     return tables;
                 }
@@ -438,18 +438,18 @@ namespace CoAInstaller
         {
             if (Db != null) return;
             if (Net.PortOpen(DbPort))
-                throw new InvalidOperationException("Port " + DbPort + " is already in use. Is another database (for example another repack) still running? Stop it first.");
-            status("Starting the database ...");
+                throw new InvalidOperationException(L.F("Port {0} is already in use. Is another database (for example another repack) still running? Stop it first.", DbPort));
+            status(L.T("Starting the database ..."));
             var psi = new ProcessStartInfo(Path.Combine(inst.MySqlBin, "mysqld.exe"), "--defaults-file=\"" + inst.MyIni + "\"")
             { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = inst.DbDir };
             Process.Start(psi);
-            WaitPort(DbPort, 90, "The database did not start. Details are in logs\\mysql-error.log.");
+            WaitPort(DbPort, 90, L.T("The database did not start. Details are in logs\\mysql-error.log."));
         }
         public void StartAuth(Action<string> status)
         {
             if (Auth != null) return;
             if (World == null) ResetRealmFlags();
-            status("Starting the authserver ...");
+            status(L.T("Starting the authserver ..."));
             var p = StartConsole(inst.AuthExe, inst.AuthConf);
             WaitReady(p, AuthPort, 120, "authserver", Path.Combine(inst.ServerDir, "Auth.log"));
         }
@@ -461,7 +461,7 @@ namespace CoAInstaller
         {
             var running = World;
             if (running != null) return running;
-            status("Starting the worldserver ...");
+            status(L.T("Starting the worldserver ..."));
             var p = StartConsole(inst.WorldExe, inst.WorldConf);
             // Configuration and database problems end the process within seconds.
             for (int i = 0; i < 30; i++)
@@ -473,7 +473,7 @@ namespace CoAInstaller
         }
         Exception WorldStopped()
         {
-            return new InvalidOperationException("The worldserver stopped while starting. The end of its log:\n\n" + LogTail(Path.Combine(inst.ServerDir, "Server.log"), 8));
+            return new InvalidOperationException(L.T("The worldserver stopped while starting. The end of its log:") + "\n\n" + LogTail(Path.Combine(inst.ServerDir, "Server.log"), 8));
         }
         /// <summary>Waits in the background until the worldserver accepts players (true) or closes first (false, with the reason).</summary>
         public void WatchWorld(Process p, Action<bool, string> finished)
@@ -521,10 +521,10 @@ namespace CoAInstaller
             {
                 if (Net.PortOpen(port)) return;
                 if (p != null && p.WaitForExit(500))
-                    throw new InvalidOperationException("The " + name + " stopped while starting. The end of its log:\n\n" + LogTail(log, 8));
+                    throw new InvalidOperationException(L.F("The {0} stopped while starting. The end of its log:", name) + "\n\n" + LogTail(log, 8));
             }
             if (p == null || !p.HasExited) return; // still loading; the log shows the progress
-            throw new InvalidOperationException("The " + name + " did not start. See " + log);
+            throw new InvalidOperationException(L.F("The {0} did not start. See {1}", name, log));
         }
         void WaitPort(int port, int seconds, string error)
         {
@@ -542,7 +542,7 @@ namespace CoAInstaller
                     && !l.StartsWith("Asynchronous connections on DatabasePool") && !l.StartsWith("All connections on DatabasePool")).ToList();
                 return string.Join("\n", useful.Skip(Math.Max(0, useful.Count - lines)));
             }
-            catch { return "(" + file + " could not be read)"; }
+            catch { return L.F("({0} could not be read)", file); }
         }
 
         // ---- Random bot reset -------------------------------------------------------------
@@ -572,7 +572,7 @@ namespace CoAInstaller
 
         public void ResetRandomBots(Action<string> status)
         {
-            if (!File.Exists(BotsConf)) throw new InvalidOperationException("playerbots.conf was not found. Run \"Repair setup\" first.");
+            if (!File.Exists(BotsConf)) throw new InvalidOperationException(L.T("playerbots.conf was not found. Run \"Repair setup\" first."));
             RestoreAfterBotReset();
             StopAll(status, false);
             StartDatabase(status);
@@ -588,9 +588,9 @@ namespace CoAInstaller
             try
             {
                 foreach (var key in BotResetKeys) Conf.Set(BotsConf, key, "1");
-                status("Deleting all random bots, their guilds and arena teams. The server log shows the progress ...");
+                status(L.T("Deleting all random bots, their guilds and arena teams. The server log shows the progress ..."));
                 var p = StartConsole(inst.WorldExe, inst.WorldConf);
-                if (p == null) throw new InvalidOperationException("The worldserver could not be started.");
+                if (p == null) throw new InvalidOperationException(L.T("The worldserver could not be started."));
                 string log = Path.Combine(inst.ServerDir, "Playerbots.log");
                 Func<bool> confirmed = () =>
                 {
@@ -608,16 +608,16 @@ namespace CoAInstaller
                         bool deleted = confirmed();
                         StopConsoleProcess(p, 180);
                         if (deleted) break;
-                        throw new InvalidOperationException("The worldserver started normally instead of deleting the bots. Nothing was deleted.");
+                        throw new InvalidOperationException(L.T("The worldserver started normally instead of deleting the bots. Nothing was deleted."));
                     }
                     if (DateTime.Now > until)
-                        throw new InvalidOperationException("Deleting the bots takes longer than an hour. Check the server log; the reset settings have been switched off again.");
+                        throw new InvalidOperationException(L.T("Deleting the bots takes longer than an hour. Check the server log; the reset settings have been switched off again."));
                 }
                 if (!confirmed())
-                    throw new InvalidOperationException("The worldserver closed without confirming the deletion. The end of its log:\n\n" + LogTail(Path.Combine(inst.ServerDir, "Server.log"), 8));
+                    throw new InvalidOperationException(L.T("The worldserver closed without confirming the deletion. The end of its log:") + "\n\n" + LogTail(Path.Combine(inst.ServerDir, "Server.log"), 8));
             }
             finally { RestoreAfterBotReset(); }
-            status("All random bots were deleted.");
+            status(L.T("All random bots were deleted."));
         }
 
         [DllImport("kernel32.dll", SetLastError = true)] static extern bool AttachConsole(uint pid);
@@ -651,27 +651,27 @@ namespace CoAInstaller
             var w = World;
             if (w != null)
             {
-                status("Worldserver is saving and shutting down ...");
+                status(L.T("Worldserver is saving and shutting down ..."));
                 if (!StopConsoleProcess(w, 180))
                 {
                     // Second way: ask it through the game master connection.
                     bool asked = false;
                     try { AdminLink.Run(inst, "server shutdown 1"); asked = true; } catch { }
                     if (!asked || !w.WaitForExit(180000))
-                        throw new InvalidOperationException("The worldserver did not respond. Type \"server shutdown 1\" in the console of the game master tools, then try again.");
+                        throw new InvalidOperationException(L.T("The worldserver did not respond. Type \"server shutdown 1\" in the console of the game master tools, then try again."));
                 }
             }
             var a = Auth;
             if (a != null)
             {
-                status("Stopping the authserver ...");
+                status(L.T("Stopping the authserver ..."));
                 if (!StopConsoleProcess(a, 20)) { try { a.Kill(); } catch { } }
             }
             if (includeDatabase && Db != null)
             {
-                status("Stopping the database safely ...");
+                status(L.T("Stopping the database safely ..."));
                 if (!MySql.Shutdown(inst, DbLogin.FromConfig(inst).AsRoot()))
-                    throw new InvalidOperationException("The database could not be stopped cleanly.");
+                    throw new InvalidOperationException(L.T("The database could not be stopped cleanly."));
                 for (int i = 0; i < 120 && Db != null; i++) Thread.Sleep(500);
             }
         }
@@ -682,10 +682,10 @@ namespace CoAInstaller
     {
         public static string Validate(string user, string pass, string pass2)
         {
-            if (!Regex.IsMatch(user ?? "", "^[A-Za-z0-9]{3,16}$")) return "The account name must be 3 to 16 characters long and may only contain letters and digits.";
-            if ((pass ?? "").Length < 4 || pass.Length > 16) return "The password must be 4 to 16 characters long.";
-            if (pass.Any(ch => ch > 127)) return "Please use only plain ASCII characters in the password.";
-            if (pass != pass2) return "The two passwords do not match.";
+            if (!Regex.IsMatch(user ?? "", "^[A-Za-z0-9]{3,16}$")) return L.T("The account name must be 3 to 16 characters long and may only contain letters and digits.");
+            if ((pass ?? "").Length < 4 || pass.Length > 16) return L.T("The password must be 4 to 16 characters long.");
+            if (pass.Any(ch => ch > 127)) return L.T("Please use only plain ASCII characters in the password.");
+            if (pass != pass2) return L.T("The two passwords do not match.");
             return null;
         }
         public static void Create(Install inst, string user, string pass, int gmLevel)
@@ -693,7 +693,7 @@ namespace CoAInstaller
             var login = DbLogin.FromConfig(inst);
             string name = user.ToUpperInvariant();
             if (MySql.Query(inst, login, "SELECT COUNT(*) FROM acore_auth.account WHERE username=" + MySql.Quote(name) + ";")[0] != "0")
-                throw new InvalidOperationException("The account \"" + name + "\" already exists.");
+                throw new InvalidOperationException(L.F("The account \"{0}\" already exists.", name));
             byte[] salt = Srp6.NewSalt();
             byte[] verifier = Srp6.Verifier(name, pass, salt);
             string sql = "INSERT INTO acore_auth.account (username, salt, verifier, email, reg_mail, expansion) VALUES (" +
@@ -774,13 +774,13 @@ namespace CoAInstaller
         /// <summary>With CharDelete.KeepDays = 0 the worldserver never purges deleted characters.</summary>
         public static bool PurgesDeletedCharacters(Install inst) { return Conf.GetInt(inst.WorldConf, "CharDelete.KeepDays", 30) != 0; }
 
-        public const string RealmNameRules = "Up to 32 characters: English letters, digits, spaces, hyphen, apostrophe and dot. It has to start with a letter or digit.";
+        public static string RealmNameRules { get { return L.T("Up to 32 characters: English letters, digits, spaces, hyphen, apostrophe and dot. It has to start with a letter or digit."); } }
         /// <summary>Why a realm name cannot be used, or null. The game client also uses the name as a folder name for its settings.</summary>
         public static string CheckRealmName(string name)
         {
-            if (string.IsNullOrEmpty(name)) return "Please enter a server name.";
-            if (name.Length > 32) return "The server name can have 32 characters at most.";
-            if (!System.Text.RegularExpressions.Regex.IsMatch(name, "^[A-Za-z0-9][A-Za-z0-9 '.\\-]*$")) return "Please use only English letters, digits, spaces, hyphen, apostrophe and dot, starting with a letter or digit.";
+            if (string.IsNullOrEmpty(name)) return L.T("Please enter a server name.");
+            if (name.Length > 32) return L.T("The server name can have 32 characters at most.");
+            if (!System.Text.RegularExpressions.Regex.IsMatch(name, "^[A-Za-z0-9][A-Za-z0-9 '.\\-]*$")) return L.T("Please use only English letters, digits, spaces, hyphen, apostrophe and dot, starting with a letter or digit.");
             return null;
         }
         public static string GetRealmName(Install inst)

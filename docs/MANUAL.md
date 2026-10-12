@@ -22,6 +22,7 @@ AFK Realm is work in progress, so a window may look slightly different from the 
 12. [The random bots](#12-the-random-bots)
 13. [Where everything is stored](#13-where-everything-is-stored)
 14. [When something goes wrong](#14-when-something-goes-wrong)
+15. [Languages](#15-languages)
 
 ---
 
@@ -496,3 +497,24 @@ C:\CoA-Server\
 | The server misbehaves after an update or a module | *Backups → Restore* the backup made before it. |
 
 When you report a problem, attach `logs\install.log` and say what you clicked and what you expected. That makes it much easier to fix.
+
+## 15. Languages
+
+AFK Realm speaks English, German, French, Spanish, Portuguese (Brazil), Russian and Simplified Chinese.
+
+- **At the first start** it picks the language of Windows. When there is none for it, it stays English.
+- **To switch**, click the language button at the top right of any page (the globe with the language's name) and choose one. *Automatic* follows Windows again. AFK Realm restarts itself in the new language; running servers keep running. While an installation, update or backup is running, the language cannot be switched.
+- **The modules by AFK Realm** (World Journey, the auction house bots, custom races, classic classes) bring their own translations: their setup pages, the descriptions of their options in *Server settings*, the races and the zones and dungeons, the latter under the names of the game client in that language.
+
+**What stays English.** The descriptions of the server's own options (worldserver.conf, playerbots.conf, coa.conf and the modules of other authors) come from the server's templates and are not translated. The log files stay English so that a bug report can be read by anyone, and so do announcements in the game (other players may speak another language), file names and the batch file of the map data. The *READ ME* in the ZIP for other players is written in your language and in English.
+
+### Adding a language
+
+1. Click the language button and choose *Add a language …*.
+2. Enter the code of the language, for example `ja` for Japanese or `it` for Italian. AFK Realm writes `%APPDATA%\AFK-Realm\lang\<code>.json` with every text of AFK Realm and opens the folder.
+3. Fill in `name` (the language's own name, e.g. `日本語`), `english` (`Japanese`) and, when the language needs another font, `font` (e.g. `Yu Gothic UI`). Then translate each text on the right of its English original. Keep `{0}`, `{1}` … – the values go there – and leave a text empty to keep the English one.
+4. Restart AFK Realm: the language is in the menu.
+
+A file with the code of a built-in language (for example `de.json` with only a few texts) replaces those texts of the built-in translation – handy for a correction. A `lang` folder next to `AFK-Realm.exe` works the same way. If you translated AFK Realm or found a better word, please send it as an issue or a pull request: it can then ship with the next version.
+
+A module can bring its own texts in a `lang` folder of its own (`lang/<code>.json`, the same format; see the README for module authors).

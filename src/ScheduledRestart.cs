@@ -155,9 +155,9 @@ namespace CoAInstaller
         public static string Span(TimeSpan t)
         {
             if (t < TimeSpan.Zero) t = TimeSpan.Zero;
-            if (t.TotalHours >= 1) return (int)t.TotalHours + " h " + t.Minutes + " min";
-            if (t.TotalMinutes >= 1) return (int)Math.Ceiling(t.TotalMinutes) + " min";
-            return "less than a minute";
+            if (t.TotalHours >= 1) return L.F("{0} h {1} min", (int)t.TotalHours, t.Minutes);
+            if (t.TotalMinutes >= 1) return L.F("{0} min", (int)Math.Ceiling(t.TotalMinutes));
+            return L.T("less than a minute");
         }
     }
 }

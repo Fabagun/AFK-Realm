@@ -49,8 +49,8 @@ namespace CoAInstaller
                     while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
                     {
                         dst.Write(buffer, 0, n); done += n;
-                        if (done > 50L * 1024 * 1024) throw new InvalidOperationException("The download is far larger than expected.");
-                        if (done - last >= 256 * 1024) { last = done; status("Downloading the update ... " + (done / 1024) + " KB"); }
+                        if (done > 50L * 1024 * 1024) throw new InvalidOperationException(L.T("The download is far larger than expected."));
+                        if (done - last >= 256 * 1024) { last = done; status(L.F("Downloading the update ... {0} KB", done / 1024)); }
                     }
                 }
                 Verify(target, sha256);
@@ -65,20 +65,20 @@ namespace CoAInstaller
         static void Verify(string file, string sha256)
         {
             var info = new FileInfo(file);
-            if (info.Length < 100 * 1024) throw new InvalidOperationException("The download is incomplete.");
+            if (info.Length < 100 * 1024) throw new InvalidOperationException(L.T("The download is incomplete."));
             if (!string.IsNullOrEmpty(sha256))
             {
                 string actual;
                 using (var sha = SHA256.Create())
                 using (var s = File.OpenRead(file)) actual = BitConverter.ToString(sha.ComputeHash(s)).Replace("-", "");
                 if (!actual.Equals(sha256, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("The download does not match the checksum GitHub publishes for it. Nothing was changed.");
+                    throw new InvalidOperationException(L.T("The download does not match the checksum GitHub publishes for it. Nothing was changed."));
             }
             string own = Assembly.GetExecutingAssembly().GetName().Name, other;
             try { other = AssemblyName.GetAssemblyName(file).Name; }
-            catch { throw new InvalidOperationException("The downloaded file is not a valid program. Nothing was changed."); }
+            catch { throw new InvalidOperationException(L.T("The downloaded file is not a valid program. Nothing was changed.")); }
             if (!string.Equals(own, other, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("The downloaded file is not " + Product.Name + ". Nothing was changed.");
+                throw new InvalidOperationException(L.F("The downloaded file is not {0}. Nothing was changed.", Product.Name));
         }
 
         /// <summary>Puts the downloaded file in place of the running exe; on failure the old one is put back.</summary>

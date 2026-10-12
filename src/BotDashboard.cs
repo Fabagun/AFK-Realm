@@ -21,8 +21,8 @@ namespace CoAInstaller
         public static readonly string[] LevelBands = { "1–9", "10–19", "20–29", "30–39", "40–49", "50–59", "60–69", "70–79", "80" };
         static readonly HashSet<int> AllianceRaces = new HashSet<int> { 1, 3, 4, 7, 11 };
         static readonly HashSet<int> HordeRaces = new HashSet<int> { 2, 5, 6, 8, 10 };
-        static readonly string[] RaceNames = { "", "Human", "Orc", "Dwarf", "Night Elf", "Undead", "Tauren", "Gnome", "Troll", "Goblin", "Blood Elf", "Draenei" };
-        static readonly string[] ClassNames = { "", "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Death Knight", "Shaman", "Mage", "Warlock", "Hero", "Druid" };
+        static readonly string[] RaceNames = { "", L.T("Human"), L.T("Orc"), L.T("Dwarf"), L.T("Night Elf"), L.T("Undead"), L.T("Tauren"), L.T("Gnome"), L.T("Troll"), L.T("Goblin"), L.T("Blood Elf"), L.T("Draenei") };
+        static readonly string[] ClassNames = { "", L.T("Warrior"), L.T("Paladin"), L.T("Hunter"), L.T("Rogue"), L.T("Priest"), L.T("Death Knight"), L.T("Shaman"), L.T("Mage"), L.T("Warlock"), L.T("Hero"), L.T("Druid") };
 
         static string N(int v) { return v.ToString(CultureInfo.InvariantCulture); }
 
@@ -56,7 +56,7 @@ namespace CoAInstaller
                     var f = row.Split('\t');
                     int id, side;
                     if (f.Length < 3 || !int.TryParse(f[0], out id)) continue;
-                    if (f[1].Length > 0 && f[1] != "NULL") raceNames[id] = f[1];
+                    if (f[1].Length > 0 && f[1] != "NULL") raceNames[id] = L.Outside(f[1]);
                     if (int.TryParse(f[2], out side)) raceSide[id] = side;
                 }
             }
@@ -86,10 +86,10 @@ namespace CoAInstaller
                 else if (HordeRaces.Contains(race) || (raceSide.TryGetValue(race, out side) && side == 1)) s.Horde++;
 
                 string className;
-                if (!classNames.TryGetValue(cls, out className)) className = cls < ClassNames.Length ? ClassNames[cls] : "Class " + N(cls);
+                if (!classNames.TryGetValue(cls, out className)) className = cls < ClassNames.Length ? ClassNames[cls] : L.F("Class {0}", N(cls));
                 Add(s.Classes, className);
                 string raceName;
-                if (!raceNames.TryGetValue(race, out raceName)) raceName = race < RaceNames.Length && RaceNames[race].Length > 0 ? RaceNames[race] : "Race " + N(race);
+                if (!raceNames.TryGetValue(race, out raceName)) raceName = race < RaceNames.Length && RaceNames[race].Length > 0 ? RaceNames[race] : L.F("Race {0}", N(race));
                 Add(s.Races, raceName);
                 s.Levels[Math.Min(LevelBands.Length - 1, Math.Max(0, level >= 80 ? 8 : level / 10))]++;
                 if (zone > 0) Add(s.Zones, GameData.ZoneName(inst, zone));
@@ -138,7 +138,7 @@ namespace CoAInstaller
             g.Clear(BackColor);
             if (items.Count == 0)
             {
-                TextRenderer.DrawText(g, "No bots to count.", Ui.Base, new Rectangle(0, 0, Width, RowHeight), Ui.Muted, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+                TextRenderer.DrawText(g, L.T("No bots to count."), Ui.Base, new Rectangle(0, 0, Width, RowHeight), Ui.Muted, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
                 return;
             }
             Draw.Smooth(g);
@@ -208,26 +208,30 @@ namespace CoAInstaller
         /// <summary>The Bots section: counts and distributions of the random bots, read from the database.</summary>
         void BuildBotsSection()
         {
-            var overview = Section("bots", "The random bots", "How many bots there are and how they are spread. The numbers come from the database; " +
-                "the server writes positions and levels of the bots every few minutes, so they can be a little behind.", "bots");
+            var overview = Section("bots", L.T("The random bots"), L.T("How many bots there are and how they are spread. The numbers come from the database; " +
+                "the server writes positions and levels of the bots every few minutes, so they can be a little behind."), "bots");
             int tileWidth = (overview.Inner - 3 * 12) / 4 - 1;
-            botsWorld = new StatTile("bots in the world", tileWidth);
-            botsPlayers = new StatTile("players in the world", tileWidth);
-            botsLevel = new StatTile("average level", tileWidth);
-            botsSides = new StatTile("Alliance : Horde", tileWidth);
+            botsWorld = new StatTile(L.T("bots in the world"), tileWidth);
+            botsPlayers = new StatTile(L.T("players in the world"), tileWidth);
+            botsLevel = new StatTile(L.T("average level"), tileWidth);
+            botsSides = new StatTile(L.T("Alliance : Horde"), tileWidth);
             var tiles = Ui.Row(); tiles.BackColor = Ui.Surface;
             tiles.Controls.Add(botsWorld); tiles.Controls.Add(botsPlayers); tiles.Controls.Add(botsLevel); tiles.Controls.Add(botsSides);
             overview.Add(tiles);
 
-            botsOnline = new RadioButton { Text = "Bots in the world", AutoSize = true, Checked = true, Font = Ui.Base, BackColor = Ui.Surface, Margin = new Padding(0, 6, 16, 0) };
-            botsAll = new RadioButton { Text = "All bots", AutoSize = true, Font = Ui.Base, BackColor = Ui.Surface, Margin = new Padding(0, 6, 16, 0) };
-            var refresh = Ui.Secondary("Refresh");
+            botsOnline = new RadioButton { Text = L.T("Bots in the world"), AutoSize = true, Checked = true, Font = Ui.Base, BackColor = Ui.Surface, Margin = new Padding(0, 6, 16, 0) };
+            botsAll = new RadioButton { Text = L.T("All bots"), AutoSize = true, Font = Ui.Base, BackColor = Ui.Surface, Margin = new Padding(0, 6, 16, 0) };
+            var refresh = Ui.Secondary(L.T("Refresh"));
             botsState = Ui.Hint("");
             botsState.MaximumSize = new Size(overview.Inner - 400, 0);
             botsState.Margin = new Padding(8, 8, 0, 0);
             var controls = Ui.Row(); controls.BackColor = Ui.Surface;
-            var count = new Label { Text = "Count:", AutoSize = true, Font = Ui.Base, ForeColor = Ui.Muted, BackColor = Ui.Surface, Margin = new Padding(0, 7, 8, 0) };
+            var count = new Label { Text = L.T("Count:"), AutoSize = true, Font = Ui.Base, ForeColor = Ui.Muted, BackColor = Ui.Surface, Margin = new Padding(0, 7, 8, 0) };
             controls.Controls.Add(count); controls.Controls.Add(botsOnline); controls.Controls.Add(botsAll); controls.Controls.Add(refresh); controls.Controls.Add(botsState);
+            // The state takes the width the other controls leave (their texts differ in length by language).
+            int used = 0;
+            foreach (Control c in new Control[] { count, botsOnline, botsAll, refresh }) used += c.PreferredSize.Width + c.Margin.Horizontal;
+            botsState.MaximumSize = new Size(Math.Max(160, overview.Inner - used - botsState.Margin.Horizontal - 8), 0);
             overview.Add(controls);
             botsOnline.CheckedChanged += (s, e) => { if (botsOnline.Checked) RefreshBots(); };
             botsAll.CheckedChanged += (s, e) => { if (botsAll.Checked) RefreshBots(); };
@@ -238,14 +242,14 @@ namespace CoAInstaller
                 var c = Section("bots", title, text, icon);
                 var list = new BarList(c.Inner);
                 c.Add(list);
-                if (title == "Zones") botsZoneCard = c;
+                if (title == L.T("Zones")) botsZoneCard = c;
                 return list;
             };
-            botsFaction = card("Factions", null, null);
-            botsClasses = card("Classes", null, null);
-            botsRaces = card("Races", null, null);
-            botsLevels = card("Levels", null, null);
-            botsZones = card("Zones", "Where the bots are, the fifteen zones with the most of them.", "globe");
+            botsFaction = card(L.T("Factions"), null, null);
+            botsClasses = card(L.T("Classes"), null, null);
+            botsRaces = card(L.T("Races"), null, null);
+            botsLevels = card(L.T("Levels"), null, null);
+            botsZones = card(L.T("Zones"), L.T("Where the bots are, the fifteen zones with the most of them."), "globe");
 
             botsTimer.Tick += (s, e) => { if (current == "bots") RefreshBots(); };
             botsTimer.Start();
@@ -257,7 +261,7 @@ namespace CoAInstaller
             if (botsLoading || botsWorld == null) return;
             botsLoading = true;
             bool inWorldOnly = botsOnline.Checked;
-            botsState.Text = "Reading …";
+            botsState.Text = L.T("Reading …");
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 BotStats stats = null;
@@ -269,11 +273,11 @@ namespace CoAInstaller
                     botsLoading = false;
                     if (stats == null)
                     {
-                        botsState.Text = "Could not read the bots – is the database running? (" + error + ")";
+                        botsState.Text = L.F("Could not read the bots – is the database running? ({0})", error);
                         return;
                     }
                     ShowBots(stats, inWorldOnly);
-                    botsState.Text = "Updated " + DateTime.Now.ToString("HH:mm:ss") + " · every 30 s";
+                    botsState.Text = L.F("Updated {0} · every 30 s", DateTime.Now.ToString("HH:mm:ss"));
                 };
                 try { if (IsHandleCreated) BeginInvoke(show); else botsLoading = false; }
                 catch { botsLoading = false; }
@@ -290,19 +294,19 @@ namespace CoAInstaller
 
             botsFaction.Show(new[]
             {
-                new BarList.Item { Name = "Alliance", Value = s.Alliance, Color = AllianceBlue },
-                new BarList.Item { Name = "Horde", Value = s.Horde, Color = HordeRed }
+                new BarList.Item { Name = L.T("Alliance"), Value = s.Alliance, Color = AllianceBlue },
+                new BarList.Item { Name = L.T("Horde"), Value = s.Horde, Color = HordeRed }
             }, s.Counted);
             botsClasses.Show(s.Classes.OrderByDescending(k => k.Value).ThenBy(k => k.Key).Select(k => new BarList.Item { Name = k.Key, Value = k.Value }), s.Counted);
             botsRaces.Show(s.Races.OrderByDescending(k => k.Value).ThenBy(k => k.Key).Select(k => new BarList.Item { Name = k.Key, Value = k.Value }), s.Counted);
             // The level bands in their order, without the empty ones above the highest level reached.
             int last = Array.FindLastIndex(s.Levels, v => v > 0);
-            botsLevels.Show(BotStats.LevelBands.Take(Math.Max(1, last + 1)).Select((b, i) => new BarList.Item { Name = "Level " + b, Value = s.Levels[i] }), s.Counted);
+            botsLevels.Show(BotStats.LevelBands.Take(Math.Max(1, last + 1)).Select((b, i) => new BarList.Item { Name = L.F("Level {0}", b), Value = s.Levels[i] }), s.Counted);
 
             var zones = s.Zones.OrderByDescending(k => k.Value).ThenBy(k => k.Key).ToList();
             var shown = zones.Take(15).Select(k => new BarList.Item { Name = k.Key, Value = k.Value }).ToList();
             int rest = zones.Skip(15).Sum(k => k.Value);
-            if (rest > 0) shown.Add(new BarList.Item { Name = "Other zones (" + (zones.Count - 15) + ")", Value = rest, Color = Ui.Muted });
+            if (rest > 0) shown.Add(new BarList.Item { Name = L.F("Other zones ({0})", zones.Count - 15), Value = rest, Color = Ui.Muted });
             botsZones.Show(shown, s.Counted);
         }
     }
