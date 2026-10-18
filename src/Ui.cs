@@ -7,23 +7,27 @@ namespace CoAInstaller
     /// <summary>Colors, fonts and small control factories for a consistent flat look.</summary>
     static class Ui
     {
+        // The accents look the same in the light and the dark theme; the colours below them follow Theme.
         public static readonly Color Accent = Color.FromArgb(108, 76, 196);
         public static readonly Color AccentDark = Color.FromArgb(78, 52, 150);
         public static readonly Color Header = Color.FromArgb(28, 24, 44);
-        public static readonly Color Text = Color.FromArgb(33, 33, 40);
-        public static readonly Color Muted = Color.FromArgb(105, 105, 120);
         public static readonly Color Ok = Color.FromArgb(34, 139, 84);
         public static readonly Color Warn = Color.FromArgb(196, 120, 20);
         public static readonly Color Bad = Color.FromArgb(200, 50, 50);
-        public static readonly Color Panel = Color.FromArgb(246, 245, 250);
-        public static readonly Color Canvas = Color.FromArgb(246, 245, 250);      // behind cards
-        public static readonly Color Surface = Color.White;                         // cards, dialogs
-        public static readonly Color Line = Color.FromArgb(226, 223, 236);
-        public static readonly Color AccentSoft = Color.FromArgb(238, 233, 251);
         public static readonly Color AccentBright = Color.FromArgb(160, 132, 240);
         public static readonly Color Sidebar = Color.FromArgb(28, 24, 44);
         public static readonly Color SidebarHover = Color.FromArgb(42, 36, 64);
         public static readonly Color SidebarActive = Color.FromArgb(56, 46, 92);
+
+        public static Color Text { get { return Theme.Current.Text; } }
+        public static Color Muted { get { return Theme.Current.Muted; } }
+        public static Color Panel { get { return Theme.Current.Panel; } }
+        public static Color Canvas { get { return Theme.Current.Canvas; } }          // behind cards
+        public static Color Surface { get { return Theme.Current.Surface; } }        // cards, dialogs
+        public static Color Line { get { return Theme.Current.Line; } }
+        public static Color AccentSoft { get { return Theme.Current.AccentSoft; } }
+        public static Color AccentInk { get { return Theme.Current.AccentInk; } }    // writing on AccentSoft
+        public static Color ToggleOff { get { return Theme.Current.ToggleOff; } }
 
         /// <summary>A font of the window's family: Segoe UI, or the one the language asks for (Chinese: Microsoft YaHei UI).</summary>
         public static Font Face(float size, bool semibold = false, FontStyle style = FontStyle.Regular)
@@ -120,7 +124,7 @@ namespace CoAInstaller
             var r = new RectangleF(Body.Left - 24, Body.Top - 22, Math.Max(Body.Width + 48, 660), Body.Height + 44);
             using (var p = Draw.Round(r, 12))
             {
-                g.FillPath(Brushes.White, p);
+                using (var b = new SolidBrush(Ui.Surface)) g.FillPath(b, p);
                 using (var pen = new Pen(Ui.Line)) g.DrawPath(pen, p);
             }
         }

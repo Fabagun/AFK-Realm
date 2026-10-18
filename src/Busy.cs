@@ -14,7 +14,7 @@ namespace CoAInstaller
         class Window : AfkForm
         {
             public readonly Label Text_ = new Label { AutoSize = false, Dock = DockStyle.Top, Height = 46, Font = Ui.Base, ForeColor = Ui.Text, TextAlign = ContentAlignment.MiddleLeft };
-            public readonly ProgressBar Bar = new ProgressBar { Dock = DockStyle.Top, Height = 14, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30 };
+            public readonly ProgressBar Bar = new FlatBar { Dock = DockStyle.Top, Height = 14, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30 };
             public bool Done;
             public Window(string title, string text)
             {

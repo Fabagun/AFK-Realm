@@ -123,7 +123,8 @@ namespace CoAInstaller
                 var bytes = archives.Read("DBFilesClient\\ChrRaces.dbc");
                 if (bytes == null) throw new InvalidOperationException(L.T("The game client has no ChrRaces.dbc. Is this the game folder of Conquest of Azeroth?"));
                 var races = DbcTable.Parse(bytes, "ChrRaces.dbc");
-                var rows = races.Records.ToDictionary(r => (int)races.Field(r, 0));
+                // by race number, the first row of a number a custom client names twice (as RacePacker.Races reads it)
+                var rows = races.Records.GroupBy(r => (int)races.Field(r, 0)).ToDictionary(g => g.Key, g => g.First());
                 for (int n = 1; n < 32; n++) if (!rows.ContainsKey(n)) scan.FreeNumbers.Add(n);
                 for (int n = 32; n < 64; n++) if (!rows.ContainsKey(n)) scan.MoreNumbers.Add(n);
 

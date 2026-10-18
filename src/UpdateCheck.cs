@@ -348,14 +348,31 @@ namespace CoAInstaller
             catch { return false; }
         }
 
-        static string Get(string url)
+        static string Get(string url) { return Get(url, Settings.GitHubTokenActive); }
+
+        static string Get(string url, string token)
         {
             var req = (HttpWebRequest)WebRequest.Create(url);
             req.UserAgent = Product.FileStem;
             req.Accept = "application/vnd.github+json";
             req.Timeout = 10000; req.ReadWriteTimeout = 10000;
-            using (var resp = (HttpWebResponse)req.GetResponse())
-            using (var rd = new StreamReader(resp.GetResponseStream(), Encoding.UTF8)) return rd.ReadToEnd();
+            if (token != null) req.Headers["Authorization"] = "Bearer " + token;
+            try
+            {
+                using (var resp = (HttpWebResponse)req.GetResponse())
+                using (var rd = new StreamReader(resp.GetResponseStream(), Encoding.UTF8)) return rd.ReadToEnd();
+            }
+            catch (WebException ex)
+            {
+                var resp = ex.Response as HttpWebResponse;
+                // an outdated or mistyped token: the same request once more, without it
+                if (token != null && resp != null && resp.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    Settings.RefuseGitHubToken(token);
+                    return Get(url, null);
+                }
+                throw;
+            }
         }
 
         /// <summary>Compares "0.1.2-preview" style versions: numbers first, then a release beats a pre-release.</summary>

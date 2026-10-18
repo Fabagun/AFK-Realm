@@ -176,6 +176,24 @@ namespace CoAInstaller
             return block >= 0 && (blocks[block].Flags & FileExists) != 0 && (blocks[block].Flags & FileDeleteMarker) == 0;
         }
 
+        /// <summary>The names in the archive's "(listfile)"; empty when it has none (the tables only know hashes).</summary>
+        public List<string> Names()
+        {
+            var names = new List<string>();
+            byte[] bytes;
+            try { bytes = Read("(listfile)"); } catch { return names; }
+            if (bytes == null) return names;
+            foreach (var line in Encoding.UTF8.GetString(bytes).Split('\n'))
+            {
+                string name = line.Trim();
+                if (name.Length < 3 || (name.IndexOf('\\') < 0 && name.IndexOf('/') < 0)) continue;
+                bool clean = true;
+                foreach (char c in name) if (c < ' ' || c == '\u007f') { clean = false; break; }
+                if (clean) names.Add(name.Replace('/', '\\'));
+            }
+            return names;
+        }
+
         /// <summary>The unpacked size of a file, or -1.</summary>
         public long SizeOf(string name)
         {
@@ -355,6 +373,13 @@ namespace CoAInstaller
         /// <summary>Writes an archive of format 1 with the given files stored whole, and a (listfile).</summary>
         public static void Write(string path, IDictionary<string, byte[]> files)
         {
+            Write(path, files, null);
+        }
+
+        /// <summary>Writes an archive of format 1 with the given files stored whole, and a (listfile). progress reports
+        /// file by file how far the writing is (done, all).</summary>
+        public static void Write(string path, IDictionary<string, byte[]> files, Action<int, int> progress)
+        {
             var all = new SortedDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             foreach (var f in files) all[f.Key.Replace('/', '\\')] = f.Value;
             var list = new StringBuilder();
@@ -389,6 +414,7 @@ namespace CoAInstaller
                     hashTable[index * 4 + 2] = 0;       // neutral locale, platform 0
                     hashTable[index * 4 + 3] = (uint)block;
                     block++;
+                    if (progress != null) progress(block, all.Count);
                 }
 
                 uint hashPos = (uint)fs.Position;

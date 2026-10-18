@@ -48,7 +48,7 @@ namespace CoAInstaller
     /// <summary>Small line icons, drawn rather than taken from a font, so they look the same on every PC.</summary>
     static class Icons
     {
-        public static readonly string[] Names = { "server", "settings", "modules", "gamemaster", "database", "accounts", "maintenance", "journey", "auction", "client", "globe", "bots" };
+        public static readonly string[] Names = { "server", "settings", "modules", "gamemaster", "database", "accounts", "maintenance", "journey", "auction", "client", "globe", "bots", "sun", "moon" };
 
         public static void Paint(Graphics g, string name, RectangleF r, Color color, float width = 1.6f)
         {
@@ -150,6 +150,24 @@ namespace CoAInstaller
                         g.DrawEllipse(pen, x + w * 0.3f, y + h * 0.08f, w * 0.4f, h * 0.84f);
                         g.DrawLine(pen, x + w * 0.08f, y + h * 0.5f, x + w * 0.92f, y + h * 0.5f);
                         break;
+                    case "sun":
+                        g.DrawEllipse(pen, x + w * 0.32f, y + h * 0.32f, w * 0.36f, h * 0.36f);
+                        for (int i = 0; i < 8; i++)
+                        {
+                            double a = i * Math.PI / 4;
+                            g.DrawLine(pen, x + w * 0.5f + (float)Math.Cos(a) * w * 0.42f, y + h * 0.5f + (float)Math.Sin(a) * h * 0.42f,
+                                            x + w * 0.5f + (float)Math.Cos(a) * w * 0.5f, y + h * 0.5f + (float)Math.Sin(a) * h * 0.5f);
+                        }
+                        break;
+                    case "moon":
+                        using (var p = new GraphicsPath())
+                        {
+                            p.AddArc(x + w * 0.08f, y + h * 0.08f, w * 0.84f, h * 0.84f, 55, 250);
+                            p.AddArc(x + w * 0.4f, y + h * 0.0f, w * 0.8f, h * 0.9f, 245, -230);
+                            p.CloseFigure();
+                            g.FillPath(brush, p);
+                        }
+                        break;
                     default:
                         g.DrawEllipse(pen, r);
                         break;
@@ -208,10 +226,10 @@ namespace CoAInstaller
                     fill = !Enabled ? Color.FromArgb(230, 200, 200) : down || hover ? Color.FromArgb(170, 40, 40) : Ui.Bad;
                     border = fill; ink = Color.White; break;
                 case ButtonKind.Ghost:
-                    fill = down ? Ui.AccentSoft : hover ? Draw.Mix(Ui.AccentSoft, Color.White, 0.5) : Draw.Behind(this);
+                    fill = down ? Ui.AccentSoft : hover ? Draw.Mix(Ui.AccentSoft, Ui.Surface, 0.5) : Draw.Behind(this);
                     border = fill; ink = Enabled ? Ui.Accent : Ui.Muted; break;
                 default:
-                    fill = !Enabled ? Ui.Canvas : down ? Ui.AccentSoft : hover ? Draw.Mix(Ui.AccentSoft, Color.White, 0.55) : Color.White;
+                    fill = !Enabled ? Ui.Canvas : down ? Ui.AccentSoft : hover ? Draw.Mix(Ui.AccentSoft, Ui.Surface, 0.55) : Ui.Surface;
                     border = hover && Enabled ? Draw.Mix(Ui.Accent, Ui.Line, 0.5) : Ui.Line; ink = Enabled ? Ui.Text : Ui.Muted; break;
             }
             var r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
@@ -276,7 +294,7 @@ namespace CoAInstaller
             g.Clear(Draw.Behind(this) == Color.Empty ? Ui.Surface : Draw.Behind(this));
             Draw.Smooth(g);
             var track = new RectangleF(1, 5, 40, 22);
-            Color on = Enabled ? Ui.Accent : Color.FromArgb(200, 194, 222), off = Enabled ? Color.FromArgb(200, 198, 212) : Ui.Line;
+            Color on = Enabled ? Ui.Accent : Color.FromArgb(200, 194, 222), off = Enabled ? Ui.ToggleOff : Ui.Line;
             using (var p = Draw.Round(track, 11)) using (var b = new SolidBrush(Checked ? on : off)) g.FillPath(b, p);
             float knob = Checked ? track.Right - 19 : track.X + 3;
             g.FillEllipse(Brushes.White, knob, track.Y + 3, 16, 16);
@@ -383,7 +401,7 @@ namespace CoAInstaller
             string label = Range ? Text_(low) + " – " + Text_(high) : Text_(low);
             var box = new RectangleF(Width - ValueWidth, Height / 2f - 13, ValueWidth - 2, 26);
             using (var p = Draw.Round(box, 6)) using (var b = new SolidBrush(Ui.AccentSoft)) g.FillPath(b, p);
-            TextRenderer.DrawText(g, label, Ui.Bold, Rectangle.Round(box), Enabled ? Ui.AccentDark : Ui.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            TextRenderer.DrawText(g, label, Ui.Bold, Rectangle.Round(box), Enabled ? Ui.AccentInk : Ui.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             if (Focused) using (var pen = new Pen(Color.FromArgb(90, Ui.Accent)) { DashStyle = DashStyle.Dot }) g.DrawRectangle(pen, 0, 0, Width - ValueWidth - 8, Height - 1);
         }
 
@@ -473,7 +491,7 @@ namespace CoAInstaller
             var r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
             using (var p = Draw.Round(r, 10))
             {
-                g.FillPath(Brushes.White, p);
+                using (var b = new SolidBrush(Ui.Surface)) g.FillPath(b, p);
                 using (var pen = new Pen(Ui.Line)) g.DrawPath(pen, p);
             }
             if (Stripe != Color.Empty)
@@ -508,7 +526,7 @@ namespace CoAInstaller
             var g = e.Graphics; g.Clear(Draw.Behind(this)); Draw.Smooth(g);
             using (var p = Draw.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 10))
             {
-                using (var b = new SolidBrush(hover ? Draw.Mix(Ui.AccentSoft, Color.White, 0.4) : Color.White)) g.FillPath(b, p);
+                using (var b = new SolidBrush(hover ? Draw.Mix(Ui.AccentSoft, Ui.Surface, 0.4) : Ui.Surface)) g.FillPath(b, p);
                 using (var pen = new Pen(hover || Focused ? Draw.Mix(Ui.Accent, Ui.Line, 0.4) : Ui.Line)) g.DrawPath(pen, p);
             }
             var ir = new RectangleF(18, Height / 2f - 21, 42, 42);
@@ -571,7 +589,7 @@ namespace CoAInstaller
             Draw.Smooth(g);
             using (var p = Draw.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 9))
             {
-                g.FillPath(Brushes.White, p);
+                using (var b = new SolidBrush(Ui.Surface)) g.FillPath(b, p);
                 using (var pen = new Pen(Ui.Line)) g.DrawPath(pen, p);
             }
             using (var b = new SolidBrush(Color.FromArgb(50, Dot))) g.FillEllipse(b, 12, Height / 2f - 9, 18, 18);
@@ -748,25 +766,34 @@ namespace CoAInstaller
         }
     }
 
-    /// <summary>The look of lists, tables and inputs in AFK Realm's colours, applied to a whole window at once.</summary>
+    /// <summary>The look of lists, tables and inputs in AFK Realm's colours, applied to a whole window at once.
+    /// Everything a control never got a colour for follows the theme here (light or dark).</summary>
     static class Restyle
     {
         public static void Apply(Control root)
         {
             foreach (Control c in root.Controls) Apply(c);
+            // A control without a colour of AFK Realm's own follows the look.
+            if (root.BackColor == SystemColors.Control) root.BackColor = Ui.Canvas;
+            if (root.ForeColor == SystemColors.ControlText || root.ForeColor == SystemColors.WindowText) root.ForeColor = Ui.Text;
+
             var list = root as ListView;
-            if (list != null && list.View == View.Details && !list.OwnerDraw)
+            if (list != null)
             {
-                list.OwnerDraw = true;
-                list.DrawColumnHeader += (s, e) =>
+                if (list.BackColor == SystemColors.Window || list.BackColor == Color.White) { list.BackColor = Ui.Surface; list.ForeColor = Ui.Text; }
+                if (list.View == View.Details && !list.OwnerDraw)
                 {
-                    using (var b = new SolidBrush(Ui.Canvas)) e.Graphics.FillRectangle(b, e.Bounds);
-                    using (var pen = new Pen(Ui.Line)) { e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1); e.Graphics.DrawLine(pen, e.Bounds.Right - 1, e.Bounds.Top + 5, e.Bounds.Right - 1, e.Bounds.Bottom - 6); }
-                    var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | (e.Header.TextAlign == HorizontalAlignment.Right ? TextFormatFlags.Right : TextFormatFlags.Left);
-                    TextRenderer.DrawText(e.Graphics, e.Header.Text, Ui.Bold, new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height), Ui.Muted, flags);
-                };
-                list.DrawItem += (s, e) => { e.DrawDefault = true; };
-                list.DrawSubItem += (s, e) => { e.DrawDefault = true; };
+                    list.OwnerDraw = true;
+                    list.DrawColumnHeader += (s, e) =>
+                    {
+                        using (var b = new SolidBrush(Ui.Canvas)) e.Graphics.FillRectangle(b, e.Bounds);
+                        using (var pen = new Pen(Ui.Line)) { e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1); e.Graphics.DrawLine(pen, e.Bounds.Right - 1, e.Bounds.Top + 5, e.Bounds.Right - 1, e.Bounds.Bottom - 6); }
+                        var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | (e.Header.TextAlign == HorizontalAlignment.Right ? TextFormatFlags.Right : TextFormatFlags.Left);
+                        TextRenderer.DrawText(e.Graphics, e.Header.Text, Ui.Bold, new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height), Ui.Muted, flags);
+                    };
+                    list.DrawItem += (s, e) => { e.DrawDefault = true; };
+                    list.DrawSubItem += (s, e) => { e.DrawDefault = true; };
+                }
             }
             var grid = root as DataGridView;
             if (grid != null)
@@ -780,13 +807,41 @@ namespace CoAInstaller
                 grid.ColumnHeadersDefaultCellStyle.ForeColor = Ui.Muted;
                 grid.ColumnHeadersDefaultCellStyle.Font = Ui.Bold;
                 grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = Ui.Canvas;
+                grid.DefaultCellStyle.BackColor = Ui.Surface;
+                grid.DefaultCellStyle.ForeColor = Ui.Text;
                 grid.DefaultCellStyle.SelectionBackColor = Ui.AccentSoft;
                 grid.DefaultCellStyle.SelectionForeColor = Ui.Text;
                 grid.RowHeadersDefaultCellStyle.BackColor = Ui.Canvas;
+                grid.RowHeadersDefaultCellStyle.ForeColor = Ui.Muted;
                 grid.RowHeadersDefaultCellStyle.SelectionBackColor = Ui.AccentSoft;
+                grid.RowHeadersDefaultCellStyle.SelectionForeColor = Ui.Text;
             }
-            var box = root as TextBox;
-            if (box != null && box.BorderStyle == BorderStyle.Fixed3D) box.BorderStyle = BorderStyle.FixedSingle;
+            var box = root as TextBoxBase;
+            if (box != null)
+            {
+                var text = box as TextBox;
+                if (text != null && text.BorderStyle == BorderStyle.Fixed3D) text.BorderStyle = BorderStyle.FixedSingle;
+                if (box.BackColor == SystemColors.Window || box.BackColor == Color.White) { box.BackColor = Ui.Surface; box.ForeColor = Ui.Text; }
+            }
+            var combo = root as ComboBox;
+            if (combo != null && (combo.BackColor == SystemColors.Window || combo.BackColor == Color.White)) { combo.BackColor = Ui.Surface; combo.ForeColor = Ui.Text; }
+            // A drop-down list in the Windows style stays white whatever its colour: in the dark look it is drawn flat.
+            if (combo != null) Theme.StyleCombo(combo);
+            var listBox = root as ListBox;
+            if (listBox != null && (listBox.BackColor == SystemColors.Window || listBox.BackColor == Color.White)) { listBox.BackColor = Ui.Surface; listBox.ForeColor = Ui.Text; }
+            var tabs = root as TabControl;
+            if (tabs != null && tabs.DrawMode != TabDrawMode.OwnerDrawFixed)
+            {
+                tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+                tabs.DrawItem += (s, e) =>
+                {
+                    var g = e.Graphics; Draw.Smooth(g);
+                    bool selected = e.Index == tabs.SelectedIndex;
+                    using (var b = new SolidBrush(selected ? Ui.Surface : Ui.Canvas)) g.FillRectangle(b, e.Bounds);
+                    TextRenderer.DrawText(g, tabs.TabPages[e.Index].Text, selected ? Ui.Bold : Ui.Base, e.Bounds,
+                        selected ? Ui.Text : Ui.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                };
+            }
         }
     }
 }

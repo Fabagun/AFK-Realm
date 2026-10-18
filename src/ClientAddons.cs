@@ -46,12 +46,49 @@ namespace CoAInstaller
         /// <summary>A game folder has a "Data" folder with the game's .MPQ archives.</summary>
         public static bool IsClientFolder(string dir)
         {
+            try { return !string.IsNullOrEmpty(dir) && HasArchives(dir.TrimEnd('\\', '/')); }
+            catch { return false; }
+        }
+
+        /// <summary>The game folder (the one with "Data") behind what the user picked: the game folder itself, the
+        /// "Data" folder or a folder inside it, or a folder of a repack with the game somewhere below it. Null when
+        /// there is no game folder (see also RacePacker.ArchivesOf, which reads the archives the same way).</summary>
+        public static string GameRoot(string dir)
+        {
             try
             {
-                string data = Path.Combine(dir ?? "", "Data");
-                return !string.IsNullOrEmpty(dir) && Directory.Exists(data) && Directory.EnumerateFiles(data, "*.mpq").Any();
+                dir = (dir ?? "").Trim().TrimEnd('\\', '/');
+                if (dir.Length == 0 || !Directory.Exists(dir)) return null;
+                if (HasArchives(dir)) return dir;                                     // the game folder itself
+                string parent = Path.GetDirectoryName(dir);
+                string up = Named(Path.GetFileName(dir), "Data") ? parent             // the "Data" folder itself
+                    : Named(Path.GetFileName(parent ?? ""), "Data") ? Path.GetDirectoryName(parent) : null;  // a folder in "Data"
+                if (up != null && HasArchives(up)) return up;
+                foreach (var d in Below(dir, 3)) if (HasArchives(d)) return d;        // a repack unpacked into a folder of its own
+                return null;
             }
-            catch { return false; }
+            catch { return null; }
+        }
+
+        static bool HasArchives(string dir)
+        {
+            string data = Path.Combine(dir ?? "", "Data");
+            return Directory.Exists(data) && Directory.EnumerateFiles(data, "*.mpq").Any();
+        }
+
+        static bool Named(string name, string want) { return string.Equals(name, want, StringComparison.OrdinalIgnoreCase); }
+
+        /// <summary>The folders below a folder, up to the given depth.</summary>
+        static IEnumerable<string> Below(string folder, int depth)
+        {
+            if (depth == 0) yield break;
+            string[] dirs;
+            try { dirs = Directory.GetDirectories(folder); } catch { yield break; }
+            foreach (var d in dirs.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                yield return d;
+                foreach (var e in Below(d, depth - 1)) yield return e;
+            }
         }
 
         static string AddonsDir(string client) { return Path.Combine(client, "Interface", "AddOns"); }
@@ -298,7 +335,7 @@ namespace CoAInstaller
         public ClientDialog(Install i, string reason = null)
         {
             inst = i;
-            Text = Product.Name + " – " + L.T("Game client"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = Product.Name + " – " + L.T("Game client"); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(840, 520); MinimumSize = new Size(720, 440);
 
             var top = Ui.Column(); top.Dock = DockStyle.Top; top.AutoSize = true; top.Padding = new Padding(16, 12, 16, 4);
@@ -314,8 +351,9 @@ namespace CoAInstaller
             {
                 using (var d = new FolderBrowserDialog { Description = L.T("Choose your game folder (it contains the \"Data\" folder)") })
                 {
-                    if (IsFolder(folder.Text)) d.SelectedPath = folder.Text.Trim();
-                    if (d.ShowDialog(this) == DialogResult.OK) { folder.Text = d.SelectedPath; Refresh_(); }
+                    string root = ClientAddons.GameRoot(folder.Text);
+                    if (root != null) d.SelectedPath = root;
+                    if (d.ShowDialog(this) == DialogResult.OK) { folder.Text = ClientAddons.GameRoot(d.SelectedPath) ?? d.SelectedPath; Refresh_(); }
                 }
             };
             row.Controls.Add(browse);
@@ -346,8 +384,7 @@ namespace CoAInstaller
 
         string checkedFolder;
 
-        static bool IsFolder(string dir) { return ClientAddons.IsClientFolder((dir ?? "").Trim().TrimEnd('\\')); }
-        string Client { get { var d = folder.Text.Trim().TrimEnd('\\'); return ClientAddons.IsClientFolder(d) ? d : null; } }
+        string Client { get { return ClientAddons.GameRoot(folder.Text); } }
 
         void Refresh_()
         {
@@ -401,7 +438,7 @@ namespace CoAInstaller
             install.Text = due || !anything ? L.T("Install") : L.T("Install again");
             if (!anything) state.Text = L.T("None of the installed modules brings an add-on or a client patch for the game client.");
             else if (folder.Text.Trim().Length == 0) state.Text = L.T("Choose your game folder, the one with the \"Data\" folder.");
-            else if (client == null) state.Text = L.T("This is not a game folder: it needs a \"Data\" folder with the game's .MPQ archives.");
+            else if (client == null) state.Text = L.T("This is not a game folder: it needs a \"Data\" folder with the game's .MPQ archives.") + " " + L.T("You can also choose the \"Data\" folder itself.");
             else if (patchProblem != null) state.Text = L.T("The client patch cannot be built:") + " " + patchProblem;
             else state.Text = due ? L.T("Not everything is in your game yet. Close the game and its launcher, then choose \"Install\".") : L.T("Your game has everything the installed modules bring.");
             state.ForeColor = client != null && due ? Ui.Warn : Ui.Muted;

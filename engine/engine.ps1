@@ -1593,7 +1593,21 @@ function Set-ModuleSettings {
 # A snapshot holds everything an update changes: the server programs, the configs,
 # all four databases and the core/Playerbots versions they were built from. Map data
 # and build files are left out; they are not touched by updates.
+# How many snapshots are kept before the oldest are removed. AFK Realm writes the user's
+# choice to Dependencies\backup-settings.txt (keep=<number>); an engine run on its own keeps 3.
 $KeepSnapshots = 3
+try {
+    $keepFile = Join-Path $Paths.Deps 'backup-settings.txt'
+    if (Test-Path $keepFile) {
+        foreach ($line in [IO.File]::ReadAllLines($keepFile)) {
+            $eq = $line.IndexOf('=')
+            if ($eq -le 0 -or $line.Substring(0, $eq).Trim() -ne 'keep') { continue }
+            $value = 0
+            if ([int]::TryParse($line.Substring($eq + 1).Trim(), [ref]$value) -and $value -ge 1 -and $value -le 99) { $KeepSnapshots = $value }
+            break
+        }
+    }
+} catch { }
 
 # Runs a program with its standard output written to a gzip file, or its standard
 # input read from a gzip file or a plain file. Used for mysqldump/mysql, whose data

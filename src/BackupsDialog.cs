@@ -11,7 +11,8 @@ namespace CoAInstaller
 {
     /// <summary>
     /// Lists the server snapshots in &lt;root&gt;\Backups. The engine creates one automatically before every
-    /// update; here you can make one by hand, roll the server back to one, or delete one.
+    /// update; here you can make one by hand, roll the server back to one, delete one, and set how many
+    /// backups are kept.
     /// </summary>
     class BackupsDialog : AfkForm
     {
@@ -28,13 +29,23 @@ namespace CoAInstaller
         public BackupsDialog(Install i)
         {
             inst = i;
-            Text = Product.Name + " – " + L.T("Backups"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = Product.Name + " – " + L.T("Backups"); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(820, 470); MinimumSize = new Size(700, 380);
 
-            var top = new Panel { Dock = DockStyle.Top, Height = 70, Padding = new Padding(16, 12, 16, 0) };
-            top.Controls.Add(new Label { Dock = DockStyle.Fill, Font = Ui.Base, ForeColor = Ui.Muted,
+            var top = new Panel { Dock = DockStyle.Top, Height = 104, Padding = new Padding(16, 12, 16, 6) };
+            var intro = new Label { Dock = DockStyle.Top, Height = 48, Font = Ui.Base, ForeColor = Ui.Muted,
                 Text = L.F("Before every update {0} saves the server: programs, settings, all databases and the versions they were built from. " +
-                       "If an update causes problems, restore the backup made before it. The newest 3 backups are kept.", Product.Name) });
+                       "If an update causes problems, restore the backup made before it.", Product.Name) };
+            // How many snapshots are kept; the engine reads the same number (Dependencies\backup-settings.txt).
+            var keepRow = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 32, WrapContents = false };
+            keepRow.Controls.Add(new Label { Text = L.T("Backups to keep:"), Font = Ui.Base, ForeColor = Ui.Text, AutoSize = true, Margin = new Padding(0, 7, 6, 0) });
+            var keep = new NumericUpDown { Minimum = BackupSettings.Min, Maximum = BackupSettings.Max, Value = BackupSettings.Load(inst.Root),
+                Width = 56, Font = Ui.Base, TextAlign = HorizontalAlignment.Center, Margin = new Padding(0, 3, 10, 0) };
+            keepRow.Controls.Add(keep);
+            keepRow.Controls.Add(new Label { Text = L.T("Older ones are removed with the next backup."), Font = Ui.Small, ForeColor = Ui.Muted, AutoSize = true, Margin = new Padding(0, 10, 0, 0) });
+            keep.ValueChanged += (s, e) => { try { BackupSettings.Save(inst.Root, (int)keep.Value); } catch (Exception ex) { Ui.Error(this, L.T("The setting could not be saved:") + "\n" + ex.Message); } };
+            top.Controls.Add(keepRow);
+            top.Controls.Add(intro);
 
             list.Columns.Add(L.T("Created"), 140);
             list.Columns.Add(L.T("Made"), 240);

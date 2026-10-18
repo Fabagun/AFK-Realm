@@ -28,7 +28,7 @@ namespace CoAInstaller
 
         /// <summary>A file next to the game's exe (a DLL the game loads), taken from a file of the user's own (a module
         /// never ships one).</summary>
-        internal class RootFile { public string Module, From, To; }
+        internal class RootFile { public string Module, From, To; public bool Zip = true; }
 
         internal class FileSpec { public string Module, From, To; public List<Dictionary<string, object>> Fills; }
         internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows, ImportRace, SectionRules, AddFile; public long? IdShift; }
@@ -43,6 +43,8 @@ namespace CoAInstaller
             internal List<EditSpec> Edits = new List<EditSpec>();
             internal List<RaceImport.Wanted> Imports = new List<RaceImport.Wanted>();
             internal List<RootFile> RootFiles = new List<RootFile>();
+            /// <summary>A folder of files for next to the exe that was chosen but is not there: module TAB folder.</summary>
+            internal List<string> MissingFolders = new List<string>();
             public bool Empty { get { return Files.Count == 0 && Edits.Count == 0; } }
         }
 
@@ -84,6 +86,22 @@ namespace CoAInstaller
                     string to = Text(f, "to");
                     if (!Regex.IsMatch(to, @"^[A-Za-z0-9_.-]+\.dll$")) continue;          // a DLL by its name, next to the exe only
                     plan.RootFiles.Add(new RootFile { Module = module, To = to, From = Convert.ToString(f.TryGetValue("from", out v) ? Settings(inst, v) : "") });
+                }
+                // a folder of the user's own whose files all go next to the exe (CoA Custom's files\client_root)
+                foreach (var f in List(patch, "rootFolders"))
+                {
+                    if (!When(inst, f)) continue;
+                    string folder = Convert.ToString(f.TryGetValue("from", out v) ? Settings(inst, v) : "").Trim();
+                    if (folder.Length == 0) continue;                                       // none chosen: nothing to copy
+                    bool zip = f.TryGetValue("zip", out v) && v is bool && (bool)v;
+                    if (!Directory.Exists(folder)) { plan.MissingFolders.Add(module + "\t" + folder); continue; }
+                    string top = Path.GetFullPath(folder).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+                    foreach (var one in Directory.GetFiles(top, "*", SearchOption.AllDirectories).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                    {
+                        string to = one.Substring(top.Length).Replace('/', '\\');
+                        if (!SafeRootPath(to) || plan.RootFiles.Any(r => r.To.Equals(to, StringComparison.OrdinalIgnoreCase))) continue;
+                        plan.RootFiles.Add(new RootFile { Module = module, From = one, To = to, Zip = zip });
+                    }
                 }
                 foreach (var e in Expand(inst, List(patch, "edits")))
                 {
@@ -357,13 +375,13 @@ namespace CoAInstaller
                 if (!int.TryParse(Text(e.ImportRace, "id"), out race) || race <= 0) continue;
                 if (!int.TryParse(Text(e.ImportRace, "base"), out baseRace)) baseRace = BaseRaceId(Text(e.ImportRace, "base"));
                 string name = Text(e.ImportRace, "name");
-                RaceImport.AddRace(load, save, pack, race, baseRace, name.Length > 0 ? name : pack.Name);
+                RaceImport.AddRace(load, save, pack, race, baseRace, name.Length > 0 ? name : pack.Name, notes == null ? null : new Action<string>(notes.Add));
             }
             foreach (var e in plan.Edits.Where(e => e.SectionRules != null))
             {
                 int race;
                 if (!int.TryParse(Text(e.SectionRules, "race"), out race) || race <= 0) continue;
-                RaceImport.SectionRules(load, save, race, Text(e.SectionRules, "maleOnly") == "1");
+                RaceImport.SectionRules(load, save, race, Text(e.SectionRules, "maleOnly") == "1", notes == null ? null : new Action<string>(notes.Add));
             }
             if (files.Count > 0) files[StampName] = Encoding.UTF8.GetBytes(Stamp(files) + string.Concat(plan.Imports.Select(w => "race " + w.Race + " " + w.Pack.Key + "\r\n")));
             return files;
@@ -763,37 +781,87 @@ namespace CoAInstaller
 
         static string RootRecord(Install inst) { return Path.Combine(inst.Root, "Dependencies", "client-root-files.txt"); }
 
+        // The hashes taken so far, by path, size and time: a folder of files for next to the exe can be hundreds of MB.
+        static readonly Dictionary<string, string> hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         static string Hash(string path)
         {
+            var fi = new FileInfo(path);
+            string key = fi.FullName + "|" + fi.Length + "|" + fi.LastWriteTimeUtc.Ticks, h;
+            lock (hashes) if (hashes.TryGetValue(key, out h)) return h;
             using (var sha = System.Security.Cryptography.SHA1.Create())
             using (var f = File.OpenRead(path))
-                return BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "");
+                h = BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "");
+            lock (hashes) hashes[key] = h;
+            return h;
+        }
+
+        /// <summary>A file next to the exe, or in a folder of its own there - never in the game's own folders and never the game itself.</summary>
+        static bool SafeRootPath(string to)
+        {
+            if (to.Length == 0 || Path.IsPathRooted(to) || to.IndexOf(':') >= 0 || to.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return false;
+            var parts = to.Split('\\');
+            if (parts.Any(p => p.Length == 0 || p == "." || p == "..")) return false;
+            if (new[] { "Data", "WTF", "Cache", "Interface", "Logs", "Errors", "AFK-Realm" }.Any(d => d.Equals(parts[0], StringComparison.OrdinalIgnoreCase)) && parts.Length > 1) return false;
+            return !new[] { "Ascension.exe", "Wow.exe", "Launcher.exe", "realmlist.wtf" }.Any(n => n.Equals(to, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>CoA Custom's files for next to the exe (files\client_root), from the folder of the pack, its files folder,
+        /// or that folder itself; null when there is none.</summary>
+        public static string ClientRootOf(string picked)
+        {
+            if (string.IsNullOrEmpty(picked)) return null;
+            picked = picked.TrimEnd('\\', '/');
+            foreach (var c in new[] { Path.Combine(picked, "files", "client_root"), Path.Combine(picked, "client_root"), picked })
+                if (Path.GetFileName(c).Equals("client_root", StringComparison.OrdinalIgnoreCase) && Directory.Exists(c) && Directory.GetFiles(c).Length > 0) return c;
+            return null;
+        }
+
+        /// <summary>The 64-race patch of the same CoA Custom (files\client\dinput8.dll), or null.</summary>
+        public static string CoAPatchOf(string clientRoot)
+        {
+            if (string.IsNullOrEmpty(clientRoot)) return null;
+            string files = Path.GetDirectoryName(clientRoot.TrimEnd('\\', '/'));
+            string dll = files == null ? null : Path.Combine(files, "client", "dinput8.dll");
+            return dll != null && File.Exists(dll) ? dll : null;
         }
 
         static void CheckRootFiles(Plan plan)
         {
+            foreach (var m in plan.MissingFolders)
+            {
+                var p = m.Split('\t');
+                throw new InvalidOperationException(L.F("{0} wants the files of {1} next to the game, but that folder is not there. Open its setup page and choose the folder again, or choose to copy nothing.", p[0], p[1]));
+            }
             foreach (var r in plan.RootFiles)
                 if (string.IsNullOrEmpty(r.From) || !File.Exists(r.From))
                     throw new InvalidOperationException(L.F("{0} wants {1} next to the game, from {2}, which is not there. Open its setup page and choose the file again, or switch that option off.",
                         r.Module, r.To, string.IsNullOrEmpty(r.From) ? L.T("a file not chosen yet") : r.From));
         }
 
-        /// <summary>The files next to the exe put there before: name -> hash.</summary>
-        static Dictionary<string, string> RootPlaced(Install inst)
+        /// <summary>The files next to the exe put there before: name -> hash. Found: those that were there already, the same,
+        /// before (put there by hand): they are left where they are when they are no longer wanted.</summary>
+        static Dictionary<string, string> RootPlaced(Install inst) { HashSet<string> found; return RootPlaced(inst, out found); }
+
+        static Dictionary<string, string> RootPlaced(Install inst, out HashSet<string> found)
         {
             var placed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (File.Exists(RootRecord(inst)))
                 foreach (var line in File.ReadAllLines(RootRecord(inst)))
                 {
                     var parts = line.Split('\t');
-                    if (parts.Length == 2) placed[parts[0]] = parts[1];
+                    if (parts.Length < 2) continue;
+                    placed[parts[0]] = parts[1];
+                    if (parts.Length > 2 && parts[2] == "found") found.Add(parts[0]);
                 }
             return placed;
         }
 
         static bool RootFilesCurrent(Install inst, string client, Plan plan)
         {
-            var placed = RootPlaced(inst);
+            HashSet<string> found;
+            var placed = RootPlaced(inst, out found);
             foreach (var r in plan.RootFiles)
             {
                 string dest = Path.Combine(client, r.To);
@@ -801,7 +869,7 @@ namespace CoAInstaller
             }
             // one placed before and no longer wanted is still there
             foreach (var p in placed)
-                if (!plan.RootFiles.Any(r => r.To.Equals(p.Key, StringComparison.OrdinalIgnoreCase)) && File.Exists(Path.Combine(client, p.Key)) && Hash(Path.Combine(client, p.Key)) == p.Value)
+                if (!found.Contains(p.Key) && !plan.RootFiles.Any(r => r.To.Equals(p.Key, StringComparison.OrdinalIgnoreCase)) && File.Exists(Path.Combine(client, p.Key)) && Hash(Path.Combine(client, p.Key)) == p.Value)
                     return false;
             return true;
         }
@@ -811,38 +879,51 @@ namespace CoAInstaller
         static List<string> SyncRootFiles(Install inst, string client, Plan plan)
         {
             var notes = new List<string>();
-            var placed = RootPlaced(inst);
+            HashSet<string> found;
+            var placed = RootPlaced(inst, out found);
             var now = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var keep = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var put = new List<string>();
+            var gone = new List<string>();
             try
             {
                 foreach (var r in plan.RootFiles)
                 {
-                    string dest = Path.Combine(client, r.To), want = Hash(r.From);
-                    if (File.Exists(dest) && Hash(dest) == want) { now[r.To] = want; continue; }
-                    string mine;
+                    string dest = Path.Combine(client, r.To), want = Hash(r.From), mine;
+                    if (File.Exists(dest) && Hash(dest) == want)
+                    {
+                        // the same file already there: ours from before, or put there by hand (then it stays when no longer wanted)
+                        now[r.To] = want;
+                        if (found.Contains(r.To) || !(placed.TryGetValue(r.To, out mine) && mine == want)) keep.Add(r.To);
+                        continue;
+                    }
                     if (File.Exists(dest) && !(placed.TryGetValue(r.To, out mine) && Hash(dest) == mine) && !File.Exists(dest + ".afk-backup"))
                         File.Move(dest, dest + ".afk-backup");
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest));
                     File.Copy(r.From, dest, true);
                     now[r.To] = want;
-                    notes.Add(L.F("{0} placed next to the game", r.To));
+                    put.Add(r.To);
                 }
                 foreach (var p in placed)
                 {
-                    if (now.ContainsKey(p.Key)) continue;
+                    if (now.ContainsKey(p.Key) || found.Contains(p.Key)) continue;
                     string dest = Path.Combine(client, p.Key);
                     if (File.Exists(dest) && Hash(dest) == p.Value)
                     {
                         File.Delete(dest);
                         if (File.Exists(dest + ".afk-backup")) File.Move(dest + ".afk-backup", dest);
-                        notes.Add(L.F("{0} taken away", p.Key));
+                        gone.Add(p.Key);
                     }
                 }
             }
             catch (IOException ex) { throw new InvalidOperationException(L.F("A file next to the game could not be changed ({0}). Close the game and its launcher first.", ex.Message)); }
             catch (UnauthorizedAccessException ex) { throw new InvalidOperationException(L.F("A file next to the game could not be changed ({0}).", ex.Message)); }
+            // a few by name, many by their number
+            if (put.Count > 3) notes.Add(L.F("{0} files placed next to the game", put.Count)); else notes.AddRange(put.Select(n => L.F("{0} placed next to the game", n)));
+            if (gone.Count > 3) notes.Add(L.F("{0} files taken away", gone.Count)); else notes.AddRange(gone.Select(n => L.F("{0} taken away", n)));
             Directory.CreateDirectory(Path.GetDirectoryName(RootRecord(inst)));
             if (now.Count == 0) { if (File.Exists(RootRecord(inst))) File.Delete(RootRecord(inst)); }
-            else File.WriteAllLines(RootRecord(inst), now.Select(p => p.Key + "\t" + p.Value), new UTF8Encoding(false));
+            else File.WriteAllLines(RootRecord(inst), now.Select(p => p.Key + "\t" + p.Value + (keep.Contains(p.Key) ? "\tfound" : "")), new UTF8Encoding(false));
             return notes;
         }
 
@@ -934,9 +1015,10 @@ namespace CoAInstaller
             var notes = new List<string>();
             progress(L.T("Building the client patch from your game client …"), 0, 0);
             var files = Build(inst, client, plan, notes);
-            progress(L.F("Writing Data\\{0} …", ArchiveName), 0, 0);
             string temp = path + ".new";
-            MpqArchive.Write(temp, files);
+            string what = L.F("Writing Data\\{0}", ArchiveName);
+            progress(what + " …", 0, files.Count + 2);
+            MpqArchive.Write(temp, files, (done, all) => progress(what + ": " + done + " of " + all + " files", done, all));
             try
             {
                 if (File.Exists(path)) File.Replace(temp, path, null);
@@ -967,12 +1049,15 @@ namespace CoAInstaller
             string temp = Path.GetTempFileName();
             try
             {
-                MpqArchive.Write(temp, files);
+                string what = L.F("Writing Data\\{0}", ArchiveName);
+                progress(what + " …", 0, files.Count + 2);
+                MpqArchive.Write(temp, files, (done, all) => progress(what + ": " + done + " of " + all + " files", done, all));
                 zip.CreateEntryFromFile(temp, "Data/" + ArchiveName, CompressionLevel.Optimal);
             }
             finally { try { File.Delete(temp); } catch { } }
             CheckRootFiles(plan);
-            foreach (var r in plan.RootFiles) zip.CreateEntryFromFile(r.From, r.To, CompressionLevel.Optimal);
+            // the files the players have themselves (CoA Custom's, next to the exe) stay out
+            foreach (var r in plan.RootFiles.Where(r => r.Zip)) zip.CreateEntryFromFile(r.From, r.To.Replace('\\', '/'), CompressionLevel.Optimal);
             int n = 0;
             foreach (var w in plan.Imports)
             {

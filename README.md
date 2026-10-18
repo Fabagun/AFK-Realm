@@ -51,7 +51,7 @@ Pre-built repacks go stale quickly. Building from source keeps you on the latest
 - **Server name**: choose the name shown in the realm list during installation and change it later with one click
 - **Play with others**: set a VPN or LAN address (e.g. Radmin VPN); the tool configures the realm, the CoA remote-client setting and the Windows Firewall
 - **Updates**: shows when newer server code or a newer AFK Realm release is available and installs a new AFK Realm with one click; checks the core, Playerbots and your installed modules, and rebuilds only when something changed
-- **Backups and rollback**: before every update the server is saved (programs, settings, all databases and their versions); if a new version causes problems, one click restores the previous state. Backups can also be made by hand; the newest 3 are kept
+- **Backups and rollback**: before every update the server is saved (programs, settings, all databases and their versions); if a new version causes problems, one click restores the previous state. Backups can also be made by hand; the newest ones are kept — three by default, the number is up to you
 - **Portable**: everything lives in one folder; the database runs without a Windows service
 
 ## Screenshots
@@ -151,7 +151,7 @@ C:\CoA-Server\
   DB\             portable MySQL and its data
   Dependencies\   tools, source code (modules in Source\modules), build files
   logs\           install.log, mysql-error.log
-  Backups\        server backups made before updates (newest 3)
+  Backups\        server backups made before updates (the newest ones; 3 by default)
   Builder\        copy of the builder (the desktop shortcut points here)
 ```
 

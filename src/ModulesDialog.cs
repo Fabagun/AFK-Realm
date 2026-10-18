@@ -32,6 +32,7 @@ namespace CoAInstaller
         readonly Button readme = Ui.Secondary(L.T("Show README"));
         readonly Button apply = Ui.Primary(L.T("Apply changes …"));
         readonly TextBox customUrl = new TextBox { Font = Ui.Base, Width = 380, Margin = new Padding(0, 3, 8, 3) };
+        readonly TextBox token = new TextBox { Font = Ui.Base, Width = 320, Margin = new Padding(0, 3, 8, 3) };
 
         // The modules made for AFK Realm stand above the catalog, in a section of their own.
         readonly FlowLayoutPanel ownPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 0, 0, 2) };
@@ -44,7 +45,7 @@ namespace CoAInstaller
         public ModulesDialog(Install i)
         {
             inst = i;
-            Text = Product.Name + " – " + L.T("Modules"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = Product.Name + " – " + L.T("Modules"); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(1080, 660); MinimumSize = new Size(900, 520);
 
             var top = Ui.Column(); top.Dock = DockStyle.Top; top.AutoSize = true; top.Padding = new Padding(16, 12, 16, 4);
@@ -54,7 +55,7 @@ namespace CoAInstaller
             var filter = Ui.Row();
             filter.Controls.Add(new Label { Text = L.T("Search"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
             filter.Controls.Add(search); filter.Controls.Add(hideOld); filter.Controls.Add(onlyInstalled);
-            var reload = Ui.Secondary(L.T("Reload list")); reload.Click += (s, e) => LoadList(true);
+            var reload = Ui.Secondary(L.T("Reload list")); reload.Click += (s, e) => { KeepToken(); LoadList(true); };
             filter.Controls.Add(reload);
             top.Controls.Add(filter);
 
@@ -74,6 +75,15 @@ namespace CoAInstaller
             detailPanel.Controls.Add(details);
             readme.Visible = false; detailLink.Visible = false;
 
+            // The GitHub token: both the module list and the update check use it, and both burn GitHub's hourly limit without one.
+            var tokenRow = Ui.Row(); tokenRow.Dock = DockStyle.Bottom; tokenRow.Padding = new Padding(16, 2, 16, 2); tokenRow.AutoSize = true;
+            var tokenLabel = new Label { Text = L.T("GitHub token (optional):"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) };
+            tokenRow.Controls.Add(tokenLabel); tokenRow.Controls.Add(token);
+            tokenRow.Controls.Add(new Label { Text = L.T("GitHub allows 60 requests an hour without a token, 5000 with one."), AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(10, 8, 0, 0) });
+            token.Text = Settings.GitHubToken ?? "";
+            token.Leave += (s, e) => KeepToken();
+            FormClosing += (s, e) => KeepToken();
+
             var urlRow = Ui.Row(); urlRow.Dock = DockStyle.Bottom; urlRow.Padding = new Padding(16, 2, 16, 4); urlRow.AutoSize = true;
             urlRow.Controls.Add(new Label { Text = L.T("Not in the list? Git address:"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
             urlRow.Controls.Add(customUrl);
@@ -87,6 +97,7 @@ namespace CoAInstaller
 
             Controls.Add(listPanel);
             Controls.Add(detailPanel);
+            Controls.Add(tokenRow);
             Controls.Add(urlRow);
             Controls.Add(bottom);
             Controls.Add(top);
@@ -105,11 +116,19 @@ namespace CoAInstaller
 
         ModuleEntry Selected { get { return ownSelected ?? (list.SelectedItems.Count == 1 ? list.SelectedItems[0].Tag as ModuleEntry : null); } }
 
+        /// <summary>Keeps the GitHub token the user typed (empty: none). The next request uses it.</summary>
+        void KeepToken()
+        {
+            string want = token.Text.Trim();
+            if (want.Length == 0) want = null;
+            if (want != Settings.GitHubToken) Settings.GitHubToken = want;
+        }
+
         /// <summary>Marks one of the modules by AFK Realm as the one the details are shown for (null: none).</summary>
         void SelectOwn(ModuleEntry m)
         {
             ownSelected = m;
-            foreach (Control row in ownPanel.Controls) if (row.Tag is ModuleEntry) row.BackColor = row.Tag == m ? Ui.Panel : Color.White;
+            foreach (Control row in ownPanel.Controls) if (row.Tag is ModuleEntry) row.BackColor = row.Tag == m ? Ui.Panel : Ui.Surface;
         }
 
         /// <summary>The section "Modules by AFK Realm": one row per module, with a tick like the list below.</summary>
@@ -127,7 +146,7 @@ namespace CoAInstaller
                 {
                     var entry = m;
                     var row = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, Tag = entry, Margin = new Padding(0, 0, 0, 2), Padding = new Padding(2, 2, 6, 2),
-                        BackColor = entry == ownSelected ? Ui.Panel : Color.White };
+                        BackColor = entry == ownSelected ? Ui.Panel : Ui.Surface };
                     var tick = new CheckBox { Text = entry.Name, AutoSize = true, Font = Ui.Bold, Checked = ticked.Contains(entry), Enabled = entry.State != ModuleState.PartOfCoA, Margin = new Padding(2, 1, 10, 0) };
                     var text = new Label { Text = L.Outside(entry.Description), AutoSize = true, Font = Ui.Base, ForeColor = Ui.Text, Margin = new Padding(0, 4, 10, 0), MaximumSize = new Size(360, 0) };
                     var state = new Label { Text = StatusText(entry), AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 5, 0, 0) };
@@ -454,10 +473,10 @@ namespace CoAInstaller
     {
         public TextDialog(string title, string text, string confirm = null)
         {
-            Text = title; Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = title; Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(780, 560); MinimumSize = new Size(500, 300);
             var box = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, WordWrap = true, Dock = DockStyle.Fill,
-                Font = L.Font != null ? Ui.Face(10f) : new Font("Consolas", 10f), BackColor = Color.White, BorderStyle = BorderStyle.None, Text = (text ?? "").Replace("\r\n", "\n").Replace("\n", "\r\n") };
+                Font = L.Font != null ? Ui.Face(10f) : new Font("Consolas", 10f), BackColor = Ui.Surface, BorderStyle = BorderStyle.None, Text = (text ?? "").Replace("\r\n", "\n").Replace("\n", "\r\n") };
             var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
             panel.Controls.Add(box);
             var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 58, Padding = new Padding(14, 10, 14, 10), FlowDirection = FlowDirection.RightToLeft, BackColor = Ui.Panel, WrapContents = false };

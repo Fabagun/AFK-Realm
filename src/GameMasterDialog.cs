@@ -36,7 +36,7 @@ namespace CoAInstaller
         public GameMasterDialog(Install i, ServerControl c)
         {
             inst = i; ctl = c;
-            Text = Product.Name + " – " + L.T("Game master"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = Product.Name + " – " + L.T("Game master"); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(1220, 720); MinimumSize = new Size(980, 600);
 
             var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(16, 12, 16, 6), WrapContents = false };
@@ -88,7 +88,7 @@ namespace CoAInstaller
                 Text = L.T("Choosing a character shows its quest log; \"New quests nearby\" lists what it could still take around it. " +
                        "Give puts the quest into the character's log. Complete marks every objective as done and adds missing quest items. " +
                        "Reward hands a completed quest in: experience, money and the reward (the first one, if there is a choice). Works for offline characters too.") };
-            var questTab = new TabPage(L.T("Quests")) { BackColor = Color.White, Padding = new Padding(10) };
+            var questTab = new TabPage(L.T("Quests")) { BackColor = Ui.Surface, Padding = new Padding(10) };
             questTab.Controls.Add(quests); questTab.Controls.Add(questHint); questTab.Controls.Add(near); questTab.Controls.Add(search);
             questTab.Controls.Add(questButtons); questTab.Controls.Add(questNote);
             questHint.Dock = DockStyle.Top;
@@ -136,7 +136,7 @@ namespace CoAInstaller
             p3.Controls.Add(Action(L.T("Announce"), () => { string t = Clean(announce.Text); if (t.Length > 0) { Send("announce " + t, null); announce.Text = ""; } }));
             player.Controls.Add(p3);
             player.Controls.Add(Ui.Hint(L.T("Everything else works in the console below: type any GM command the server console accepts, for example \"server info\" or \"lookup item sword\"."), 700));
-            var playerTab = new TabPage(L.T("Player")) { BackColor = Color.White, Padding = new Padding(10), AutoScroll = true };
+            var playerTab = new TabPage(L.T("Player")) { BackColor = Ui.Surface, Padding = new Padding(10), AutoScroll = true };
             playerTab.Controls.Add(player);
 
             var tabs = new TabControl { Dock = DockStyle.Fill, Font = Ui.Base };
@@ -421,7 +421,7 @@ namespace CoAInstaller
         }
         static string[] Show(IWin32Window owner, string title, string[] labels, string[] values)
         {
-            using (var f = new Form { Text = title, Font = Ui.Base, BackColor = Color.White, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false,
+            using (var f = new Form { Text = title, Font = Ui.Base, BackColor = Ui.Surface, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false,
                 ShowIcon = false, StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(460, 80 + labels.Length * 62) })
             {
                 var col = Ui.Column(); col.Padding = new Padding(18, 14, 18, 8); col.Dock = DockStyle.Fill;
@@ -440,6 +440,7 @@ namespace CoAInstaller
                 col.Controls.Add(row);
                 f.Controls.Add(col);
                 f.AcceptButton = ok; f.CancelButton = cancel;
+                Restyle.Apply(f);
                 return f.ShowDialog(owner) == DialogResult.OK ? boxes.Select(b => b.Text).ToArray() : null;
             }
         }

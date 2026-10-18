@@ -12,7 +12,7 @@ namespace CoAInstaller
     /// <summary>Window frame: header, page area and footer navigation.</summary>
     class MainForm : Form
     {
-        readonly Panel content = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+        readonly Panel content = new Panel { Dock = DockStyle.Fill, BackColor = Ui.Surface };
         readonly Label headerTitle = new Label { ForeColor = Color.White, Font = Ui.Face(17f, true), AutoSize = true, Location = new Point(28, 10) };
         readonly Label headerTagline = new Label { ForeColor = Color.FromArgb(214, 206, 245), Font = Ui.Face(10.5f, false, FontStyle.Italic), AutoSize = true, Location = new Point(160, 20) };
         readonly Label headerSub = new Label { ForeColor = Color.FromArgb(150, 145, 175), Font = Ui.Face(8.5f), AutoSize = true, Location = new Point(30, 50) };
@@ -20,6 +20,8 @@ namespace CoAInstaller
         readonly Button next = Ui.Primary(L.T("Next"));
         readonly Button close = Ui.Secondary(L.T("Close"));
         readonly List<Page> history = new List<Page>();
+        readonly ThemeButton themeButton = new ThemeButton();
+        readonly System.Windows.Forms.Timer themeFollow = new System.Windows.Forms.Timer { Interval = 4000 };
         Panel footer;
 
         // Wizard state
@@ -38,7 +40,7 @@ namespace CoAInstaller
             ClientSize = new Size(Math.Min(1120, area.Width - 40), Math.Min(760, area.Height - 60));
             MinimumSize = new Size(Math.Min(980, area.Width - 40), Math.Min(640, area.Height - 40));
             StartPosition = FormStartPosition.CenterScreen;
-            BackColor = Color.White;
+            BackColor = Ui.Surface;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
             var header = new Panel { Dock = DockStyle.Top, Height = 74, BackColor = Ui.Header };
@@ -62,16 +64,30 @@ namespace CoAInstaller
             headerTitle.SizeChanged += (s, e) => headerTagline.Left = headerTitle.Right + 10;
             headerTagline.Left = headerTitle.Right + 10;
 
-            // The language of the window, at the right of the header on every page.
+            // The language of the window and its look (light or dark), at the right of the header on every page.
             var language = new LanguageButton { Anchor = AnchorStyles.Top | AnchorStyles.Right };
             header.Controls.Add(language);
-            header.Resize += (s, e) => language.Location = new Point(header.Width - language.Width - 22, 22);
-            language.Location = new Point(header.Width - language.Width - 22, 22);
+            header.Controls.Add(themeButton);
+            Action placeHeaderButtons = () =>
+            {
+                language.Location = new Point(header.Width - language.Width - 22, 22);
+                themeButton.Location = new Point(language.Left - themeButton.Width - 8, 22);
+            };
+            header.Resize += (s, e) => placeHeaderButtons();
+            placeHeaderButtons();
             language.Click += (s, e) => LanguageMenu(language);
+            themeButton.Click += (s, e) => ThemeMenu(themeButton);
+            var themeTip = new ToolTip { AutoPopDelay = 8000, InitialDelay = 300 };
+            themeTip.SetToolTip(themeButton, L.T("Theme"));
+
+            // Follows Windows while the look is "automatic", without a new start.
+            themeFollow.Tick += (s, e) => Theme.FollowWindows();
+            themeFollow.Start();
+            FormClosed += (s, e) => themeFollow.Stop();
 
             footer = new Panel { Dock = DockStyle.Bottom, Height = 62, BackColor = Ui.Panel };
 
-            var right = new FlowLayoutPanel { Dock = DockStyle.Right, FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Padding = new Padding(0, 12, 20, 0), WrapContents = false };
+            var right = new FlowLayoutPanel { Dock = DockStyle.Right, FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Padding = new Padding(0, 12, 20, 0), WrapContents = false, BackColor = Ui.Panel };
             right.Controls.Add(close); right.Controls.Add(next); right.Controls.Add(back);
             footer.Controls.Add(right);
             var line = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Ui.Line };
@@ -98,7 +114,7 @@ namespace CoAInstaller
         /// <summary>The languages there are, "automatic" (the one of Windows) and adding a language of one's own.</summary>
         void LanguageMenu(Control at)
         {
-            var menu = new ContextMenuStrip { Font = Ui.Base, ShowImageMargin = false };
+            var menu = new ContextMenuStrip { Font = Ui.Base, ShowImageMargin = false, BackColor = Ui.Surface, ForeColor = Ui.Text };
             string choice = L.Choice;
             var languages = L.Languages();
             var windows = languages.FirstOrDefault(l => l.Code == L.FromWindows());
@@ -118,7 +134,35 @@ namespace CoAInstaller
             var add = new ToolStripMenuItem("     " + L.T("Add a language …"));
             add.Click += (s, e) => AddLanguage();
             menu.Items.Add(add);
+            foreach (ToolStripItem item in menu.Items) item.ForeColor = Ui.Text;
             menu.Show(at, new Point(0, at.Height));
+        }
+
+        /// <summary>Light, dark, or following Windows. The window changes its look at once.</summary>
+        void ThemeMenu(Control at)
+        {
+            var menu = new ContextMenuStrip { Font = Ui.Base, ShowImageMargin = false, BackColor = Ui.Surface, ForeColor = Ui.Text };
+            string choice = Theme.Choice;
+            string windows = Theme.IsDark(Theme.Automatic) ? L.T("Dark") : L.T("Light");
+            var auto = new ToolStripMenuItem((choice == Theme.Automatic ? "✓  " : "     ") +
+                L.F("Automatic (as Windows: {0})", windows));
+            auto.Click += (s, e) => SwitchTheme(Theme.Automatic);
+            menu.Items.Add(auto);
+            menu.Items.Add(new ToolStripSeparator());
+            var light = new ToolStripMenuItem((choice == Theme.Light ? "✓  " : "     ") + L.T("Light"));
+            light.Click += (s, e) => SwitchTheme(Theme.Light);
+            menu.Items.Add(light);
+            var dark = new ToolStripMenuItem((choice == Theme.Dark ? "✓  " : "     ") + L.T("Dark"));
+            dark.Click += (s, e) => SwitchTheme(Theme.Dark);
+            menu.Items.Add(dark);
+            foreach (ToolStripItem item in menu.Items) item.ForeColor = Ui.Text;
+            menu.Show(at, new Point(0, at.Height));
+        }
+
+        void SwitchTheme(string choice)
+        {
+            if (choice == Theme.Choice) return;
+            Theme.Set(choice);
         }
 
         void SwitchLanguage(string choice)
@@ -234,6 +278,28 @@ namespace CoAInstaller
                 float x = Width - 14, y = Height / 2f;
                 g.DrawLines(pen, new[] { new PointF(x - 3, y - 2), new PointF(x, y + 1), new PointF(x + 3, y - 2) });
             }
+        }
+    }
+
+    /// <summary>The look of the window, beside the language in the header: a sun or a moon. A click offers
+    /// light, dark and automatic.</summary>
+    class ThemeButton : Control
+    {
+        bool hover;
+        public ThemeButton()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Ui.Header; Cursor = Cursors.Hand;
+            Size = new Size(30, 30);
+        }
+        protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics; g.Clear(Ui.Header); Draw.Smooth(g);
+            using (var p = Draw.Round(new RectangleF(0.5f, 0.5f, Width - 1, Height - 1), 8))
+            using (var b = new SolidBrush(hover ? Ui.SidebarActive : Ui.SidebarHover)) g.FillPath(b, p);
+            Icons.Paint(g, ReferenceEquals(Theme.Current, Theme.DarkLook) ? "moon" : "sun", new RectangleF(7, 7, 16, 16), Color.FromArgb(214, 206, 245), 1.4f);
         }
     }
 }

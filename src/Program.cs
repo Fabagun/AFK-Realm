@@ -15,6 +15,7 @@ namespace CoAInstaller
         static int Main(string[] args)
         {
             L.Init();
+            Theme.Init();
             // Installing Visual Studio, firewall rules and services needs administrator rights.
             if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
             {

@@ -38,7 +38,7 @@ namespace CoAInstaller
         static Panel Banner(LinkLabel link)
         {
             var p = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Visible = false, WrapContents = false,
-                BackColor = Color.FromArgb(240, 236, 252), Padding = new Padding(10, 7, 10, 7), Margin = new Padding(0, 8, 0, 0) };
+                BackColor = Ui.AccentSoft, Padding = new Padding(10, 7, 10, 7), Margin = new Padding(0, 8, 0, 0) };
             p.Controls.Add(link);
             return p;
         }
@@ -1102,7 +1102,7 @@ namespace CoAInstaller
         public MapDataDialog(Install i)
         {
             inst = i;
-            Text = L.T("Create map data"); Font = Ui.Base; BackColor = Color.White;
+            Text = L.T("Create map data"); Font = Ui.Base; BackColor = Ui.Surface;
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(620, 370);
             var col = Ui.Column(); col.Padding = new Padding(22); col.Dock = DockStyle.Fill;
@@ -1111,7 +1111,7 @@ namespace CoAInstaller
                 "When it finishes, the data is moved into the server automatically. Keep the game and its launcher closed meanwhile."), 570));
             var row = Ui.Row(); row.Controls.Add(wow);
             var browse = Ui.Secondary(L.T("Browse …"));
-            browse.Click += (s, e) => { using (var d = new FolderBrowserDialog { Description = L.T("Choose the game folder (it contains the \"Data\" folder)") }) if (d.ShowDialog(this) == DialogResult.OK) wow.Text = d.SelectedPath; };
+            browse.Click += (s, e) => { using (var d = new FolderBrowserDialog { Description = L.T("Choose the game folder (it contains the \"Data\" folder)") }) if (d.ShowDialog(this) == DialogResult.OK) wow.Text = ClientAddons.GameRoot(d.SelectedPath) ?? d.SelectedPath; };
             row.Controls.Add(browse); col.Controls.Add(row);
             col.Controls.Add(mmaps);
             if (inst.NeedsClientDbc) col.Controls.Add(dbcOnly);
@@ -1126,10 +1126,11 @@ namespace CoAInstaller
 
         void Run()
         {
-            string dir = wow.Text.Trim().TrimEnd('\\');
+            string dir = ClientAddons.GameRoot(wow.Text);
+            if (dir == null)
+            { Ui.Error(this, L.T("This is not a game folder: it needs a \"Data\" folder with the game's .MPQ archives.") + " " + L.T("You can also choose the \"Data\" folder itself.")); return; }
+            wow.Text = dir;
             string clientData = Path.Combine(dir, "Data");
-            if (dir.Length == 0 || !Directory.Exists(clientData) || !Directory.EnumerateFiles(clientData, "*.mpq").Any())
-            { Ui.Error(this, L.T("This is not a game folder: it needs a \"Data\" folder with the game's .MPQ archives.")); return; }
             bool coaDbc = inst.NeedsClientDbc;
             bool onlyDbc = coaDbc && dbcOnly.Checked;
             if (coaDbc && (!File.Exists(inst.PythonExe) || !File.Exists(inst.MpqCliExe)))

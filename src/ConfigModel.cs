@@ -42,7 +42,13 @@ namespace CoAInstaller
         public static string Unquote(string raw)
         {
             raw = (raw ?? "").Trim();
-            return raw.Length >= 2 && raw[0] == '"' && raw[raw.Length - 1] == '"' ? raw.Substring(1, raw.Length - 2) : raw;
+            return IsQuoted(raw) ? raw.Substring(1, raw.Length - 2) : raw;
+        }
+        /// <summary>Whether a text is wrapped in the quotes a quoted option stores (both ends).</summary>
+        public static bool IsQuoted(string text)
+        {
+            text = (text ?? "").Trim();
+            return text.Length >= 2 && text[0] == '"' && text[text.Length - 1] == '"';
         }
         static string Normalize(string raw)
         {

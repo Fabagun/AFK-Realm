@@ -77,10 +77,12 @@ namespace CoAInstaller
         static string Get(string url, string accept = "application/vnd.github+json")
         {
             try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; } catch { }
+            string token = Settings.GitHubTokenActive;
             var req = (HttpWebRequest)WebRequest.Create(url);
             req.UserAgent = Product.FileStem;
             req.Accept = accept;
             req.Timeout = 20000; req.ReadWriteTimeout = 20000;
+            if (token != null) req.Headers["Authorization"] = "Bearer " + token;
             try
             {
                 using (var resp = (HttpWebResponse)req.GetResponse())
@@ -89,8 +91,18 @@ namespace CoAInstaller
             catch (WebException ex)
             {
                 var resp = ex.Response as HttpWebResponse;
+                // an outdated or mistyped token: the same request once more, without it
+                if (token != null && resp != null && resp.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    Settings.RefuseGitHubToken(token);
+                    return Get(url, accept);
+                }
                 if (resp != null && (resp.StatusCode == HttpStatusCode.Forbidden || (int)resp.StatusCode == 429))
-                    throw new InvalidOperationException(L.T("GitHub only allows a limited number of requests per hour without signing in, and that limit is used up. Please try again later."));
+                {
+                    string message = L.T("GitHub only allows a limited number of requests per hour without signing in, and that limit is used up. Please try again later.");
+                    if (Settings.GitHubTokenActive == null) message += " " + L.T("You can enter a GitHub token on this page to raise the limit.");
+                    throw new InvalidOperationException(message);
+                }
                 throw;
             }
         }

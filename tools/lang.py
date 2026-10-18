@@ -175,7 +175,7 @@ def conf_texts(folder):
         return []
     import subprocess, tempfile
     exe = os.path.join(tempfile.gettempdir(), 'afk-realm-confdump.exe')
-    refs = ['-r:System.Windows.Forms.dll', '-r:System.Drawing.dll', '-r:System.Numerics.dll', '-r:System.Core.dll',
+    refs = ['-r:System.Windows.Forms.dll', '-r:System.Drawing.dll', '-r:System.Numerics.dll', '-r:System.Core.dll', '-r:System.Security.dll',
             '-r:System.IO.Compression.dll', '-r:System.IO.Compression.FileSystem.dll', '-r:System.Web.Extensions.dll']
     built = subprocess.run(['mcs', '-langversion:5', '-target:exe', '-sdk:4.5', '-warn:0', '-main:CoAInstaller.ConfDump',
                             '-out:' + exe] + refs + cs_files() + [os.path.join(ROOT, 'tools', 'ConfDump.cs')],

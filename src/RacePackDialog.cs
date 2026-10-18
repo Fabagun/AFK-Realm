@@ -11,7 +11,7 @@ namespace CoAInstaller
     /// <summary>Makes race packs for the race folder from another game client or repack (see RacePacker).</summary>
     class RacePackDialog : AfkForm
     {
-        readonly string raceFolder, yourClient;
+        readonly string raceFolder, yourClient, serverDataFolder;
         readonly Label from, status;
         readonly CheckedListBox list;
         readonly Button choose, create;
@@ -20,10 +20,11 @@ namespace CoAInstaller
         bool busy;
         public int Made;
 
-        public RacePackDialog(string raceFolder, string yourClient)
+        public RacePackDialog(string raceFolder, string yourClient, string serverDataFolder)
         {
             this.raceFolder = raceFolder;
             this.yourClient = yourClient;
+            this.serverDataFolder = serverDataFolder;
             Text = Product.Name + " – " + L.T("Race packs from another client");
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(640, 600);
@@ -37,7 +38,8 @@ namespace CoAInstaller
             col.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(590, 0), Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 0, 0, 8),
                 Text = L.F("Choose the game folder of another client or repack (or a folder with its patch archives, like the client folder of CoA Custom). " +
                        "Each race you tick gets a folder of its own in your race folder ({0}): its rows and the files your client does not have. " +
-                       "Afterwards the other client is no longer needed.", raceFolder) });
+                       "Afterwards the other client is no longer needed.", raceFolder) +
+                       (string.IsNullOrEmpty(serverDataFolder) ? "" : L.T(" The racial spells of your server data folder come along with the races, so your game client can show them.")) });
             var row = Ui.Row(); row.BackColor = Ui.Surface; row.AutoSize = true;
             choose = Ui.Secondary(L.T("Choose the other client …"));
             from = new Label { AutoSize = true, MaximumSize = new Size(380, 0), Font = Ui.Small, ForeColor = Ui.Text, Margin = new Padding(8, 8, 0, 0), Text = L.T("No client chosen.") };
@@ -148,7 +150,8 @@ namespace CoAInstaller
                     try
                     {
                         Directory.CreateDirectory(raceFolder);
-                        lines.Add(RacePacker.Pack(source, yours, race, raceFolder, label, text => BeginInvoke((Action)(() => status.Text = text))));
+                        uint[] spells = ServerRacials.ClientSpells(serverDataFolder, race.Name);
+                        lines.Add(RacePacker.Pack(source, yours, race, raceFolder, label, spells, text => BeginInvoke((Action)(() => status.Text = text))));
                         race.InRaceFolder = true;
                         Made++;
                     }

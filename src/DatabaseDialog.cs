@@ -17,7 +17,9 @@ namespace CoAInstaller
     class DatabaseDialog : AfkForm
     {
         const int PageSize = 500, QueryRows = 5000;
-        static readonly Color Changed = Color.FromArgb(255, 244, 200), Added = Color.FromArgb(222, 244, 226), NullColor = Color.FromArgb(150, 150, 165);
+        static Color Changed { get { return Theme.Current.GridChanged; } }
+        static Color Added { get { return Theme.Current.GridAdded; } }
+        static readonly Color NullColor = Color.FromArgb(150, 150, 165);
 
         /// <summary>The user asked for a backup of the server before changing anything.</summary>
         public bool BackUpNow { get; private set; }
@@ -55,7 +57,7 @@ namespace CoAInstaller
         {
             var g = new DataGridView
             {
-                Dock = DockStyle.Fill, Font = Ui.Small, BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AllowUserToAddRows = false,
+                Dock = DockStyle.Fill, Font = Ui.Small, BackgroundColor = Ui.Surface, BorderStyle = BorderStyle.FixedSingle, AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false, AllowUserToResizeRows = false, RowHeadersWidth = 26, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.CellSelect,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
                 EnableHeadersVisualStyles = false, ShowCellToolTips = true
@@ -68,7 +70,7 @@ namespace CoAInstaller
         public DatabaseDialog(Install i, ServerControl c)
         {
             inst = i; ctl = c;
-            Text = Product.Name + " – " + L.T("Database"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false; KeyPreview = true;
+            Text = Product.Name + " – " + L.T("Database"); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false; KeyPreview = true;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(1280, 760); MinimumSize = new Size(1000, 600);
 
             // ---- top: the warning and the switch
@@ -100,14 +102,14 @@ namespace CoAInstaller
             bar.Controls.Add(where); bar.Controls.Add(apply);
             bar.SetFlowBreak(apply, true);
             bar.Controls.Add(prev); bar.Controls.Add(next); bar.Controls.Add(addRow); bar.Controls.Add(delRow); bar.Controls.Add(save); bar.Controls.Add(discard); bar.Controls.Add(pageInfo);
-            var tableTab = new TabPage(L.T("Table")) { BackColor = Color.White, Padding = new Padding(10) };
+            var tableTab = new TabPage(L.T("Table")) { BackColor = Ui.Surface, Padding = new Padding(10) };
             tableTab.Controls.Add(grid); tableTab.Controls.Add(tableHint); tableTab.Controls.Add(bar);
 
             // ---- free SQL
             var sqlBar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(0, 6, 0, 6) };
             run.Font = Ui.Small; run.Padding = new Padding(10, 3, 10, 3);
             sqlBar.Controls.Add(run); sqlBar.Controls.Add(resultPick);
-            var sqlTab = new TabPage("SQL") { BackColor = Color.White, Padding = new Padding(10) };
+            var sqlTab = new TabPage("SQL") { BackColor = Ui.Surface, Padding = new Padding(10) };
             sqlTab.Controls.Add(result); sqlTab.Controls.Add(sqlHint); sqlTab.Controls.Add(sqlBar); sqlTab.Controls.Add(sql);
             sqlHint.Text = L.T("Type any SQL; several statements are separated by ';'. Name the database with the table: acore_world.creature_template.");
 
@@ -592,7 +594,7 @@ namespace CoAInstaller
             if (preTable == null && node != null) { preDb = node.Parent != null ? node.Parent.Text : node.Text; preTable = node.Parent != null ? node.Text : null; }
 
             var chosen = new Dictionary<string, List<string>>();
-            using (var f = new Form { Text = Product.Name + " – " + L.T("Export"), Font = Ui.Base, BackColor = Color.White, ShowIcon = false, MinimizeBox = false, MaximizeBox = false,
+            using (var f = new Form { Text = Product.Name + " – " + L.T("Export"), Font = Ui.Base, BackColor = Ui.Surface, ShowIcon = false, MinimizeBox = false, MaximizeBox = false,
                 StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(520, 560), MinimumSize = new Size(420, 400), Padding = new Padding(16) })
             {
                 var pick = new TreeView { Dock = DockStyle.Fill, CheckBoxes = true, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle, ShowLines = false };
@@ -627,6 +629,7 @@ namespace CoAInstaller
                     ticking = false; recount();
                 };
                 f.Controls.Add(pick); f.Controls.Add(count); f.Controls.Add(buttons); f.Controls.Add(head); f.AcceptButton = ok; f.CancelButton = cancel;
+                Restyle.Apply(f);
                 f.Shown += (s, e) => { if (show != null) { show.EnsureVisible(); pick.SelectedNode = show; } recount(); };
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 foreach (TreeNode d in pick.Nodes)
@@ -759,7 +762,7 @@ namespace CoAInstaller
             var named = plan.Databases.Where(tablesOf.ContainsKey).ToList();
             bool choose = plan.Loose || named.Count == 0;
             string target, fits = null;
-            using (var f = new Form { Text = Product.Name + " – " + L.T("Import"), Font = Ui.Base, BackColor = Color.White, ShowIcon = false, FormBorderStyle = FormBorderStyle.FixedDialog,
+            using (var f = new Form { Text = Product.Name + " – " + L.T("Import"), Font = Ui.Base, BackColor = Ui.Surface, ShowIcon = false, FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false, StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(560, 380), Padding = new Padding(16) })
             {
                 var pick = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 400, Font = Ui.Base, Margin = new Padding(0, 4, 0, 0) };
@@ -789,6 +792,7 @@ namespace CoAInstaller
                 var ok = Ui.Primary(L.T("Import")); var cancel = Ui.Secondary(L.T("Cancel")); ok.DialogResult = DialogResult.OK; cancel.DialogResult = DialogResult.Cancel;
                 var row = Ui.Row(); row.Margin = new Padding(0, 10, 0, 0); row.Controls.Add(ok); row.Controls.Add(cancel); foot.Controls.Add(row);
                 f.Controls.Add(box); f.Controls.Add(foot); f.Controls.Add(head); f.CancelButton = cancel;
+                Restyle.Apply(f);
                 f.Shown += (s, e) => { box.SelectionLength = 0; cancel.Focus(); };
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 target = choose ? order[pick.SelectedIndex] : named[0];
@@ -923,11 +927,12 @@ namespace CoAInstaller
         bool StopServer()
         {
             string error = null;
-            using (var f = new Form { Text = Product.Name, Font = Ui.Base, BackColor = Color.White, ShowIcon = false, ControlBox = false, FormBorderStyle = FormBorderStyle.FixedDialog,
+            using (var f = new Form { Text = Product.Name, Font = Ui.Base, BackColor = Ui.Surface, ShowIcon = false, ControlBox = false, FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent, ClientSize = new Size(460, 90) })
             {
                 var note = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Text = L.T("Stopping the server ...") };
                 f.Controls.Add(note);
+                Restyle.Apply(f);
                 f.Shown += (s, e) => System.Threading.ThreadPool.QueueUserWorkItem(_ =>
                 {
                     try { ctl.StopAll(text => { try { f.BeginInvoke((Action)(() => note.Text = text)); } catch { } }, false); }

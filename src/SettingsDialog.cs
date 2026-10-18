@@ -22,7 +22,7 @@ namespace CoAInstaller
         readonly ListView list = new ListView { View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false, Dock = DockStyle.Fill, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle };
         readonly Label keyLabel = new Label { AutoSize = true, Font = Ui.H2, ForeColor = Ui.Text, Margin = new Padding(0, 0, 0, 2) };
         readonly Label whereLabel = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 0, 0, 8) };
-        readonly TextBox description = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.White, Font = Ui.Small, BorderStyle = BorderStyle.None, WordWrap = true };
+        readonly TextBox description = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Ui.Surface, Font = Ui.Small, BorderStyle = BorderStyle.None, WordWrap = true };
         readonly Label defaultLabel = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(0, 8, 0, 4) };
         readonly FlowLayoutPanel editorRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 4, 0, 0) };
         readonly Label lockedLabel = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Warn, MaximumSize = new Size(420, 0) };
@@ -38,7 +38,7 @@ namespace CoAInstaller
             inst = i; worldRunning = serverRunning;
             set = ConfigSet.Load(inst);
             boldList = new Font(Ui.Base, FontStyle.Bold);
-            Text = Product.Name + " – " + L.T("Server settings"); Font = Ui.Base; BackColor = Color.White;
+            Text = Product.Name + " – " + L.T("Server settings"); Font = Ui.Base; BackColor = Ui.Surface;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(1080, 700); MinimumSize = new Size(900, 560);
             ShowIcon = false;
 
@@ -82,7 +82,7 @@ namespace CoAInstaller
             detail.Controls.Add(editorRow, 0, 4);
             detail.Controls.Add(lockedLabel, 0, 5);
 
-            var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.White, FixedPanel = FixedPanel.None };
+            var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Ui.Surface, FixedPanel = FixedPanel.None };
             split.Panel1.Controls.Add(listPanel);
             split.Panel2.Controls.Add(detail);
 

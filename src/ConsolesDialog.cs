@@ -28,7 +28,7 @@ namespace CoAInstaller
             inst = i; ctl = c;
             world = new LogView(mono) { Dock = DockStyle.Fill }; auth = new LogView(mono) { Dock = DockStyle.Fill };
             input.Font = mono;
-            Text = Product.Name + " – " + L.T("Server consoles"); Font = baseFont; BackColor = Color.White; ShowInTaskbar = true;
+            Text = Product.Name + " – " + L.T("Server consoles"); Font = baseFont; BackColor = Ui.Surface; ShowInTaskbar = true;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { ShowIcon = false; }
             StartPosition = FormStartPosition.CenterScreen; ClientSize = new Size(980, 740); MinimumSize = new Size(640, 480);
 
@@ -37,7 +37,7 @@ namespace CoAInstaller
             var inputRow = new Panel { Dock = DockStyle.Bottom, Height = 32, Padding = new Padding(0, 6, 0, 0) };
             inputRow.Controls.Add(input); inputRow.Controls.Add(prompt); inputRow.Controls.Add(send);
 
-            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 8, BackColor = Color.White };
+            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 8, BackColor = Ui.Surface };
             split.Panel1.Padding = new Padding(16, 10, 16, 4); split.Panel2.Padding = new Padding(16, 4, 16, 8);
             split.Panel1.Controls.Add(world); split.Panel1.Controls.Add(inputRow);
             split.Panel1.Controls.Add(new Label { Text = L.T("Worldserver (game world)"), Dock = DockStyle.Top, Height = 24, Font = bold });

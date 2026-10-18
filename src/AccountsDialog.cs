@@ -26,7 +26,7 @@ namespace CoAInstaller
         public AccountsDialog(Install i, ServerControl c)
         {
             inst = i; ctl = c;
-            Text = Product.Name + " – " + L.T("Player accounts"); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+            Text = Product.Name + " – " + L.T("Player accounts"); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(900, 560); MinimumSize = new Size(760, 420);
 
             var top = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(16, 12, 16, 0) };
@@ -215,7 +215,7 @@ namespace CoAInstaller
             public PasswordPrompt(string account)
             {
                 user = account;
-                Text = L.F("New password for {0}", account); Font = Ui.Base; BackColor = Color.White; ShowIcon = false;
+                Text = L.F("New password for {0}", account); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
                 FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
                 StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(440, 190);
                 var col = Ui.Column(); col.Padding = new Padding(20); col.Dock = DockStyle.Fill;

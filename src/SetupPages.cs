@@ -171,11 +171,15 @@ namespace CoAInstaller
             if (loading > 0) return;
             ConfigOption o;
             bool quoted = conf.ByKey.TryGetValue(key, out o) && o.Quoted;
-            string raw = quoted ? "\"" + value + "\"" : value;
+            // Some callers pass a text in the quotes a quoted option stores (the file choices do): keep it as it is,
+            // or the file gets a second pair that the page then reads as part of the path.
+            bool already = ConfigOption.IsQuoted(value);
+            string raw = quoted && !already ? "\"" + value + "\"" : value;
+            string bare = already ? ConfigOption.Unquote(value) : value;
             string current;
             bool known = conf.Values.TryGetValue(key, out current) || (o != null && o.DefaultRaw != null && (current = o.DefaultRaw) != null);
             conf.Removed.Remove(key);
-            if (known && ConfigOption.Unquote(current) == value && conf.Values.ContainsKey(key)) conf.Pending.Remove(key);
+            if (known && ConfigOption.Unquote(current) == bare && conf.Values.ContainsKey(key)) conf.Pending.Remove(key);
             else conf.Pending[key] = raw;
             Changed();
         }
@@ -214,12 +218,16 @@ namespace CoAInstaller
             foreach (var o in conf.Options.Where(o => o.DefaultRaw != null)) Set(o.Key, ConfigOption.Unquote(o.DefaultRaw));
         }
 
+        /// <summary>Runs after the settings are written: the files that follow from them.</summary>
+        protected virtual void Saved() { }
+
         bool Save()
         {
             var written = new[] { conf }.Concat(also).Where(f => f.Pending.Count + f.Removed.Count > 0).Select(f => f.Name).ToList();
             if (written.Count == 0) written.Add(conf.Name);
             try { conf.Save(); foreach (var f in also) f.Save(); }
             catch (Exception ex) { Ui.Error(this, L.T("The settings could not be saved:") + "\n" + ex.Message); return false; }
+            Saved();
             Changed();
             DialogResult = DialogResult.OK;
             MessageBox.Show(this, L.F("Saved in {0}.", string.Join(", ", written)) + "\n\n" + L.T("The changes take effect when the worldserver is started the next time (Restart server)."), Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -438,8 +446,9 @@ namespace CoAInstaller
             ReadFolder();
 
             Tab(L.T("Races"));
+            int own = races.Count(r => r.OwnNumber);
             var head = Card(L.T("Which races can be played"), L.T("These are the races your game client carries a body for, read from the client itself. Switch on the ones you want: each starts like its base race - where that race starts, with its quests, stats, racial abilities and faction - and keeps its own looks.") +
-                (slots.Count > 0 ? " " + L.F("The game client knows race numbers up to 31, so {0} races without a number of their own can be on at once - {1} with the 64-race patch below.", slots.Count, slots.Count + moreSlots.Count) : ""), "accounts");
+                (slots.Count > 0 ? " " + L.F("The game client knows race numbers up to 31; the 64-race patch below lets it know numbers up to 63 as well. 63 is the highest race number, not the number of races: the race table of your client itself already fills {0} of the 63 numbers, so {1} stay free below 32 - and {2} more above 31 once the patch is on. Those free numbers are the room for every race without a number of its own - your client's races above 31 and the races of the race folder alike, however many the folder holds. Together with the {3} races that have a number of their own, at most {4} races can be on at once without the patch and {5} with it.", 63 - slots.Count - moreSlots.Count, slots.Count, moreSlots.Count, own, own + slots.Count, own + slots.Count + moreSlots.Count) : ""), "accounts");
             if (problem != null) head.Add(Small(problem, head.Inner));
             else head.Add(usage);
             OnChange(UpdateUsage);
@@ -467,7 +476,7 @@ namespace CoAInstaller
                 string target = folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "AFK-Rassen");
                 string mine = ClientAddons.ClientFolder;
                 if (mine != null && !ClientAddons.IsClientFolder(mine)) mine = null;
-                using (var d = new RacePackDialog(target, mine))
+                using (var d = new RacePackDialog(target, mine, Raw("CustomRaces.ServerDataFolder", "")))
                 {
                     d.ShowDialog(this);
                     if (d.Made == 0) return;
@@ -477,12 +486,37 @@ namespace CoAInstaller
             };
             fold.Add(make);
 
+            // the server side: the rows of a race as the server data of the pack brings them
+            var serverData = Card(L.T("Server data"), L.T("The server data folder of your server pack: the one with its races and database files. Where a race brings rows of its own on the server (its racial abilities and the like), the module takes them from here into the game database at the server's start - and back out when the race or the module goes off again."), "server");
+            var serverWhere = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(serverData.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
+            serverData.Add(serverWhere);
+            Action showServer = () =>
+            {
+                string f = Raw("CustomRaces.ServerDataFolder", "");
+                serverWhere.Text = f.Length == 0 ? L.T("No server data folder chosen.") : f;
+            };
+            var pickServer = Ui.Secondary(L.T("Choose the server data folder …"));
+            pickServer.Click += (s, e) =>
+            {
+                using (var d = new FolderBrowserDialog { Description = L.T("The server data folder: the pack with the races and the database files"), SelectedPath = Raw("CustomRaces.ServerDataFolder", "") })
+                {
+                    if (d.ShowDialog(this) != DialogResult.OK) return;
+                    if (!LooksLikeServerData(d.SelectedPath)) { Ui.Error(this, L.T("This folder holds no server data (no races and no database folder).")); return; }
+                    Set("CustomRaces.ServerDataFolder", "\"" + d.SelectedPath + "\"");
+                    serverWhere.Text = d.SelectedPath + "  ·  " + L.T("save to take it over");
+                }
+            };
+            serverData.Add(pickServer);
+            AddLoader(showServer);
+
             // more than 31 races: the 64-race patch of the game client (a DLL of the user's own, from CoA Custom)
-            var more = Card(L.T("More than 31 races"), L.F("The game client knows race numbers up to 31. With a 64-race patch (dinput8.dll next to Ascension.exe, as CoA Custom ships it) it knows numbers up to 63, and {0} more races can be on at once. {1} puts the patch next to your game when you install the client patch, and into the ZIP for the other players; switched off, it takes it away again. A race above 32 does what its base race may do (it has no bit of its own in the race masks of quests and items). The server needs its core rebuilt for this once.", (moreSlots.Count > 0 ? moreSlots.Count.ToString() : L.T("up to 32")), Product.Name), "client");
+            var more = Card(L.T("More than 31 races"), L.F("The game client knows race numbers up to 31. With a 64-race patch (dinput8.dll next to Ascension.exe, as CoA Custom ships it) it knows numbers up to 63. Your client's own race table already fills {0} of the 32 numbers from 32 to 63 (its own races and the HD copies of the standard races); the {1} that stay free are the room the patch opens for races without a number of their own. {2} puts the patch next to your game when you install the client patch, and into the ZIP for the other players; switched off, it takes it away again. A race above 32 does what its base race may do (it has no bit of its own in the race masks of quests and items). The server needs its core rebuilt for this once.", 32 - moreSlots.Count, moreSlots.Count, Product.Name), "client");
             var dllNote = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(more.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
             Func<string> dll = () =>
             {
                 string f = Raw("CustomRaces.MoreRacesFile", "");
+                // an older version could store the path with a second pair of quotes (see SetIn): take it as the path it is
+                if (ConfigOption.IsQuoted(f)) f = ConfigOption.Unquote(f);
                 if (f.Length == 0 && folder != null && File.Exists(Path.Combine(folder, "_Client", "dinput8.dll"))) f = Path.Combine(folder, "_Client", "dinput8.dll");
                 return f;
             };
@@ -503,7 +537,7 @@ namespace CoAInstaller
                 {
                     if (d.ShowDialog(this) != DialogResult.OK) return;
                     if (!RacePacker.IsRacePatch(d.FileName)) { Ui.Error(this, L.T("This DLL is not a 64-race patch of the game client.")); return; }
-                    Set("CustomRaces.MoreRacesFile", "\"" + d.FileName + "\"");
+                    Set("CustomRaces.MoreRacesFile", d.FileName);
                     showDll();
                 }
             };
@@ -521,7 +555,7 @@ namespace CoAInstaller
                         moreToggle.Checked = false;
                         return;
                     }
-                    if (Raw("CustomRaces.MoreRacesFile", "") != f) Set("CustomRaces.MoreRacesFile", "\"" + f + "\"");
+                    if (Raw("CustomRaces.MoreRacesFile", "") != f) Set("CustomRaces.MoreRacesFile", f);
                     Set("CustomRaces.MoreRaces", "1");
                 }
                 else
@@ -536,6 +570,48 @@ namespace CoAInstaller
                     Set("CustomRaces.MoreRaces", "0");
                 }
             };
+
+            // the files of CoA Custom that go next to the game (its files\client_root: Ascension-b.exe, the Esteria files, cursors)
+            var rootCard = Card(L.T("Files of CoA Custom next to the game"), L.F("CoA Custom brings files that belong next to Ascension.exe (its folder files\\client_root: Ascension-b.exe, EsteriaAppearance.dll with its .bin files, cursors). Choose the CoA Custom folder once: {0} copies all of them next to your game when you install the client patch (Modules › Game client › Install), and takes them away again when you choose to copy nothing. A file of the same name that was there before is kept as <name>.afk-backup; files that are already there, the same, stay when they are no longer wanted. They do not go into the ZIP: the other players have the client of CoA Custom themselves.", Product.Name), "client");
+            var rootNote = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(rootCard.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
+            Action showRoot = () =>
+            {
+                string f = Raw("CustomRaces.ClientRootFolder", "");
+                if (ConfigOption.IsQuoted(f)) f = ConfigOption.Unquote(f);
+                if (f.Length == 0) { rootNote.Text = L.T("No folder chosen: nothing is copied."); return; }
+                if (!Directory.Exists(f)) { rootNote.Text = L.T("Folder not found:") + " " + f; return; }
+                try
+                {
+                    var all = Directory.GetFiles(f, "*", SearchOption.AllDirectories);
+                    long bytes = all.Sum(x => new FileInfo(x).Length);
+                    rootNote.Text = L.F("{0} files ({1} MB) from {2}", all.Length, Math.Round(bytes / 1048576.0), f);
+                }
+                catch (Exception ex) { rootNote.Text = f + "  ·  " + ex.Message; }
+            };
+            rootCard.Add(rootNote);
+            var rootButtons = Ui.Row();
+            rootButtons.BackColor = Ui.Surface;
+            var pickRoot = Ui.Secondary(L.T("Choose the CoA Custom folder …"));
+            var clearRoot = Ui.Ghost(L.T("Copy nothing"));
+            pickRoot.Click += (s, e) =>
+            {
+                using (var d = new FolderBrowserDialog { Description = L.T("The folder of CoA Custom (or its files\\client_root)") })
+                {
+                    if (d.ShowDialog(this) != DialogResult.OK) return;
+                    string found = ClientPatch.ClientRootOf(d.SelectedPath);
+                    if (found == null) { Ui.Error(this, L.T("This folder holds no files\\client_root of CoA Custom.")); return; }
+                    Set("CustomRaces.ClientRootFolder", found);
+                    // the 64-race patch of the same pack, while none is chosen
+                    string patch = ClientPatch.CoAPatchOf(found);
+                    if (patch != null && Raw("CustomRaces.MoreRacesFile", "").Length == 0 && RacePacker.IsRacePatch(patch)) { Set("CustomRaces.MoreRacesFile", patch); showDll(); }
+                    showRoot();
+                }
+            };
+            clearRoot.Click += (s, e) => { Set("CustomRaces.ClientRootFolder", ""); showRoot(); };
+            rootButtons.Controls.Add(pickRoot);
+            rootButtons.Controls.Add(clearRoot);
+            rootCard.Add(rootButtons);
+            AddLoader(showRoot);
 
             var groups = new[]
             {
@@ -557,6 +633,14 @@ namespace CoAInstaller
             after.Add(Small(L.F("The race choice of the game shows the races of the client patch. After a change, open Modules › Game client and choose Install: {0} builds the patch anew. The other players need the new ZIP. A race switched off keeps its characters as their base race until it is on again; changing the base race of a race with characters may move them to the other faction. When the game client changes with an update, open this page again: it reads the races anew.", Product.Name), after.Inner));
             Start();
             Shown += (s, e) => Refresh();
+        }
+
+        /// <summary>Whether a folder looks like the server data of a server pack: its races or its database files.</summary>
+        static bool LooksLikeServerData(string folder)
+        {
+            return Directory.Exists(Path.Combine(folder, "races"))
+                || Directory.Exists(Path.Combine(folder, "database"))
+                || File.Exists(Path.Combine(folder, "RACES.md"));
         }
 
         /// <summary>Reads, before the page opens and in the background, what it shows: the races of the game client and
@@ -702,6 +786,23 @@ namespace CoAInstaller
 
         List<string> Chosen() { return Raw("CustomRaces.Races", "").Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries).ToList(); }
 
+        /// <summary>After the settings: the racial rows of every race that is on are written for the server.</summary>
+        protected override void Saved()
+        {
+            try
+            {
+                var on = new Dictionary<string, string>();
+                foreach (var key in Chosen())
+                {
+                    var r = races.FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+                    string name = Raw("CustomRaces." + key + ".Name", "");
+                    on[key] = name.Length > 0 ? name : r != null ? r.Name : key;
+                }
+                ServerRacials.Sync(Raw("CustomRaces.ServerDataFolder", ""), on);
+            }
+            catch (Exception ex) { Ui.Error(this, L.T("The racial rows could not be written:") + "\n" + ex.Message); }
+        }
+
         int IdOf(ClientRace r)
         {
             int n;
@@ -752,6 +853,9 @@ namespace CoAInstaller
                 put("OwnHelmets", r.HasHelmets ? "1" : "0");
             }
             if (Raw("CustomRaces." + r.Key + ".Base", "").Length == 0) putText("Base", DefaultBase(r));
+            // its racials: the set the server pack gives it (its rows travel to the server data folder as well)
+            var racials = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), pack != null ? pack.Name : r.Name);
+            if (racials.Length > 0) putText("Racials", string.Join(" ", racials));
             // its icon: from its folder, or from the icons of the race folder (_Icons)
             string icon = null;
             if (pack != null)
@@ -781,7 +885,9 @@ namespace CoAInstaller
         {
             int used = races.Count(r => !r.OwnNumber && IdOf(r) > 0);
             int on = Chosen().Count(k => races.Any(r => r.Key.Equals(k, StringComparison.OrdinalIgnoreCase)));
-            usage.Text = (on == 1 ? L.T("1 race on") : L.F("{0} races on", on)) + "  ·  " + L.F("{0} of {1} free race numbers in use", used, Slots.Count);
+            usage.Text = L.F("{0} of up to {1} races on", on, races.Count(r => r.OwnNumber) + Slots.Count) + "  ·  " +
+                (More ? L.T("64-race patch on") : L.T("64-race patch off")) + "  ·  " +
+                L.F("{0} of {1} free race numbers in use", used, Slots.Count);
             usage.ForeColor = used >= Slots.Count ? Ui.Warn : Ui.Text;
         }
 
@@ -804,7 +910,15 @@ namespace CoAInstaller
                     (r.Pack.Missing > 0 ? " " + L.F("{0} of its files are missing; the choices that need them are left out.", r.Pack.Missing) : "")
                 : k != null && k.About.Length > 0 ? L.Outside(k.About) : r.Virtual ? L.T("A race of your game client.") : L.F("A race of your game client (row {0} of its race table).", r.Source);
             if (k != null && k.Note.Length > 0) about += " " + L.Outside(k.Note);
-            card.Add(Small(about, card.Inner - 40, 46));
+            var aboutLabel = Small(about, card.Inner - 40, 46);
+            card.Add(aboutLabel);
+            if (r.Pack != null)
+            {
+                var del = Ui.Ghost(L.T("Delete from the race folder"));
+                del.Margin = new Padding(46, 0, 0, 10);
+                card.Add(del);
+                del.Click += (s, e) => DeletePack(r, row, aboutLabel, del);
+            }
             if (r.Alt != null)
             {
                 var alt = new Toggle(L.F("Looks from the race folder ({0}, {1} MB) instead of your client", r.Alt.Source.Length > 0 ? r.Alt.Source : L.T("another client"), r.Alt.Bytes / 1000000)) { BackColor = Ui.Surface, Margin = new Padding(46, 0, 0, 8) };
@@ -817,6 +931,10 @@ namespace CoAInstaller
                     Set("CustomRaces." + r.Key + ".Import", alt.Checked ? "1" : "0");
                     if (Raw("CustomRaces." + r.Key + ".Source", "").Length > 0 || alt.Checked) Describe(r, IdOf(r) > 0 ? IdOf(r) : r.OwnNumber ? r.Source : 0);
                 };
+                var delAlt = Ui.Ghost(L.T("Delete these looks from the race folder"));
+                delAlt.Margin = new Padding(46, 0, 0, 10);
+                card.Add(delAlt);
+                delAlt.Click += (s, e) => DeleteAltPack(r, alt, delAlt);
             }
 
             Action show = () =>
@@ -867,6 +985,47 @@ namespace CoAInstaller
                 if (!Ui.Confirm(this, L.F("Give up the race number of the {0}? Its characters stay their base race for good, and another race can take the number.", L.Outside(r.Name)))) return;
                 Set("CustomRaces." + r.Key + ".Id", "0");
             };
+        }
+
+        /// <summary>Takes a race of the race folder out of it: its folder with its files, its settings and its number.</summary>
+        void DeletePack(ClientRace r, Control row, Control about, Control button)
+        {
+            var pack = r.Pack;
+            if (pack == null) return;
+            if (!Ui.Confirm(this, L.F("Delete {0} from the race folder?", L.Outside(r.Name)) + "\n\n" + pack.Dir + "\n\n" +
+                L.T("Its files are removed from disk; if the race is switched on, it is switched off first, its race number becomes free for another race, and its characters play their base race from now on. This cannot be undone."))) return;
+            if (!DeleteFolder(pack.Dir)) return;
+            var chosen = Chosen().Where(c => !c.Equals(r.Key, StringComparison.OrdinalIgnoreCase)).ToList();
+            Set("CustomRaces.Races", string.Join(" ", chosen));
+            foreach (var option in new[] { "Source", "Id", "Copy", "Import", "Name", "Prefix", "File", "MaleDisplay", "FemaleDisplay", "MaleOnly", "OwnHelmets", "Base", "Racials", "IconFile", "Icon" })
+                Unset("CustomRaces." + r.Key + "." + option);
+            row.Visible = false; about.Visible = false; button.Visible = false;
+            races.Remove(r);
+            UpdateUsage();
+            MessageBox.Show(this, L.F("{0} was deleted from the race folder.", L.Outside(r.Name)) + "\n\n" +
+                L.T("Save the page and build the client patch anew so the race disappears from the game."), Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>Takes the looks a race has in the race folder out of it again.</summary>
+        void DeleteAltPack(ClientRace r, Control toggle, Control button)
+        {
+            var pack = r.Alt;
+            if (pack == null) return;
+            if (!Ui.Confirm(this, L.F("Delete the race folder looks of {0}?", L.Outside(r.Name)) + "\n\n" + pack.Dir + "\n\n" +
+                L.T("Its files are removed from disk; where the race used the folder looks, it shows the looks of your game client again. This cannot be undone."))) return;
+            if (!DeleteFolder(pack.Dir)) return;
+            Set("CustomRaces." + r.Key + ".Import", "0");
+            toggle.Visible = false; button.Visible = false;
+            r.Alt = null;
+            MessageBox.Show(this, L.F("The race folder looks of {0} were deleted.", L.Outside(r.Name)) + "\n\n" +
+                L.T("Save the page and build the client patch anew."), Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        bool DeleteFolder(string dir)
+        {
+            try { Cursor = Cursors.WaitCursor; Directory.Delete(dir, true); return true; }
+            catch (Exception ex) { Ui.Error(this, L.T("The race could not be deleted:") + "\n" + ex.Message); return false; }
+            finally { Cursor = Cursors.Default; }
         }
     }
 

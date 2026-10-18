@@ -32,6 +32,14 @@ namespace CoAInstaller
         const string StampName = "AFK-Realm\\race.txt";
         public const int DisplayBase = 980000;          // display and model ids of imported races: 980000 + race * 2 + sex
 
+        /// <summary>A row of the client's spell table, the 234-field layout this client family (CoA and Descension
+        /// alike) has: field 133 shows which icon (a SpellIcon) it wears; 136-151 are its name, 153-168 its subtext
+        /// ("Racial"), 170-185 its description and 187-202 its tooltip - each of them 16 language texts - and every
+        /// other field is a number. Proofed against both clients' tables field by field.</summary>
+        public const int SpellFields = 234, SpellIconField = 133;
+        public static readonly HashSet<int> SpellTextFields = new HashSet<int>(
+            Enumerable.Range(136, 16).Concat(Enumerable.Range(153, 16)).Concat(Enumerable.Range(170, 16)).Concat(Enumerable.Range(187, 16)));
+
         public static string ArchiveName(int race) { return ArchivePrefix + race.ToString("00") + ".MPQ"; }
 
         public static bool IsOurArchive(string fileName)
@@ -68,6 +76,9 @@ namespace CoAInstaller
             public string Icon { get { return Str(Info, "icon"); } }
             public List<string> Files { get { return List(Info, "files").Select(Convert.ToString).ToList(); } }
             public List<object[]> Rows(string name) { return List(Data, name).OfType<object[]>().ToList(); }
+            /// <summary>The racial spells the pack carries: its id, its row of the other client's spell table (texts
+            /// as text) and the texture of its icon.</summary>
+            public List<Dictionary<string, object>> Spells { get { return List(Data, "spells").OfType<Dictionary<string, object>>().ToList(); } }
             public bool MaleOnly { get { object v; return !(Info.TryGetValue("female", out v) && v is bool && (bool)v); } }
             /// <summary>The side it had in its client: 0 Alliance, 1 Horde, 2 unknown.</summary>
             public int Side { get { object v; return Info.TryGetValue("side", out v) && v != null ? Convert.ToInt32(v) : 2; } }
@@ -86,6 +97,14 @@ namespace CoAInstaller
         static string Str(Dictionary<string, object> d, string k) { object v; return d != null && d.TryGetValue(k, out v) && v != null ? Convert.ToString(v) : ""; }
         static object[] List(Dictionary<string, object> d, string k) { object v; return d != null && d.TryGetValue(k, out v) ? (v as object[]) ?? (v is System.Collections.ArrayList ? ((System.Collections.ArrayList)v).ToArray() : new object[0]) : new object[0]; }
         static uint Num(object v) { return v == null ? 0 : v is string ? 0 : Convert.ToUInt32(Convert.ToInt64(v) & 0xFFFFFFFF); }
+        static string Str(DbcTable t, byte[] row, int field)
+        {
+            uint at = t.Field(row, field);
+            if (at == 0 || at >= t.Strings.Length) return "";
+            int end = (int)at;
+            while (end < t.Strings.Length && t.Strings[end] != 0) end++;
+            return Encoding.UTF8.GetString(t.Strings, (int)at, end - (int)at);
+        }
 
         const string InfoName = "race.info.json";
         const int InfoVersion = 1;
@@ -162,15 +181,15 @@ namespace CoAInstaller
 
         /// <summary>Adds an imported race to the client tables: its race row (the base race's, with its own model, file
         /// name and prefix), models and displays, and its sections, hair and beards with new numbers.</summary>
-        public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name)
+        public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name, Action<string> note = null)
         {
             var cr = DbcTable.Parse(load("DBFilesClient\\ChrRaces.dbc"), "ChrRaces.dbc");
             var di = DbcTable.Parse(load("DBFilesClient\\CreatureDisplayInfo.dbc"), "CreatureDisplayInfo.dbc");
             var md = DbcTable.Parse(load("DBFilesClient\\CreatureModelData.dbc"), "CreatureModelData.dbc");
             var baseRow = cr.Records.FirstOrDefault(r => cr.Field(r, 0) == baseRace);
             if (baseRow == null) throw new InvalidOperationException(L.F("The game client has no race {0} for the {1} to lean on.", baseRace, name));
-            var displays = di.Records.ToDictionary(r => di.Field(r, 0));
-            var models = md.Records.ToDictionary(r => md.Field(r, 0));
+            var displays = ById(di, "CreatureDisplayInfo.dbc", note);
+            var models = ById(md, "CreatureModelData.dbc", note);
             var modelsOfPack = pack.Data.ContainsKey("models") ? pack.Data["models"] as Dictionary<string, object> : null;
             var newDisplay = new uint[2];
             for (int sex = 0; sex < 2; sex++)
@@ -190,10 +209,19 @@ namespace CoAInstaller
                 md.SetField(model, 2, md.AddString(Str(m, "path")));
                 var src = List(m, "model");
                 for (int k = 14; k <= 25 && k < src.Length; k++) md.SetField(model, k, Num(src[k]));     // collision and size
+                // the race's own numbers where the base race's would show: flags, size class, scale, footsteps,
+                // foley and sounds (its voice and its steps were the base race's before)
+                foreach (int k in new[] { 1, 3, 4, 6, 7, 8, 9, 10, 13 })
+                    if (k < src.Length && k < md.Fields) md.SetField(model, k, Num(src[k]));
                 md.Records.Add(model);
                 var display = (byte[])baseDisplay.Clone();
                 di.SetField(display, 0, id);
                 di.SetField(display, 1, id);
+                // and its own display numbers: extended display, scale, opacity, geoset data (the textures stay the
+                // base race's: the skins and faces of the race come from its sections)
+                var dsrc = List(m, "display");
+                foreach (int k in new[] { 3, 4, 5, 14 })
+                    if (k < dsrc.Length && k < di.Fields) di.SetField(display, k, Num(dsrc[k]));
                 di.Records.Add(display);
                 newDisplay[sex] = id;
             }
@@ -210,6 +238,17 @@ namespace CoAInstaller
             save("DBFilesClient\\ChrRaces.dbc", cr.ToBytes());
             save("DBFilesClient\\CreatureDisplayInfo.dbc", di.ToBytes());
             save("DBFilesClient\\CreatureModelData.dbc", md.ToBytes());
+
+            // the voice of the race: its source's own rows where it has some, else the base race's
+            AddVoice(load, save, pack, race, baseRace);
+
+            // the client rows of its racial spells: a client that never had them knows nothing of the spells the
+            // server grants the race - no name, no icon, and nothing on the targets their effects land on
+            AddSpells(load, save, pack, name, note);
+
+            // the character window of this client paints a background per race: a race it never had has none, and
+            // the window complains when it opens. The race takes the picture of the race it leans on.
+            AddRaceFrame(load, save, pack, cr, baseRow, name, note);
 
             // sections: plain rows and their HD rows with the same new ids
             var cs = DbcTable.Parse(load("DBFilesClient\\CharSections.dbc"), "CharSections.dbc");
@@ -228,7 +267,9 @@ namespace CoAInstaller
                 idOf[k] = next;
                 cs.Records.Add(Section(cs, r, next++, race));
             }
-            // without HD rows of its own, the race's rows are its HD rows too: its textures are laid out as HD textures
+            // a race without HD rows of its own keeps none: the client draws it with its plain rows, the way the client
+            // the pack was made from drew it. Writing the plain rows into the HD table laid their old-layout textures
+            // on the HD model (skew, parts missing) for races whose source client has no HD table at all
             var hdIds = new HashSet<uint>(hd.Records.Select(x => hd.Field(x, 0)));
             // A plain row without an HD row of its own, in a race that has HD rows: its texture is laid out for the old
             // model and lands askew on the HD one (eyes and mouth in the wrong place: the first skin colours of CoA
@@ -251,13 +292,16 @@ namespace CoAInstaller
                     hdKeys.Add(key(copy));
                 }
             }
-            foreach (var r in hdRows.Count > 0 ? hdUse : plain)
+            if (hdRows.Count > 0)
             {
-                string k = key(r);
-                uint id;
-                if (!idOf.TryGetValue(k, out id)) { id = next++; idOf[k] = id; }
-                if (!hdIds.Add(id)) continue;
-                hd.Records.Add(Section(hd, r, id, race));
+                foreach (var r in hdUse)
+                {
+                    string k = key(r);
+                    uint id;
+                    if (!idOf.TryGetValue(k, out id)) { id = next++; idOf[k] = id; }
+                    if (!hdIds.Add(id)) continue;
+                    hd.Records.Add(Section(hd, r, id, race));
+                }
             }
             save("DBFilesClient\\CharSections.dbc", cs.ToBytes());
             save("DBFilesClient\\HDCharSections.dbc", hd.ToBytes());
@@ -289,6 +333,26 @@ namespace CoAInstaller
                     t.Records.Add(rec);
                 }
                 save("DBFilesClient\\HDCharacterFacialHairStyles.dbc", t.ToBytes());
+            }
+
+            // hair textures: rows of numbers only, under the race's new numbers (its hair pointed at the base
+            // race's textures before)
+            var htBytes = load("DBFilesClient\\CharHairTextures.dbc");
+            var htRows = pack.Rows("hair_textures");
+            if (htBytes != null && htRows.Count > 0)
+            {
+                var ht = DbcTable.Parse(htBytes, "CharHairTextures.dbc");
+                ht.Records.RemoveAll(r => ht.Field(r, 1) == race);
+                uint n = MaxId(ht) + 1;
+                foreach (var r in htRows)
+                {
+                    var rec = new byte[ht.RecordSize];
+                    for (int k = 0; k < ht.Fields && k < r.Length; k++) ht.SetField(rec, k, Num(r[k]));
+                    ht.SetField(rec, 0, n++);
+                    ht.SetField(rec, 1, (uint)race);
+                    ht.Records.Add(rec);
+                }
+                save("DBFilesClient\\CharHairTextures.dbc", ht.ToBytes());
             }
         }
 
@@ -341,12 +405,148 @@ namespace CoAInstaller
             save("DBFilesClient\\" + hdTable + ".dbc", h.ToBytes());
         }
 
+        /// <summary>The voice rows of a race: the rows its source brought with it, for the sounds this client has, or,
+        /// without any, its base race's rows. VocalUISounds is the voice of the UI (clicks, "your inventory is full"),
+        /// EmotesTextSound and its HD table are the text emotes (/silly, /flirt and the like). Every row a copy under
+        /// the race's number with a new id; without any of this the race is mute.</summary>
+        static void AddVoice(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace)
+        {
+            HashSet<uint> sounds = null;
+            Func<uint, bool> hasSound = id =>
+            {
+                if (id == 0 || id == 0xFFFFFFFF) return true;
+                if (sounds == null)
+                {
+                    sounds = new HashSet<uint>();
+                    var bytes = load("DBFilesClient\\SoundEntries.dbc");
+                    var st = bytes == null ? null : DbcTable.Parse(bytes, "SoundEntries.dbc");
+                    if (st != null) foreach (var r in st.Records) sounds.Add(st.Field(r, 0));
+                }
+                return sounds.Contains(id);
+            };
+            foreach (var table in new[]
+            {
+                new { Name = "VocalUISounds", Key = "vocal_ui_sounds", SoundFields = new[] { 3, 4 } },
+                new { Name = "EmotesTextSound", Key = "emotes_text_sound", SoundFields = new[] { 4 } },
+                new { Name = "HDEmotesTextSound", Key = "hd_emotes_text_sound", SoundFields = new[] { 4 } },
+            })
+            {
+                var bytes = load("DBFilesClient\\" + table.Name + ".dbc");
+                if (bytes == null) continue;
+                var t = DbcTable.Parse(bytes, table.Name + ".dbc");
+                t.Records.RemoveAll(r => t.Field(r, 2) == race);
+                uint next = MaxId(t) + 1;
+                int added = 0;
+                // the race's own rows, kept only while this client has every sound they name (a sound missing here
+                // would make it mute with the wrong voice's silence); rows of the race's own source, never the base's
+                foreach (var r in pack.Rows(table.Key))
+                    if (table.SoundFields.All(f => f >= r.Length || hasSound(Num(r[f]))))
+                    {
+                        var rec = new byte[t.RecordSize];
+                        for (int k = 0; k < t.Fields && k < r.Length; k++) t.SetField(rec, k, Num(r[k]));
+                        t.SetField(rec, 0, next++);
+                        t.SetField(rec, 2, (uint)race);
+                        t.Records.Add(rec);
+                        added++;
+                    }
+                if (added == 0)
+                    foreach (var r in t.Records.Where(r => t.Field(r, 2) == baseRace).ToList())
+                    {
+                        var rec = (byte[])r.Clone();
+                        t.SetField(rec, 0, next++);
+                        t.SetField(rec, 2, (uint)race);
+                        t.Records.Add(rec);
+                    }
+                save("DBFilesClient\\" + table.Name + ".dbc", t.ToBytes());
+            }
+        }
+
+        /// <summary>The client rows of a race's racial spells: into the client's spell table (with new strings) and
+        /// their icons into its icon table. A picture this client already lists keeps its number; only a picture it
+        /// does not have gets a new row, so the rows of imported races stay apart from the client's own. Both tables
+        /// are written every time: the patched archive of this build must hold them, not only the grown one.</summary>
+        public static void AddSpells(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, string name, Action<string> note)
+        {
+            var spells = pack.Spells;
+            if (spells.Count == 0) return;
+            var t = DbcTable.Parse(load("DBFilesClient\\Spell.dbc"), "Spell.dbc");
+            if (t.Fields != SpellFields)
+            {
+                if (note != null) note(L.F("The spell table of your client ({0} fields) is not the 234-field kind the racial spells of the {1} come in; they stay out.", t.Fields, name));
+                return;
+            }
+            var iconBytes = load("DBFilesClient\\SpellIcon.dbc");
+            if (iconBytes == null)
+            {
+                if (note != null) note(L.F("Your game client has no SpellIcon.dbc, so the racial spells of the {0} cannot get their icons and stay out.", name));
+                return;
+            }
+            var icons = DbcTable.Parse(iconBytes, "SpellIcon.dbc");
+            var iconOf = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in icons.Records)
+            {
+                string path = Str(icons, r, 1);
+                if (path.Length > 0 && !iconOf.ContainsKey(path)) iconOf[path] = icons.Field(r, 0);
+            }
+            uint nextIcon = MaxId(icons) + 1;
+            var ids = new HashSet<uint>(spells.Select(s => Num(s["id"])));
+            t.Records.RemoveAll(r => ids.Contains(t.Field(r, 0)));
+            int added = 0, iconsAdded = 0, skipped = 0;
+            foreach (var spell in spells)
+            {
+                var values = List(spell, "row");
+                if (values.Length != SpellFields) { skipped++; continue; }
+                var row = new byte[t.RecordSize];
+                for (int k = 0; k < SpellFields; k++)
+                    t.SetField(row, k, SpellTextFields.Contains(k) ? t.AddString(Convert.ToString(values[k]) ?? "") : Num(values[k]));
+                string texture = Str(spell, "icon");
+                if (texture.Length > 0)
+                {
+                    uint iconId;
+                    if (!iconOf.TryGetValue(texture, out iconId))
+                    {
+                        var irec = new byte[icons.RecordSize];
+                        icons.SetField(irec, 0, iconId = nextIcon++);
+                        icons.SetField(irec, 1, icons.AddString(texture));
+                        icons.Records.Add(irec);
+                        iconOf[texture] = iconId;
+                        iconsAdded++;
+                    }
+                    t.SetField(row, SpellIconField, iconId);
+                }
+                t.Records.Add(row);
+                added++;
+            }
+            save("DBFilesClient\\Spell.dbc", t.ToBytes());
+            save("DBFilesClient\\SpellIcon.dbc", icons.ToBytes());
+            if (note != null)
+            {
+                note(L.F("The racial spells of the {0}: {1} rows of the spell table and {2} new icon rows.", name, added, iconsAdded));
+                if (skipped > 0) note(L.F("{0} rows of the {1}'s racial spells were not the right shape and stayed out.", skipped, name));
+            }
+        }
         static uint MaxId(DbcTable t) { return t.Records.Count == 0 ? 0 : t.Records.Max(r => t.Field(r, 0)); }
+
+        /// <summary>The rows of a table by their id, the first row of an id a table names twice (custom clients do);
+        /// read the same way as the races (RacePacker.Races) and the client's tables (ClientRaces).</summary>
+        static Dictionary<uint, byte[]> ById(DbcTable t, string label, Action<string> note)
+        {
+            var byId = new Dictionary<uint, byte[]>();
+            int twice = 0;
+            foreach (var r in t.Records)
+            {
+                uint id = t.Field(r, 0);
+                if (byId.ContainsKey(id)) { twice++; continue; }
+                byId[id] = r;
+            }
+            if (twice > 0 && note != null) note(L.F("{0} has {1} rows with an id used more than once; the first of each is used.", label, twice));
+            return byId;
+        }
 
         // ---------------------------------------------------------------------------------------- the rules
 
         /// <summary>The rules of the character creation for the sections of one added race (see the class summary).</summary>
-        public static void SectionRules(Func<string, byte[]> load, Action<string, byte[]> save, int race, bool maleOnly)
+        public static void SectionRules(Func<string, byte[]> load, Action<string, byte[]> save, int race, bool maleOnly, Action<string> note = null)
         {
             var cs = DbcTable.Parse(load("DBFilesClient\\CharSections.dbc"), "CharSections.dbc");
             var hdBytes = load("DBFilesClient\\HDCharSections.dbc");
@@ -383,7 +583,17 @@ namespace CoAInstaller
                 {
                     var rows = mine.Where(r => cs.Field(r, 2) == sex && cs.Field(r, 3) == sec).ToList();
                     if (rows.Count == 0) continue;
-                    var styles = rows.GroupBy(r => cs.Field(r, 8)).ToDictionary(g => g.Key, g => g.ToDictionary(r => cs.Field(r, 9)));
+                    // by style and colour, the first row of each: a client's table repeats rows now and then
+                    var styles = new Dictionary<uint, Dictionary<uint, byte[]>>();
+                    int twice = 0;
+                    foreach (var r in rows)
+                    {
+                        Dictionary<uint, byte[]> style;
+                        if (!styles.TryGetValue(cs.Field(r, 8), out style)) styles[cs.Field(r, 8)] = style = new Dictionary<uint, byte[]>();
+                        if (style.ContainsKey(cs.Field(r, 9))) { twice++; continue; }
+                        style[cs.Field(r, 9)] = r;
+                    }
+                    if (twice > 0 && note != null) note(L.F("CharSections.dbc of the added race has {0} rows with a style and colour used more than once; the first of each is used.", twice));
                     uint top = styles.Keys.Max();
                     for (uint v = 0; v <= top; v++)
                         if (!styles.ContainsKey(v))
@@ -423,6 +633,42 @@ namespace CoAInstaller
             var seen = new HashSet<uint>();
             hd.Records.RemoveAll(r => hd.Field(r, 1) == race && !seen.Add(hd.Field(r, 0)));
             save("DBFilesClient\\HDCharSections.dbc", hd.ToBytes());
+        }
+
+        /// <summary>The character window of this client paints a background per race and knows none for a race it
+        /// never had (the window then complains when it opens). The race takes the line of the race it leans on.</summary>
+        static void AddRaceFrame(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, DbcTable cr, byte[] baseRow, string name, Action<string> note)
+        {
+            var bytes = load("Interface\\SharedXML\\AtlasInfo.lua");
+            if (bytes == null) return;                          // a client without that window has none to paint
+            string file = pack.File.Length > 0 ? pack.File : pack.Key;
+            string baseFile = Str(cr, baseRow, 11);
+            bool added, orphan;
+            bytes = FrameAtlas(bytes, file, baseFile, out added, out orphan);
+            if (note != null && added) note(L.F("The background of the character window for the {0} (taken from the {1}).", name, baseFile));
+            if (note != null && orphan) note(L.F("This client paints its character window per race and has no background for the {0}: the window will keep complaining.", name));
+            save("Interface\\SharedXML\\AtlasInfo.lua", bytes);
+        }
+
+        /// <summary>Adds a line for a race to the atlas list of a client's character window (the
+        /// Interface\SharedXML\AtlasInfo.lua), a copy of the line of the race it leans on. Says whether a line was
+        /// added or the base race has none at all.</summary>
+        public static byte[] FrameAtlas(byte[] bytes, string file, string baseFile, out bool added, out bool orphan)
+        {
+            added = false; orphan = false;
+            string text = Encoding.UTF8.GetString(bytes);
+            string wanted = "[\"DressUpBackground-" + file + "\"]";
+            if (file.Length == 0 || text.IndexOf(wanted, StringComparison.Ordinal) >= 0) return bytes;
+            string from = "[\"DressUpBackground-" + baseFile + "\"]";
+            int at = baseFile.Length == 0 ? -1 : text.IndexOf(from, StringComparison.Ordinal);
+            int start = at < 0 ? 0 : text.LastIndexOf('\n', at) + 1;
+            int end = at < 0 ? -1 : text.IndexOf('\n', at);
+            if (end < 0) { orphan = true; return bytes; }
+            string line = text.Substring(start, end - start);
+            bool crlf = line.EndsWith("\r");
+            if (crlf) line = line.Substring(0, line.Length - 1);
+            added = true;
+            return Encoding.UTF8.GetBytes(text.Insert(end + 1, line.Replace(from, wanted) + (crlf ? "\r\n" : "\n")));
         }
 
         // ---------------------------------------------------------------------------------------- the files

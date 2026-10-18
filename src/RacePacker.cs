@@ -11,33 +11,172 @@ namespace CoAInstaller
     /// <summary>
     /// Makes race packs for the race folder out of another game client or repack: for each race its rows of the client
     /// tables (race, models and displays, skins and faces, hair, beards and their HD rows) and the files it needs (its
-    /// models with their skins, animations and textures, the textures of its rows, its icon). Files the player's own game
-    /// client has byte for byte are left out: the game has them anyway. After that, the other client can be deleted.
+    /// models with their skins, animations and textures, the textures of its rows, its icon, and everything else its own
+    /// folder in the client holds: an appearance patch of a creator loads further files itself, they are not all named in
+    /// the tables or in the model header). Files the player's own game client has byte for byte are left out: the game has
+    /// them anyway. After that, the other client can be deleted.
     ///
-    /// The other client may be a whole game folder (with Data\) or just a folder of patch archives (CoA Custom ships its
-    /// races as patches for the CoA client): its archives are read before those of the player's client, and an archive
-    /// of the player's client with the same name as one of it is left out (a patch it replaces).
+    /// The other client may be a whole game folder (with Data\), just a folder of patch archives (CoA Custom ships its
+    /// races as patches for the CoA client), or the raw files of a creator (an installer package's "files" tree for
+    /// example): its archives are read before those of the player's client, an archive of the player's client with the same
+    /// name as one of it is left out (a patch it replaces), and its raw files step in for what the archives do not have.
     /// </summary>
     static class RacePacker
     {
-        /// <summary>A set of archives, read as the game reads them: the one it reads last wins.</summary>
+        /// <summary>A set of archives, read as the game reads them: the one it reads last wins. Files that lie around
+        /// unpacked (the raw files some creators ship) are read after all archives, they only step in for what the
+        /// archives do not have.</summary>
         public sealed class Archives : IDisposable
         {
             readonly List<MpqArchive> list = new List<MpqArchive>();      // the one read last first
+            readonly List<Loose> raw = new List<Loose>();
             public readonly List<string> Unreadable = new List<string>();
             public readonly Dictionary<string, DbcTable> Tables = new Dictionary<string, DbcTable>(StringComparer.OrdinalIgnoreCase);
+            List<string> known;                                           // every name the archives know, the most important first
+            Dictionary<string, List<string>> byName;                      // file name -> the names that share it
 
             public Archives(IEnumerable<string> inLoadOrder)
             {
                 foreach (var path in inLoadOrder.Reverse())
                     try { list.Add(new MpqArchive(path)); } catch { Unreadable.Add(Path.GetFileName(path)); }
             }
-            public int Count { get { return list.Count; } }
-            MpqArchive Holder(string name) { foreach (var a in list) if (a.Contains(name)) return a; return null; }
+            public void AddRaw(Loose files)
+            {
+                if (files.Count == 0) return;
+                raw.Add(files);
+                known = null;
+                byName = null;
+            }
+            public int Count { get { return list.Count + raw.Count; } }
+            object Holder(string name)
+            {
+                foreach (var a in list) if (a.Contains(name)) return a;
+                foreach (var r in raw) if (r.Has(name)) return r;
+                return null;
+            }
             public bool Has(string name) { return Holder(name) != null; }
-            public long SizeOf(string name) { var a = Holder(name); return a == null ? -1 : a.SizeOf(name); }
-            public byte[] Read(string name) { var a = Holder(name); return a == null ? null : a.Read(name); }
+            public long SizeOf(string name)
+            {
+                object h = Holder(name);
+                if (h is MpqArchive) return ((MpqArchive)h).SizeOf(name);
+                return h is Loose ? ((Loose)h).SizeOf(name) : -1;
+            }
+            public byte[] Read(string name)
+            {
+                object h = Holder(name);
+                if (h is MpqArchive) return ((MpqArchive)h).Read(name);
+                return h is Loose ? ((Loose)h).Read(name) : null;
+            }
+
+            /// <summary>Every file name the archives list in their (listfile) and the raw folders hold, the most
+            /// important first.</summary>
+            public List<string> Names()
+            {
+                if (known != null) return known;
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var result = new List<string>();
+                foreach (var a in list)
+                {
+                    List<string> names;
+                    try { names = a.Names(); } catch { continue; }
+                    foreach (var n in names) if (seen.Add(n)) result.Add(n);
+                }
+                foreach (var r in raw)
+                    foreach (var n in r.Names) if (seen.Add(n)) result.Add(n);
+                return known = result;
+            }
+
+            /// <summary>The names of the files below a folder.</summary>
+            public List<string> Under(string folder)
+            {
+                string under = folder.Replace('/', '\\').TrimEnd('\\') + "\\";
+                var result = new List<string>();
+                foreach (var n in Names()) if (n.StartsWith(under, StringComparison.OrdinalIgnoreCase)) result.Add(n);
+                return result;
+            }
+
+            static string FolderOf(string name) { int at = name.LastIndexOf('\\'); return at < 0 ? "" : name.Substring(0, at); }
+            static string BaseOf(string name) { int at = name.LastIndexOf('\\'); return name.Substring(at + 1); }
+
+            /// <summary>The name of a file, or the closest name the archives have instead (the same file name from
+            /// another folder, or under .mdx), or null.</summary>
+            public string Find(string name)
+            {
+                if (Has(name)) return name;
+                var tries = new List<string> { name };
+                string m2 = M2(name);
+                if (!m2.Equals(name, StringComparison.OrdinalIgnoreCase)) tries.Add(m2);
+                if (name.EndsWith(".m2", StringComparison.OrdinalIgnoreCase)) tries.Add(name.Substring(0, name.Length - 3) + ".mdx");
+                foreach (var want in tries) if (!want.Equals(name, StringComparison.OrdinalIgnoreCase) && Has(want)) return want;
+                if (byName == null)
+                {
+                    byName = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var n in Names())
+                    {
+                        string b = BaseOf(n);
+                        List<string> had;
+                        if (!byName.TryGetValue(b, out had)) byName[b] = had = new List<string>();
+                        had.Add(n);
+                    }
+                }
+                foreach (var want in tries)
+                {
+                    List<string> candidates;
+                    if (!byName.TryGetValue(BaseOf(want), out candidates)) continue;
+                    // of files with the same name the one from the most similar folder
+                    var wantParts = FolderOf(want).Split('\\');
+                    string best = null;
+                    int score = -1;
+                    foreach (var c in candidates)
+                    {
+                        var cParts = FolderOf(c).Split('\\');
+                        int s = 0;
+                        while (s < wantParts.Length && s < cParts.Length &&
+                            wantParts[wantParts.Length - 1 - s].Equals(cParts[cParts.Length - 1 - s], StringComparison.OrdinalIgnoreCase)) s++;
+                        if (s > score) { score = s; best = c; }
+                    }
+                    if (best != null) return best;
+                }
+                return null;
+            }
+
             public void Dispose() { foreach (var a in list) a.Dispose(); }
+        }
+
+        /// <summary>Files that lie around unpacked, by their path from the folder they were given in.</summary>
+        public sealed class Loose : IDisposable
+        {
+            readonly Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            public Loose(string root) { Add(root, "", 12); }
+
+            void Add(string folder, string under, int depth)
+            {
+                if (depth == 0) return;
+                string[] files, folders;
+                try { files = Directory.GetFiles(folder); } catch { return; }
+                try { folders = Directory.GetDirectories(folder); } catch { folders = new string[0]; }
+                foreach (var f in files) map[under + Path.GetFileName(f)] = f;
+                foreach (var d in folders) Add(d, under + Path.GetFileName(d) + "\\", depth - 1);
+            }
+
+            static string Key(string name) { return name.Replace('/', '\\').TrimStart('\\'); }
+            public int Count { get { return map.Count; } }
+            public bool Has(string name) { return map.ContainsKey(Key(name)); }
+            public long SizeOf(string name)
+            {
+                string f;
+                if (!map.TryGetValue(Key(name), out f)) return -1;
+                try { return new FileInfo(f).Length; } catch { return -1; }
+            }
+            public byte[] Read(string name)
+            {
+                string f;
+                if (!map.TryGetValue(Key(name), out f)) return null;
+                try { return File.ReadAllBytes(f); } catch { return null; }
+            }
+            public IEnumerable<string> Names { get { foreach (var name in map.Keys) yield return name; } }
+            public void Dispose() { }
         }
 
         /// <summary>A race the other client offers.</summary>
@@ -85,15 +224,31 @@ namespace CoAInstaller
         }
 
         /// <summary>The other client on top of the player's: its archives first, then those of the player's client it
-        /// does not replace.</summary>
+        /// does not replace. A folder that is no game client (a package with raw files in it, the raw files of a creator)
+        /// has its files added, they step in for what the archives do not have.</summary>
         public static Archives Open(string other, string yourClient)
         {
             var theirs = ArchivesOf(other);
-            if (theirs.Count == 0) throw new InvalidOperationException(L.F("There are no game archives (.MPQ) in {0}.", other));
             var names = new HashSet<string>(theirs.Select(Path.GetFileName), StringComparer.OrdinalIgnoreCase);
             var yours = yourClient == null ? new List<string>() : ClientPatch.ClientArchives(yourClient).Where(p => !names.Contains(Path.GetFileName(p)));
             // read order: the player's archives first, then the other client's (the last read wins)
-            return new Archives(yours.Concat(theirs).ToList());
+            var archives = new Archives(yours.Concat(theirs).ToList());
+            if (!IsClient(other)) archives.AddRaw(new Loose(other));
+            if (archives.Count == 0) throw new InvalidOperationException(L.F("There are no game archives (.MPQ) in {0}.", other));
+            return archives;
+        }
+
+        /// <summary>Whether a folder is a game client: its archives hold everything it has, files lying around next to
+        /// them (logs, notes, tools) are not game content.</summary>
+        static bool IsClient(string folder)
+        {
+            if (Path.GetFileName(folder.TrimEnd('\\', '/')).Equals("Data", StringComparison.OrdinalIgnoreCase)) return true;
+            foreach (var dir in new[] { folder }.Concat(Below(folder, 3)))
+            {
+                string data = Path.Combine(dir, "Data");
+                if (Directory.Exists(data) && Directory.GetFiles(data, "*.mpq").Length > 0) return true;
+            }
+            return false;
         }
 
         /// <summary>Whether a DLL is a 64-race patch of the game client (it names itself so in its texts).</summary>
@@ -160,6 +315,13 @@ namespace CoAInstaller
 
         static string M2(string path) { return Regex.Replace(path ?? "", @"\.(mdx|mdl)$", ".m2", RegexOptions.IgnoreCase); }
 
+        /// <summary>Whether the archives have a file, wherever it lies (see Archives.Find).</summary>
+        static bool HasFile(Archives source, string path)
+        {
+            path = M2(path);
+            try { return source.Has(path) || source.Find(path) != null; } catch { return false; }
+        }
+
         static string NameOf(DbcTable races, byte[] row) { return Str(races, row, 14).Split('|')[0].Trim(); }
 
         /// <summary>The races of the other client beyond the stock ones that have a body there.</summary>
@@ -174,7 +336,7 @@ namespace CoAInstaller
             Func<uint, bool> hasBody = display =>
             {
                 uint m; string p;
-                return displayModel.TryGetValue(display, out m) && modelPath.TryGetValue(m, out p) && p.Length > 0 && source.Has(M2(p));
+                return displayModel.TryGetValue(display, out m) && modelPath.TryGetValue(m, out p) && p.Length > 0 && HasFile(source, p);
             };
             var sections = Table(source, "CharSections");
             var skins = new Dictionary<long, int>();
@@ -214,12 +376,23 @@ namespace CoAInstaller
         {
             path = M2(path);
             var files = new List<string> { path };
-            byte[] b;
-            try { b = source.Read(path); } catch { return files; }
+            byte[] b = null;
+            try { b = source.Read(path); } catch { }
+            if (b == null)
+            {
+                // the model may lie elsewhere (see Archives.Find); its skins and textures are read from it wherever it is
+                string found = null;
+                try { found = source.Find(path); } catch { }
+                if (found != null) try { b = source.Read(found); } catch { b = null; }
+            }
             if (b == null || b.Length < 0x60 || Encoding.ASCII.GetString(b, 0, 4) != "MD20") return files;
             string stem = path.Substring(0, path.Length - 3);
             Func<int, uint> u32 = at => at + 4 <= b.Length ? BitConverter.ToUInt32(b, at) : 0;
             uint views = u32(0x44);
+            // the skins it has, wherever they lie, and a guess for each view it needs (which lands in the missing list
+            // when the archives have none)
+            foreach (var s in source.Under(stem))
+                if (s.EndsWith(".skin", StringComparison.OrdinalIgnoreCase)) files.Add(s);
             for (int i = 0; i < views && i < 16; i++) files.Add(stem + i.ToString("00") + ".skin");
             uint count = u32(0x1C), at0 = u32(0x20);
             for (long i = 0; i < count && at0 + i * 64 + 64 <= b.Length; i++)
@@ -259,8 +432,10 @@ namespace CoAInstaller
         }
 
         /// <summary>Puts one race of the other client into the race folder (RaceFolder\Key\race.json and files\). Returns a
-        /// line saying what it holds.</summary>
-        public static string Pack(Archives source, Archives yours, Candidate race, string raceFolder, string sourceLabel, Action<string> progress)
+        /// line saying what it holds. The racial spells the server data names (spells) travel with it: the rows of the
+        /// other client's spell table and the picture each of their icons shows, so a game client without them can be
+        /// given them (without them the client knows nothing of the spells the server grants the race).</summary>
+        public static string Pack(Archives source, Archives yours, Candidate race, string raceFolder, string sourceLabel, uint[] spells, Action<string> progress)
         {
             var cr = Table(source, "ChrRaces");
             var row = cr.Records.First(r => cr.Field(r, 0) == race.Id);
@@ -268,6 +443,7 @@ namespace CoAInstaller
             var md = Table(source, "CreatureModelData");
             var models = new Dictionary<string, object>();
             var files = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            var roots = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);      // the race's own trees in the client
             for (int sex = 0; sex < 2; sex++)
             {
                 uint display = cr.Field(row, 4 + sex);
@@ -283,8 +459,16 @@ namespace CoAInstaller
                 };
                 progress(L.F("Reading the model of the {0} …", race.Name));
                 foreach (var f in ModelFiles(source, path)) files.Add(f);
+                // the race's folder in the client (custom\highmountain for example) holds more than the tables and the
+                // model header name: an appearance patch of a creator loads further files itself, so its whole tree goes in
+                var parts = M2(path).Split('\\');
+                if (parts.Length >= 3 && parts[0].Equals("custom", StringComparison.OrdinalIgnoreCase)) roots.Add(parts[0] + "\\" + parts[1] + "\\");
             }
             if (models.Count == 0) throw new InvalidOperationException(L.F("The {0} has no model in these archives.", race.Name));
+
+            // everything else the race's own folder in the client holds
+            foreach (var root in roots)
+                foreach (var f in source.Under(root)) files.Add(f);
 
             var sections = Rows(Table(source, "CharSections"), 1, race.Id, 4, 5, 6);
             var hdSections = Rows(Table(source, "HDCharSections"), 1, race.Id, 4, 5, 6);
@@ -318,6 +502,15 @@ namespace CoAInstaller
                 byte[] data;
                 try { data = source.Read(f); }
                 catch { data = null; }
+                if (data == null)
+                {
+                    // the file may lie elsewhere in the archives or among the raw files: the race asks for it under this
+                    // name, so it is packed under it
+                    string found = null;
+                    try { found = source.Find(f); } catch { }
+                    if (found != null && !found.Equals(f, StringComparison.OrdinalIgnoreCase))
+                        try { data = source.Read(found); } catch { data = null; }
+                }
                 if (data == null) { missing.Add(f); continue; }
                 if (yours != null && yours.SizeOf(f) == data.Length)
                 {
@@ -330,6 +523,35 @@ namespace CoAInstaller
                 File.WriteAllBytes(to, data);
                 keep.Add(f);
                 bytes += data.Length;
+            }
+
+            // the client rows of the race's racial spells (the ids the server data names): the texts as text and the
+            // icon as the picture it stands for - the player's client may give the same picture another number
+            var racialSpells = new List<object>();
+            var spellsMissing = new List<object>();
+            var spellTable = Table(source, "Spell");
+            if (spellTable != null && spellTable.Fields == RaceImport.SpellFields && spells != null && spells.Length > 0)
+            {
+                var icons = Table(source, "SpellIcon");
+                progress(L.T("Reading the racial spells …"));
+                foreach (uint id in spells.Where(s => s != 0).Distinct())
+                {
+                    var spellRow = spellTable.Records.FirstOrDefault(r => spellTable.Field(r, 0) == id);
+                    if (spellRow == null) { spellsMissing.Add(id); continue; }
+                    var values = new object[spellTable.Fields];
+                    for (int k = 0; k < spellTable.Fields; k++)
+                        values[k] = RaceImport.SpellTextFields.Contains(k)
+                            ? (object)(spellTable.Field(spellRow, k) == 0 ? "" : Str(spellTable, spellRow, k))
+                            : spellTable.Field(spellRow, k);
+                    string iconTexture = "";
+                    if (icons != null)
+                    {
+                        uint iconId = spellTable.Field(spellRow, RaceImport.SpellIconField);
+                        var iconRow = icons.Records.FirstOrDefault(r => icons.Field(r, 0) == iconId);
+                        if (iconRow != null) iconTexture = Str(icons, iconRow, 1);
+                    }
+                    racialSpells.Add(new Dictionary<string, object> { { "id", id }, { "row", values }, { "icon", iconTexture } });
+                }
             }
 
             var json = new Dictionary<string, object>
@@ -348,6 +570,12 @@ namespace CoAInstaller
                 { "hd_hair_geosets", Rows(Table(source, "HDCharHairGeosets"), 1, race.Id) },
                 { "facial_hair", Rows(Table(source, "CharacterFacialHairStyles"), 0, race.Id) },
                 { "hd_facial_hair", Rows(Table(source, "HDCharacterFacialHairStyles"), 1, race.Id) },
+                { "hair_textures", Rows(Table(source, "CharHairTextures"), 1, race.Id) },
+                { "vocal_ui_sounds", Rows(Table(source, "VocalUISounds"), 2, race.Id) },
+                { "emotes_text_sound", Rows(Table(source, "EmotesTextSound"), 2, race.Id) },
+                { "hd_emotes_text_sound", Rows(Table(source, "HDEmotesTextSound"), 2, race.Id) },
+                { "spells", racialSpells },
+                { "spells_missing", spellsMissing },
                 { "missing", missing },
                 { "files", keep },
                 { "uses_coa_files", same },
@@ -356,6 +584,7 @@ namespace CoAInstaller
             Directory.CreateDirectory(dest);
             File.WriteAllText(Path.Combine(dest, "race.json"), new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(json), new UTF8Encoding(false));
             return L.F("{0}: {1} files, {2} MB", race.Name, keep.Count, bytes / 1000000) + (same.Count > 0 ? L.F(", {0} taken from your client", same.Count) : "") +
+                (racialSpells.Count > 0 ? L.F(", {0} racial spells", racialSpells.Count) : "") +
                 (missing.Count > 0 ? L.F(", {0} missing", missing.Count) : "") + ".";
         }
     }
