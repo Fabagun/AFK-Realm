@@ -1,6 +1,10 @@
-# AFK Realm 1.0.3
+# AFK Realm 1.0.4
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.4
+
+- **Tall races fit the character creation.** A race much taller than its base race – the Highmountain Tauren next to the Tauren – stood half out of the picture, because the character creation shows it with the camera of its base race. AFK Realm now measures how tall every race's model stands, and mod-custom-races moves the camera back and up as far as needed, in the choice of race and class and in the customization. Update AFK Realm and mod-custom-races, then *Modules → Game client → Install* and give the other players the new ZIP.
 
 ## New in 1.0.3
 

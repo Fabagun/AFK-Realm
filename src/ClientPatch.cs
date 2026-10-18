@@ -383,8 +383,102 @@ namespace CoAInstaller
                 if (!int.TryParse(Text(e.SectionRules, "race"), out race) || race <= 0) continue;
                 RaceImport.SectionRules(load, save, race, Text(e.SectionRules, "maleOnly") == "1", notes == null ? null : new Action<string>(notes.Add));
             }
+            FillHeights(files, client, plan, load);
             if (files.Count > 0) files[StampName] = Encoding.UTF8.GetBytes(Stamp(files) + string.Concat(plan.Imports.Select(w => "race " + w.Race + " " + w.Pack.Key + "\r\n")));
             return files;
+        }
+
+        // ---------------------------------------------------------------------------- the size of the races
+
+        static readonly Regex HeightToken = new Regex(@"\{height:(\d+):([01])\}");
+        // heights already measured: model file (and where it came from) -> height in its own units
+        static readonly Dictionary<string, double> measured = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>"{height:RACE:SEX}" in a script of the patch (SEX 0 male, 1 female) becomes how tall the model of that
+        /// race stands, in yards: its vertices in the standing pose times the scales of its display and model - the box a
+        /// model file carries can hold all its animations. A script of the character creation sizes its camera by it.
+        /// "0" when the client does not know the race or its model.</summary>
+        static void FillHeights(SortedDictionary<string, byte[]> files, string client, Plan plan, Func<string, byte[]> load)
+        {
+            var scripts = files.Keys.Where(k => k.EndsWith(".lua", StringComparison.OrdinalIgnoreCase) && Encoding.UTF8.GetString(files[k]).Contains("{height:")).ToList();
+            if (scripts.Count == 0) return;
+            byte[] crBytes = load("DBFilesClient\\ChrRaces.dbc"), diBytes = load("DBFilesClient\\CreatureDisplayInfo.dbc"), mdBytes = load("DBFilesClient\\CreatureModelData.dbc");
+            if (crBytes == null || diBytes == null || mdBytes == null) return;
+            var cr = DbcTable.Parse(crBytes, "ChrRaces.dbc");
+            var di = DbcTable.Parse(diBytes, "CreatureDisplayInfo.dbc");
+            var md = DbcTable.Parse(mdBytes, "CreatureModelData.dbc");
+            var races = new Dictionary<uint, byte[]>(); foreach (var r in cr.Records) races[cr.Field(r, 0)] = r;
+            var displays = new Dictionary<uint, byte[]>(); foreach (var r in di.Records) displays[di.Field(r, 0)] = r;
+            var models = new Dictionary<uint, byte[]>(); foreach (var r in md.Records) models[md.Field(r, 0)] = r;
+            Func<DbcTable, byte[], int, double> real = (t, r, f) => { double v = BitConverter.ToSingle(BitConverter.GetBytes(t.Field(r, f)), 0); return v > 0.01 && v < 100 ? v : 1.0; };
+            var heights = new Dictionary<string, string>();
+            foreach (var name in scripts)
+            {
+                string text = HeightToken.Replace(Encoding.UTF8.GetString(files[name]), m =>
+                {
+                    string value;
+                    if (heights.TryGetValue(m.Value, out value)) return value;
+                    double height = 0;
+                    byte[] race, display, model;
+                    if (races.TryGetValue(uint.Parse(m.Groups[1].Value), out race) && displays.TryGetValue(cr.Field(race, 4 + int.Parse(m.Groups[2].Value)), out display)
+                        && models.TryGetValue(di.Field(display, 1), out model))
+                    {
+                        string path = DbcString(md, model, 2);
+                        if (path.EndsWith(".mdx", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".mdl", StringComparison.OrdinalIgnoreCase)) path = path.Substring(0, path.Length - 4) + ".m2";
+                        double own = ModelHeight(path, client, plan);
+                        if (own > 0) height = own * real(di, display, 4) * real(md, model, 4);
+                    }
+                    value = height.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                    heights[m.Value] = value;
+                    return value;
+                });
+                files[name] = Encoding.UTF8.GetBytes(text);
+            }
+        }
+
+        static string DbcString(DbcTable t, byte[] row, int field)
+        {
+            uint at = t.Field(row, field);
+            if (at == 0 || at >= t.Strings.Length) return "";
+            int end = (int)at;
+            while (end < t.Strings.Length && t.Strings[end] != 0) end++;
+            return Encoding.UTF8.GetString(t.Strings, (int)at, end - (int)at);
+        }
+
+        /// <summary>The height of a model file in its standing pose (its vertices), 0 when it is not found or not read.
+        /// An imported race's model is in its race folder; the others are in the client's archives.</summary>
+        static double ModelHeight(string path, string client, Plan plan)
+        {
+            if (path.Length == 0) return 0;
+            string key = path + "|" + ClientRaces.ArchivesKey(client) + "|" + string.Join(",", plan.Imports.Select(w => w.Pack.Dir));
+            double height;
+            lock (measured) if (measured.TryGetValue(key, out height)) return height;
+            byte[] bytes = null;
+            foreach (var w in plan.Imports)
+            {
+                string file = Path.Combine(w.Pack.Dir, "files", path.Replace('/', '\\'));
+                if (File.Exists(file)) { bytes = File.ReadAllBytes(file); break; }
+            }
+            if (bytes == null) { string source; try { bytes = FromClient(client, path, out source); } catch { bytes = null; } }
+            height = bytes == null ? 0 : VertexHeight(bytes);
+            lock (measured) measured[key] = height;
+            return height;
+        }
+
+        /// <summary>The lowest to the highest vertex of a model file of the client (MD20, its vertices 48 bytes each).</summary>
+        internal static double VertexHeight(byte[] m2)
+        {
+            if (m2.Length < 68 || m2[0] != 'M' || m2[1] != 'D' || m2[2] != '2' || m2[3] != '0') return 0;
+            uint count = BitConverter.ToUInt32(m2, 60), offset = BitConverter.ToUInt32(m2, 64);
+            if (count == 0 || offset + (long)count * 48 > m2.Length) return 0;
+            float low = float.MaxValue, high = float.MinValue;
+            for (long i = 0, at = offset + 8; i < count; i++, at += 48)
+            {
+                float z = BitConverter.ToSingle(m2, (int)at);
+                if (z < low) low = z;
+                if (z > high) high = z;
+            }
+            return high > low ? high - low : 0;
         }
 
         static int BaseRaceId(string name)

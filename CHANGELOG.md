@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+- Client patches: "{height:RACE:SEX}" in a script of the patch becomes how tall the model of that race stands, in yards - its vertices in the standing pose (the box a model file carries can hold all its animations) times the scales of its display and model; imported races are measured from the race folder. mod-custom-races sizes the camera of the character creation by it, so a race much taller than its base race (the Highmountain Tauren) is no longer half out of the picture
+
 ## 1.0.3
 
 - Server update: the module patches are taken out and put in again before every build, which gave every patched file a new time - with patched headers of the core the compiler then built nearly the whole server again, even for a change of one file. A patched file whose content is the same as at the last build now gets its old time back (Dependencies\patched-files.txt), so only what really changed is compiled
