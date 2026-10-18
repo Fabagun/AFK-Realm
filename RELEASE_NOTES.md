@@ -1,6 +1,10 @@
-# AFK Realm 1.0.1
+# AFK Realm 1.0.2
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.2
+
+- **Easier to read in the dark look.** The section headings of the server settings were in Windows' own dark blue and hard to read on the dark background; they are light now. The selected row and the column headers of lists follow the dark look too, and purple text is lighter. Thanks to SimpleGeekAce for the report.
 
 ## New in 1.0.1
 

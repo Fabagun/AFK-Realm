@@ -780,6 +780,7 @@ namespace CoAInstaller
             var list = root as ListView;
             if (list != null)
             {
+                Theme.StyleList(list);
                 if (list.BackColor == SystemColors.Window || list.BackColor == Color.White) { list.BackColor = Ui.Surface; list.ForeColor = Ui.Text; }
                 if (list.View == View.Details && !list.OwnerDraw)
                 {
@@ -791,8 +792,16 @@ namespace CoAInstaller
                         var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | (e.Header.TextAlign == HorizontalAlignment.Right ? TextFormatFlags.Right : TextFormatFlags.Left);
                         TextRenderer.DrawText(e.Graphics, e.Header.Text, Ui.Bold, new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height), Ui.Muted, flags);
                     };
-                    list.DrawItem += (s, e) => { e.DrawDefault = true; };
-                    list.DrawSubItem += (s, e) => { e.DrawDefault = true; };
+                    // A selected row in the colours of the look: the one Windows draws is grey on grey in the dark look.
+                    list.DrawItem += (s, e) => { e.DrawDefault = !e.Item.Selected; };
+                    list.DrawSubItem += (s, e) =>
+                    {
+                        if (!e.Item.Selected) { e.DrawDefault = true; return; }
+                        using (var b = new SolidBrush(Ui.AccentSoft)) e.Graphics.FillRectangle(b, e.Bounds);
+                        var align = e.Header != null && e.Header.TextAlign == HorizontalAlignment.Right ? TextFormatFlags.Right : TextFormatFlags.Left;
+                        TextRenderer.DrawText(e.Graphics, e.SubItem.Text, e.Item.Font ?? list.Font, new Rectangle(e.Bounds.X + 6, e.Bounds.Y, Math.Max(0, e.Bounds.Width - 10), e.Bounds.Height),
+                            e.Item.ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | align);
+                    };
                 }
             }
             var grid = root as DataGridView;

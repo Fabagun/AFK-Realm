@@ -141,7 +141,7 @@ namespace CoAInstaller
             if (ownSelected != null && !mine.Contains(ownSelected)) ownSelected = null;
             if (mine.Count > 0)
             {
-                ownPanel.Controls.Add(new Label { Text = L.F("Modules by {0}", Product.Name), AutoSize = true, Font = Ui.H2, ForeColor = Ui.Accent, Margin = new Padding(0, 0, 0, 2) });
+                ownPanel.Controls.Add(new Label { Text = L.F("Modules by {0}", Product.Name), AutoSize = true, Font = Ui.H2, ForeColor = Ui.AccentText, Margin = new Padding(0, 0, 0, 2) });
                 foreach (var m in mine)
                 {
                     var entry = m;

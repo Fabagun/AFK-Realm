@@ -160,7 +160,7 @@ namespace CoAInstaller
             var o = (ConfigOption)item.Tag;
             item.SubItems[1].Text = o.Display(o.EditedRaw);
             item.Font = o.DiffersFromDefault || o.IsPending ? boldList : Ui.Base;
-            item.ForeColor = o.IsPending ? Ui.Accent : (o.Locked ? Ui.Muted : Ui.Text);
+            item.ForeColor = o.IsPending ? Ui.AccentText : (o.Locked ? Ui.Muted : Ui.Text);
             item.ToolTipText = o.Key;
         }
 
@@ -251,7 +251,7 @@ namespace CoAInstaller
             int n = set.PendingCount;
             save.Enabled = n > 0;
             pendingLabel.Text = n == 0 ? L.T("Changes take effect after restarting the worldserver.") : n == 1 ? L.T("1 unsaved change") : L.F("{0} unsaved changes", n);
-            pendingLabel.ForeColor = n == 0 ? Ui.Muted : Ui.Accent;
+            pendingLabel.ForeColor = n == 0 ? Ui.Muted : Ui.AccentText;
         }
 
         void Save()

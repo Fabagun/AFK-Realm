@@ -28,6 +28,8 @@ namespace CoAInstaller
         public static Color AccentSoft { get { return Theme.Current.AccentSoft; } }
         public static Color AccentInk { get { return Theme.Current.AccentInk; } }    // writing on AccentSoft
         public static Color ToggleOff { get { return Theme.Current.ToggleOff; } }
+        /// <summary>Writing in the accent colour: the accent itself is too dark to read on the dark look.</summary>
+        public static Color AccentText { get { return ReferenceEquals(Theme.Current, Theme.DarkLook) ? AccentBright : Accent; } }
 
         /// <summary>A font of the window's family: Segoe UI, or the one the language asks for (Chinese: Microsoft YaHei UI).</summary>
         public static Font Face(float size, bool semibold = false, FontStyle style = FontStyle.Regular)

@@ -286,7 +286,7 @@ namespace CoAInstaller
             for (int k = 0; k < phaseLabels.Length; k++)
             {
                 if (k < i) { phaseLabels[k].Text = "✔   " + runner.Phases[k].Title; phaseLabels[k].ForeColor = Ui.Ok; phaseLabels[k].Font = Ui.Base; }
-                else if (k == i) { phaseLabels[k].Text = "►   " + runner.Phases[k].Title; phaseLabels[k].ForeColor = Ui.Accent; phaseLabels[k].Font = Ui.Bold; }
+                else if (k == i) { phaseLabels[k].Text = "►   " + runner.Phases[k].Title; phaseLabels[k].ForeColor = Ui.AccentText; phaseLabels[k].Font = Ui.Bold; }
             }
             UpdateOverall();
         }

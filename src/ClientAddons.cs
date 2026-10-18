@@ -339,7 +339,7 @@ namespace CoAInstaller
             StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(840, 520); MinimumSize = new Size(720, 440);
 
             var top = Ui.Column(); top.Dock = DockStyle.Top; top.AutoSize = true; top.Padding = new Padding(16, 12, 16, 4);
-            if (reason != null) top.Controls.Add(new Label { Text = reason, AutoSize = true, Font = Ui.Bold, ForeColor = Ui.Accent, MaximumSize = new Size(800, 0), Margin = new Padding(0, 0, 0, 6) });
+            if (reason != null) top.Controls.Add(new Label { Text = reason, AutoSize = true, Font = Ui.Bold, ForeColor = Ui.AccentText, MaximumSize = new Size(800, 0), Margin = new Padding(0, 0, 0, 6) });
             top.Controls.Add(Ui.Para(L.F("Some modules bring an add-on for the game client, or change files of the client. {0} copies the add-ons into Interface\\AddOns " +
                 "of your game and builds the client patch (Data\\{1}) from your own game client, keeps both up to date and takes them out again " +
                 "when their module is removed. Other players can get everything as a ZIP.", Product.Name, ClientPatch.ArchiveName), 800));

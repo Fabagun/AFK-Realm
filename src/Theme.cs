@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.IO;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -171,6 +172,7 @@ namespace CoAInstaller
 
             var combo = c as ComboBox;
             if (combo != null) StyleCombo(combo);
+            if (list != null) StyleList(list);
 
             var pill = c as StatusPill;
             if (pill != null)
@@ -178,6 +180,39 @@ namespace CoAInstaller
                 newBack = MapFore(from, to, pill.Dot);
                 if (newBack != pill.Dot) pill.Dot = newBack;
             }
+        }
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        static extern int SetWindowTheme(IntPtr window, string subApp, string idList);
+
+        [DllImport("user32.dll")]
+        static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
+
+        /// <summary>The group headings of a list are drawn by Windows in its own dark blue, whatever the list's colours; in
+        /// the dark look the list takes the dark style of Windows (as Explorer's), which writes them light.</summary>
+        public static void StyleList(ListView list)
+        {
+            if (!list.IsHandleCreated)
+            {
+                list.HandleCreated -= ListHandleCreated;
+                list.HandleCreated += ListHandleCreated;
+                return;
+            }
+            string style = ReferenceEquals(Current, DarkLook) ? "DarkMode_ItemsView" : null;
+            try
+            {
+                SetWindowTheme(list.Handle, style, null);
+                // its column header too: beyond the last column it would stay white
+                IntPtr header = SendMessage(list.Handle, 0x101F, IntPtr.Zero, IntPtr.Zero);   // LVM_GETHEADER
+                if (header != IntPtr.Zero) SetWindowTheme(header, style, null);
+            }
+            catch { }
+        }
+
+        static void ListHandleCreated(object sender, EventArgs e)
+        {
+            var list = sender as ListView;
+            if (list != null) StyleList(list);
         }
 
         /// <summary>A drop-down list in the Windows style ignores its colours; in the dark look it is drawn flat, so it takes them.</summary>
@@ -208,6 +243,8 @@ namespace CoAInstaller
             if (c == from.Text) return to.Text;
             if (c == from.Muted) return to.Muted;
             if (c == from.AccentInk) return to.AccentInk;
+            if (c == Ui.Accent && ReferenceEquals(to, DarkLook)) return Ui.AccentBright;     // writing in the accent colour
+            if (c == Ui.AccentBright && ReferenceEquals(to, LightLook)) return Ui.Accent;
             if (c == SystemColors.ControlText || c == Color.Black) return to.Text;   // a control that was never given a colour
             if (c == SystemColors.WindowText) return to.Text;
             return c;
