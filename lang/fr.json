@@ -1475,6 +1475,7 @@
     "{0} was removed. It was not installed through AFK Realm, so its database changes (if any) stay in place.": "{0} a été retiré. Il n’avait pas été installé via AFK Realm, ses modifications de la base de données (s’il y en a) restent donc en place.",
     "{0} was installed. Its options are in the server settings.": "{0} a été installé. Ses options se trouvent dans les réglages du serveur.",
     "{0} was installed.": "{0} a été installé.",
+    "{0}: its changes to the world database are put back for the database updates; it takes them up again at the next start.": "{0} : ses modifications de la base de données du monde sont annulées pour les mises à jour de la base ; il les reprend au prochain démarrage.",
     "{0} could not be applied: the code it changes has changed. The server is built without it. ({1})": "{0} n’a pas pu être appliqué : le code qu’il modifie a changé. Le serveur est compilé sans lui. ({1})",
     "{0} could not be applied: the code it changes has changed. The server is built without it.": "{0} n’a pas pu être appliqué : le code qu’il modifie a changé. Le serveur est compilé sans lui.",
     "{0} set {1} to {2} in {3} (was {4}). {5}": "{0} a réglé {1} sur {2} dans {3} (était {4}). {5}",

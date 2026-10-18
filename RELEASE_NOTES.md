@@ -1,6 +1,10 @@
-# AFK Realm 1.0
+# AFK Realm 1.0.1
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.1
+
+- **Server update with World Journey fixed.** The newest CoA core brings the Manastorm caches, and with World Journey installed the update stopped with "pool count mismatch". World Journey changes the levels of items while the server runs, and the new caches look for Mythic dungeon gear at level 60. Before database updates, AFK Realm now puts World Journey's original values back; World Journey takes its changes up again at the next start. Update AFK Realm and World Journey, then run the server update again.
 
 ## New in 1.0
 

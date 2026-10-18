@@ -716,6 +716,7 @@ function Update-Databases([string]$Password) {
             $leftover = [IO.Path]::Combine($m.Folder, 'data', 'sql.afk-held')
             if ((Test-Path $leftover) -and -not (Test-Path ([IO.Path]::Combine($m.Folder, 'data', 'sql')))) { Rename-Item $leftover 'sql' }
         }
+        Restore-ModuleLedgers $root
         $held = @()
         Write-Log 'Creating tables and applying database updates. This can take a while.'
         try {
@@ -1485,6 +1486,39 @@ function Get-ManifestList($Data, [string]$Name) {
     $property = $Data.PSObject.Properties[$Name]
     if ($property -and $property.Value) { return ,@($property.Value | Where-Object { $_ -is [psobject] }) }
     return ,@()
+}
+
+# A module that changes rows of the world database while the server runs (World Journey: the levels of creatures,
+# quests and items) keeps their originals in tables of its own and names them in its manifest:
+#
+#   "ledgers": [ { "backup": "journey_item", "source": "item_template" }, ... ]
+#
+# A backup table has the keys of its source and, per column it changes, orig_<column> and applied_<column>. Before the
+# database updates the originals go back - only where a value is still the one the module gave it - so the updates of
+# the core see the stock rows they were written for. The module takes its changes up again at the next start.
+function Restore-ModuleLedgers([string]$Root) {
+    foreach ($m in @(Get-ModuleManifests)) {
+        $ledgers = Get-ManifestList $m.Data 'ledgers'
+        if ($ledgers.Count -eq 0) { continue }
+        $restored = 0
+        foreach ($ledger in $ledgers) {
+            $backup = Get-ManifestText $ledger 'backup'; $source = Get-ManifestText $ledger 'source'
+            if ($backup -notmatch '^\w+$' -or $source -notmatch '^\w+$') { continue }
+            $columns = @(Invoke-Sql $Root ("SELECT COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'acore_world' AND TABLE_NAME = '{0}';" -f $backup) |
+                Where-Object { $_ } | ForEach-Object { $f = "$_".Split("`t"); [pscustomobject]@{ Name = $f[0]; Key = $(if ($f.Count -gt 1) { $f[1] } else { '' }) } })
+            if ($columns.Count -eq 0) { continue }                                        # the module has not run yet
+            $own = @(Invoke-Sql $Root ("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'acore_world' AND TABLE_NAME = '{0}';" -f $source) | Where-Object { $_ })
+            $names = @($columns | ForEach-Object { $_.Name })
+            $keys = @($columns | Where-Object { $_.Key -eq 'PRI' } | ForEach-Object { $_.Name })
+            $changed = @($names | Where-Object { $_ -like 'orig_*' } | ForEach-Object { $_.Substring(5) } | Where-Object { ($names -contains ('applied_' + $_)) -and ($own -contains $_) })
+            if ($keys.Count -eq 0 -or $changed.Count -eq 0 -or @($keys | Where-Object { $own -notcontains $_ }).Count -gt 0) { continue }
+            $join = ($keys | ForEach-Object { 's.`{0}` = b.`{0}`' -f $_ }) -join ' AND '
+            $set = ($changed | ForEach-Object { 's.`{0}` = IF(s.`{0}` <=> b.`applied_{0}`, b.`orig_{0}`, s.`{0}`)' -f $_ }) -join ', '
+            [void](Invoke-Sql $Root ('UPDATE acore_world.`{0}` s JOIN acore_world.`{1}` b ON {2} SET {3};' -f $source, $backup, $join, $set))
+            $restored++
+        }
+        if ($restored -gt 0) { Write-Log (Tr '{0}: its changes to the world database are put back for the database updates; it takes them up again at the next start.' $m.Name) }
+    }
 }
 
 function Get-PatchTarget([string]$Target) {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Server update: a module that changes rows of the world database while the server runs and keeps their originals in tables of its own names them in its manifest ("ledgers"); before the database updates AFK Realm puts the originals back where the module's value is still in place, so the updates of the core see the stock rows they were written for, and the module takes its changes up again at the next start. With World Journey, CoA's new Manastorm caches (mod-manastorm-endless) stopped the update with "pool count mismatch": the journey had moved the required level of Mythic dungeon gear from 60 to its own range, and the update looks for that gear at level 60
+
 ## 1.0.0
 
 - Light and dark look: the sun/moon button next to the language button switches between *Automatic (as Windows)*, *Light* and *Dark*. Every open window changes at once, without a restart; on *Automatic* AFK Realm follows Windows when it changes there. The choice is kept in `%APPDATA%\AFK-Realm\theme.txt`. Dialogs, lists, tables, drop-down lists and the database editor follow the look; the window title no longer says "(preview)"
