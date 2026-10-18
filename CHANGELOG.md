@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0
+
+- Light and dark look: the sun/moon button next to the language button switches between *Automatic (as Windows)*, *Light* and *Dark*. Every open window changes at once, without a restart; on *Automatic* AFK Realm follows Windows when it changes there. The choice is kept in `%APPDATA%\AFK-Realm\theme.txt`. Dialogs, lists, tables, drop-down lists and the database editor follow the look; the window title no longer says "(preview)"
+- Custom races: "Files of CoA Custom next to the game" on the races page. Choose the CoA Custom folder once (the pack, its `files` folder or `files\client_root`); installing the client patch copies every file of `client_root` (Ascension-b.exe, EsteriaAppearance.dll with its .bin files, cursors) next to the game. A file of the same name that was there before is kept as .afk-backup; a file already there, the same, is left in place when it is no longer wanted; *Copy nothing* takes the copied files away and brings the backups back. They stay out of the ZIP (the players have CoA Custom's client themselves). The 64-race patch of the same pack is taken when none is chosen yet
+- Client patches: "rootFolders" puts every file of a folder of the user's own next to the game's exe (with "zip": false they stay out of the ZIP for the players); "rootFiles" and "rootFolders" remember files that were there already and leave them in place
+- Custom races: racial abilities of their own for races of a server pack. AFK Realm writes the rows of their spells from the pack's server data folder for mod-custom-races, which teaches them at login and takes them back when the race goes off. New races speak with the voices of their base race (mod-custom-races)
+- Race packs: the importer reads the names of a client's archives from their (listfile) and its folders, finds every file a race needs wherever the client keeps it, and lists what is missing
+- Game folder: the game folder is found behind the "Data" folder, a folder inside it, or a repack unpacked into a folder of its own
+- Backups: the number of server backups to keep can be chosen in the backups window (1–99, 3 by default)
+- GitHub token (optional) on the modules page: 5000 requests an hour instead of 60 for the module list and the update check, kept encrypted for the Windows user; an outdated token is dropped for the session instead of costing the anonymous requests
+- `tools/lang.py --module` builds again (System.Security was missing for the module texts)
+
 ## 0.9.6-preview
 
 - Setup pages: when a saved change needs the game client (new races, other classic classes, World Journey's map levels), the game client window opens right away – every time, not only once – and says the three steps: Install, restart the server, give the other players the new ZIP

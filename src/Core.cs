@@ -23,10 +23,10 @@ namespace CoAInstaller
         public const string Name = "AFK Realm";                   // window titles, dialogs
         public const string ShortName = "AFK Realm";              // desktop shortcut, firewall rules
         public const string FileStem = "AFK-Realm";                // exe name, settings folder
-        public const string Version = "0.9.6-preview";            // pre-release until testers confirm it works
+        public const string Version = "1.0.0";                    // a release; "-preview" marks a pre-release
         public const string Tagline = "build, run and tweak your own server the lazy way";
         public const string BuildsFor = "Conquest of AzerothCore";
-        public const string WindowTitle = Name + " (preview)";
+        public const string WindowTitle = Name;
         public const string EngineResource = "CoAInstaller.engine.ps1";
         public const string EngineFileName = FileStem + "-Engine.ps1";
         public const string GitHubRepo = "aspollon/AFK-Realm";        // releases are checked for newer versions
@@ -833,6 +833,48 @@ namespace CoAInstaller
             get { try { return File.Exists(File_) ? File.ReadAllText(File_).Trim() : null; } catch { return null; } }
             set { try { Directory.CreateDirectory(Path.GetDirectoryName(File_)); File.WriteAllText(File_, value ?? ""); } catch { } if (!string.IsNullOrEmpty(value)) Remember(value, null); }
         }
+
+        static string TokenFile { get { return Path.Combine(Path.GetDirectoryName(File_), "github-token.txt"); } }
+
+        /// <summary>A GitHub token of the user's own (optional). Without one GitHub answers 60 requests an hour, with one
+        /// 5000; the module list and the update check use it. Kept encrypted for the Windows user account (a file put
+        /// there by hand as plain text is read too). Null when none is set.</summary>
+        public static string GitHubToken
+        {
+            get
+            {
+                try
+                {
+                    if (!File.Exists(TokenFile)) return null;
+                    var bytes = File.ReadAllBytes(TokenFile);
+                    string t;
+                    try { t = Encoding.UTF8.GetString(ProtectedData.Unprotect(bytes, null, DataProtectionScope.CurrentUser)); }
+                    catch { t = Encoding.UTF8.GetString(bytes); }
+                    t = t.Trim();
+                    return t.Length > 0 ? t : null;
+                }
+                catch { return null; }
+            }
+            set
+            {
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(TokenFile));
+                    if (string.IsNullOrEmpty(value)) { File.Delete(TokenFile); return; }
+                    File.WriteAllBytes(TokenFile, ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser));
+                }
+                catch { }
+            }
+        }
+
+        static string refusedToken;
+
+        /// <summary>The token to send with GitHub requests: the stored one, or null while GitHub has refused it in this
+        /// session (an outdated token must not cost the user the anonymous requests that still work).</summary>
+        public static string GitHubTokenActive { get { var t = GitHubToken; return t != null && t != refusedToken ? t : null; } }
+
+        /// <summary>Remembers that GitHub answered 401 for this token, so it is not sent again in this session.</summary>
+        public static void RefuseGitHubToken(string token) { refusedToken = token; }
 
         /// <summary>A server AFK Realm knows: its folder and the name its realm had when last seen.</summary>
         public class KnownServer { public string Root, Name; }

@@ -1,6 +1,17 @@
-# AFK Realm 0.9.6 – preview
+# AFK Realm 1.0
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0
+
+- **No longer a preview.** Thanks to everyone who tested the previews.
+- **Light or dark.** The new sun/moon button next to the language button switches AFK Realm between *Automatic (as Windows)*, *Light* and *Dark*. Every open window changes at once, no restart needed; on *Automatic* AFK Realm follows Windows when you change it there.
+- **CoA Custom's files in your game with one click.** CoA Custom brings files that belong next to Ascension.exe – Ascension-b.exe, EsteriaAppearance.dll with its .bin files, the cursors. Choose the CoA Custom folder once under *Modules → Custom races → Files of CoA Custom next to the game*, and *Modules → Game client → Install* copies them all next to your game. Files of the same name you had before are kept as `.afk-backup`, and *Copy nothing* takes everything away again. They do not go into the ZIP: your players have the client of CoA Custom themselves. Start the game with Ascension-b.exe.
+- **Racial abilities for new races.** Races from a server pack bring their own racial abilities: AFK Realm hands their spells to mod-custom-races, which teaches them at login and takes them back when the race is switched off. New races also speak with the voices of their base race.
+- **A sturdier race importer.** *Create race packs from a client …* now finds every file a race needs wherever the other client keeps it, and tells you what is missing.
+- **Choose how many backups to keep** in the backups window (3 by default).
+- **More GitHub requests.** If the module list says GitHub's hourly limit is used up, enter a GitHub token of your own on the modules page: 5000 requests an hour instead of 60.
+- **Game folder found more easily**: the `Data` folder itself or a repack folder works too.
 
 ## New in 0.9.6
 
