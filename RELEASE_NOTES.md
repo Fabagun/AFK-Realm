@@ -1,6 +1,10 @@
-# AFK Realm 1.0.2
+# AFK Realm 1.0.3
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.3
+
+- **Much faster server updates.** A small update of the CoA core made AFK Realm compile nearly the whole server again: putting the module patches back in gave the patched files a new date, and many files of the core include them. Unchanged patched files now keep their date, so an update compiles only what really changed. The first update after installing 1.0.3 still takes the long way once.
 
 ## New in 1.0.2
 

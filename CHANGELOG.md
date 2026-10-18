@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Server update: the module patches are taken out and put in again before every build, which gave every patched file a new time - with patched headers of the core the compiler then built nearly the whole server again, even for a change of one file. A patched file whose content is the same as at the last build now gets its old time back (Dependencies\patched-files.txt), so only what really changed is compiled
+
 ## 1.0.2
 
 - Dark look: the group headings of lists (the sections of the server settings) are written light instead of in Windows' dark blue, lists and their column headers take the dark style of Windows, a selected row is drawn in the colours of the look, and writing in the accent colour is lighter (reported by SimpleGeekAce)

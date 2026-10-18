@@ -1542,6 +1542,48 @@ function Reset-PatchedSources([string]$Git) {
     }
 }
 
+# Taking the patches out and putting them in again gives every patched file a new time, and the compiler
+# then builds everything that includes one of them again - with patched headers of the core that is nearly
+# the whole server, even when nothing changed. A patched file whose content is the same as at the last build
+# gets its time from then back. Dependencies\patched-files.txt: path TAB SHA1 TAB time (UTC ticks).
+function Restore-PatchedTimes([string]$Git) {
+    $record = Join-Path $Paths.Deps 'patched-files.txt'
+    $before = @{}
+    if (Test-Path $record) {
+        foreach ($line in [IO.File]::ReadAllLines($record)) {
+            $f = $line.Split("`t")
+            $ticks = 0L
+            if ($f.Count -eq 3 -and [long]::TryParse($f[2], [ref]$ticks)) { $before[$f[0]] = @{ Hash = $f[1]; Ticks = $ticks } }
+        }
+    }
+    $now = New-Object Collections.Generic.List[string]
+    $kept = 0
+    foreach ($folder in @($Paths.Source, $Paths.Playerbots)) {
+        if (-not (Test-Path (Join-Path $folder '.git'))) { continue }
+        $names = @()
+        $names += "$(Get-ProgramOutput $Git @('-C', $folder, '-c', 'core.quotepath=off', 'diff', '--name-only', 'HEAD'))".Split("`n")
+        # files a patch added (the module folders of the core are not the core's)
+        $others = @('-C', $folder, '-c', 'core.quotepath=off', 'ls-files', '--others', '--exclude-standard')
+        if ($folder -eq $Paths.Source) { $others += @('--', '.', ':!modules/*/') }
+        $names += "$(Get-ProgramOutput $Git $others)".Split("`n")
+        foreach ($name in ($names | Where-Object { $_ } | Select-Object -Unique)) {
+            $full = Join-Path $folder $name.Trim().Replace('/', '\')
+            if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { continue }
+            $hash = (Get-FileHash -LiteralPath $full -Algorithm SHA1).Hash
+            $old = $before[$full]
+            if ($old -and $old.Hash -eq $hash) {
+                [IO.File]::SetLastWriteTimeUtc($full, (New-Object DateTime ($old.Ticks, [DateTimeKind]::Utc)))
+                $ticks = $old.Ticks
+                $kept++
+            } else { $ticks = [IO.File]::GetLastWriteTimeUtc($full).Ticks }
+            $now.Add("$full`t$hash`t$ticks")
+        }
+    }
+    New-Item -ItemType Directory -Force -Path (Split-Path $record) | Out-Null
+    [IO.File]::WriteAllLines($record, $now)
+    if ($kept -gt 0) { Write-Log "$kept patched source file(s) are unchanged and keep their time, so they are not compiled again." }
+}
+
 function Invoke-ModulePatches([string]$Git, [switch]$Quiet) {
     Reset-PatchedSources $Git
     foreach ($manifest in @(Get-ModuleManifests)) {
@@ -1567,6 +1609,7 @@ function Invoke-ModulePatches([string]$Git, [switch]$Quiet) {
             }
         }
     }
+    Restore-PatchedTimes $Git
 }
 
 function Get-ConfigValue([string]$File, [string]$Key) {
