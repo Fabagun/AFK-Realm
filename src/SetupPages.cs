@@ -706,7 +706,10 @@ namespace CoAInstaller
                                 table[race] = ((object[])pair.Value).Select(x => (uint)Convert.ToInt64(x)).ToArray();
                         }
                     var code = c.TryGetValue("scripted", out scripted) && scripted is object[] ? ((object[])scripted).Select(x => (uint)Convert.ToInt64(x)).ToArray() : new uint[0];
-                    ServerRacials.UseCoaCustom(table, code);
+                    object ported, rows;
+                    bool hasCode = c.TryGetValue("ported", out ported) && ported is bool && (bool)ported;
+                    string rowsFile = c.TryGetValue("rows", out rows) && rows is string ? Path.Combine(Path.GetDirectoryName(file), ((string)rows).Replace('/', Path.DirectorySeparatorChar)) : null;
+                    ServerRacials.UseCoaCustom(table, code, hasCode, rowsFile);
                 }
             }
             catch (Exception ex) { Shown += (s, e) => Ui.Error(this, L.F("What mod-custom-races knows of the races could not be read ({0}): {1}", file, ex.Message)); }

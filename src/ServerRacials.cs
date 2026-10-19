@@ -30,11 +30,51 @@ namespace CoAInstaller
         static Dictionary<int, uint[]> coaRacials = new Dictionary<int, uint[]>();
         static HashSet<uint> coaScripted = new HashSet<uint>();
 
-        /// <summary>The racials of CoA Custom's races (race number -> spells) and those that need code of its server.</summary>
-        public static void UseCoaCustom(Dictionary<int, uint[]> racials, IEnumerable<uint> scripted)
+        // CoA Custom's own rows of its racials (data\coa-custom\racials.sql of mod-custom-races): by spell, the values of
+        // its spell_dbc row, its spell_script_names (script name) and spell_proc (values).
+        static Dictionary<uint, string> coaSpellRows = new Dictionary<uint, string>();
+        static Dictionary<uint, string> coaScripts = new Dictionary<uint, string>();
+        static Dictionary<uint, string> coaProcs = new Dictionary<uint, string>();
+
+        /// <summary>The racials of CoA Custom's races (race number -> spells), those that need code of its server (none
+        /// when the module has that code: ported), and the file of CoA Custom's rows for them.</summary>
+        public static void UseCoaCustom(Dictionary<int, uint[]> racials, IEnumerable<uint> scripted, bool ported, string rowsFile)
         {
             coaRacials = racials ?? new Dictionary<int, uint[]>();
-            coaScripted = new HashSet<uint>(scripted ?? new uint[0]);
+            coaScripted = ported ? new HashSet<uint>() : new HashSet<uint>(scripted ?? new uint[0]);
+            coaSpellRows = new Dictionary<uint, string>();
+            coaScripts = new Dictionary<uint, string>();
+            coaProcs = new Dictionary<uint, string>();
+            if (string.IsNullOrEmpty(rowsFile) || !File.Exists(rowsFile)) return;
+            // INSERT INTO <table> ... VALUES then one row per line, "(<id>,...)," up to the last one "(...);"
+            string table = null;
+            foreach (var raw in File.ReadLines(rowsFile, Encoding.UTF8))
+            {
+                string line = raw.Trim();
+                if (line.StartsWith("INSERT INTO", StringComparison.OrdinalIgnoreCase))
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(line, @"^INSERT INTO\s+`?(\w+)`?");
+                    table = m.Success ? m.Groups[1].Value.ToLowerInvariant() : null;
+                    continue;
+                }
+                if (!line.StartsWith("(")) { table = null; continue; }
+                if (table == null) continue;
+                bool last = line.EndsWith(");");
+                string row = line.TrimEnd(';', ',');
+                var id = System.Text.RegularExpressions.Regex.Match(row, @"^\((\d+)\s*,");
+                if (id.Success)
+                {
+                    uint spell = uint.Parse(id.Groups[1].Value);
+                    if (table == "spell_dbc") coaSpellRows[spell] = row;
+                    else if (table == "spell_proc") coaProcs[spell] = row;
+                    else if (table == "spell_script_names")
+                    {
+                        var name = System.Text.RegularExpressions.Regex.Match(row, @"'([A-Za-z0-9_]+)'");
+                        if (name.Success) coaScripts[spell] = name.Groups[1].Value;
+                    }
+                }
+                if (last) table = null;
+            }
         }
 
         /// <summary>The racial spell ids of a race: as the entry of the server pack writes them (script_grants), or else
@@ -86,18 +126,21 @@ namespace CoAInstaller
             var wantedIds = new HashSet<uint>();
             foreach (var race in races) wantedIds.UnionWith(ClientSpells(serverDataFolder, race.Name, race.CoaRace));
             wantedIds.ExceptWith(records.Keys);
+            wantedIds.ExceptWith(coaSpellRows.Keys);
             foreach (var race in races) foreach (var id in race.Rows.Keys) wantedIds.Remove(id);
             var fromClient = wantedIds.Count > 0 ? ClientRows(client, wantedIds) : new Dictionary<uint, object[]>();
             Directory.CreateDirectory(outDir);
             foreach (var race in races)
             {
-                var all = ClientSpells(serverDataFolder, race.Name, race.CoaRace);
+                var all = WithHelpers(ClientSpells(serverDataFolder, race.Name, race.CoaRace));
                 var lines = new List<string>();
                 var spells = new List<uint>();
                 foreach (uint spell in all)
                 {
                     object[] row;
+                    string coa;
                     string insert = records.ContainsKey(spell) ? Insert("spell_dbc", records[spell])
+                        : coaSpellRows.TryGetValue(spell, out coa) ? "INSERT INTO `spell_dbc` VALUES " + coa + ";"
                         : race.Rows.TryGetValue(spell, out row) || fromClient.TryGetValue(spell, out row) ? InsertRow(row) : null;
                     if (insert == null) continue;
                     spells.Add(spell);
@@ -109,14 +152,37 @@ namespace CoAInstaller
                 lines.Insert(0, "-- spells " + string.Join(" ", spells));
                 var needCode = NeedCode(all);
                 if (needCode.Length > 0) lines.Insert(1, "-- needs code of CoA Custom's server, does nothing yet: " + string.Join(" ", needCode));
+                // CoA Custom's bindings of its racials to their code (the module has it, src\coa_racials) and their proc rows
+                foreach (uint spell in spells)
+                {
+                    string script, proc;
+                    if (coaScripts.TryGetValue(spell, out script))
+                    {
+                        lines.Add("DELETE FROM `spell_script_names` WHERE `spell_id` = " + spell + ";");
+                        lines.Add("INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (" + spell + ",'" + script + "');");
+                    }
+                    if (coaProcs.TryGetValue(spell, out proc))
+                    {
+                        lines.Add("DELETE FROM `spell_proc` WHERE `SpellId` = " + spell + ";");
+                        lines.Add("INSERT INTO `spell_proc` VALUES " + proc + ";");
+                    }
+                }
                 // the scripts stay with the spells the module has ported; other races keep their rows plain
-                foreach (var ported in Ported.Where(p => spells.Contains(uint.Parse(p[1]))))
+                foreach (var ported in Ported.Where(p => spells.Contains(uint.Parse(p[1])) && !coaScripts.ContainsKey(uint.Parse(p[1]))))
                 {
                     lines.Add("DELETE FROM `spell_script_names` WHERE `spell_id` = " + ported[1] + ";");
                     lines.Add("INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (" + ported[1] + ",'" + ported[0] + "');");
                 }
                 File.WriteAllText(file, string.Join("\r\n", lines) + "\r\n", new UTF8Encoding(false));
             }
+        }
+
+        /// <summary>The racials with the spells their code casts besides (CoA Custom numbers them next to the racial,
+        /// in blocks of 20: Bull Rush 110600 and its knockdown 110601).</summary>
+        static uint[] WithHelpers(uint[] spells)
+        {
+            var blocks = new HashSet<uint>(spells.Where(coaSpellRows.ContainsKey).Select(s => s / 20));
+            return spells.Concat(coaSpellRows.Keys.Where(id => blocks.Contains(id / 20)).OrderBy(id => id)).Distinct().ToArray();
         }
 
         // The columns of spell_dbc follow the fields of the client's Spell.dbc one to one (234 of them); these are floats,
