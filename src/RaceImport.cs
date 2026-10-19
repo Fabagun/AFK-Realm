@@ -44,7 +44,7 @@ namespace CoAInstaller
 
         public static bool IsOurArchive(string fileName)
         {
-            return Regex.IsMatch(fileName ?? "", "^" + ArchivePrefix + @"\d\d\.mpq$", RegexOptions.IgnoreCase);
+            return Regex.IsMatch(fileName ?? "", "^" + ArchivePrefix + @"\d{2,3}\.mpq$", RegexOptions.IgnoreCase);
         }
 
         /// <summary>

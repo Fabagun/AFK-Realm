@@ -18,7 +18,9 @@ namespace CoAInstaller
         public bool HasHelmets;             // the client has helmet models for its prefix (Item\ObjectComponents\Head\*_<prefix><sex>.m2)
         public RaceImport.Pack Pack;        // a race of the user's race folder, not of this client
         public RaceImport.Pack Alt;         // the same race in the race folder, for a race this client has too
-        public bool OwnNumber { get { return Pack == null && Source < 32 && !Virtual; } }
+        /// <summary>The game of CoA Custom (CustomRaces.HighRaces) knows this race under its own number above 31: it keeps it.</summary>
+        public bool KeepsNumber;
+        public bool OwnNumber { get { return Pack == null && !Virtual && (Source < 32 || KeepsNumber); } }
     }
 
     /// <summary>
@@ -36,6 +38,7 @@ namespace CoAInstaller
             public List<ClientRace> Races = new List<ClientRace>();
             public List<int> FreeNumbers = new List<int>();      // race numbers below 32 no row has
             public List<int> MoreNumbers = new List<int>();      // race numbers 32 to 63 no row has (with the 64-race patch)
+            public List<int> HighNumbers = new List<int>();      // race numbers 64 to 127 no row has (CoA Custom's game)
             public bool ModelsChecked;
             public HashSet<string> HelmetPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
@@ -70,7 +73,7 @@ namespace CoAInstaller
             public void Dispose() { foreach (var a in list) a.Dispose(); }
         }
 
-        static string Str(DbcTable t, byte[] row, int field)
+        internal static string Str(DbcTable t, byte[] row, int field)
         {
             uint at = t.Field(row, field);
             if (at >= t.Strings.Length) return "";
@@ -111,7 +114,7 @@ namespace CoAInstaller
         {
             return new Scan { Races = s.Races.Select(r => new ClientRace { Source = r.Source, Key = r.Key, Name = r.Name, Prefix = r.Prefix, File = r.File,
                 MaleDisplay = r.MaleDisplay, FemaleDisplay = r.FemaleDisplay, MaleOnly = r.MaleOnly, Virtual = r.Virtual, HasHelmets = r.HasHelmets }).ToList(),
-                FreeNumbers = s.FreeNumbers.ToList(), MoreNumbers = s.MoreNumbers.ToList(), ModelsChecked = s.ModelsChecked,
+                FreeNumbers = s.FreeNumbers.ToList(), MoreNumbers = s.MoreNumbers.ToList(), HighNumbers = s.HighNumbers.ToList(), ModelsChecked = s.ModelsChecked,
                 HelmetPrefixes = new HashSet<string>(s.HelmetPrefixes, StringComparer.OrdinalIgnoreCase) };
         }
 
@@ -127,6 +130,7 @@ namespace CoAInstaller
                 var rows = races.Records.GroupBy(r => (int)races.Field(r, 0)).ToDictionary(g => g.Key, g => g.First());
                 for (int n = 1; n < 32; n++) if (!rows.ContainsKey(n)) scan.FreeNumbers.Add(n);
                 for (int n = 32; n < 64; n++) if (!rows.ContainsKey(n)) scan.MoreNumbers.Add(n);
+                for (int n = 64; n < 128; n++) if (!rows.ContainsKey(n)) scan.HighNumbers.Add(n);
 
                 // Models: display -> model -> its file in the archives (only when the client's base archives are there).
                 scan.ModelsChecked = archives.Complete;

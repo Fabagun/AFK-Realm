@@ -433,7 +433,80 @@ namespace CoAInstaller
         readonly List<ClientRace> races = new List<ClientRace>();
         readonly List<int> slots = new List<int>();
         readonly List<int> moreSlots = new List<int>();          // 32 to 63, with the 64-race patch of the client
+        readonly List<int> highSlots = new List<int>();          // 64 to 127, free in the client (CoA Custom's game)
         bool More { get { return Raw("CustomRaces.MoreRaces", "0") == "1"; } }
+        /// <summary>The game of CoA Custom (its own exe): its races keep the numbers CoA Custom gave them, up to 127.</summary>
+        bool High { get { return Raw("CustomRaces.HighRaces", "0") == "1"; } }
+
+        /// <summary>CoA Custom's EsteriaAppearance.dll knows these races by their numbers in CoA Custom's game and keeps more
+        /// of their looks than the five bytes of the game: 1 a sixth byte (Highmountain Tauren, Earthen), 2 a 64-bit number
+        /// (Haranir). The server stores it (CustomRaces.&lt;race&gt;.Appearance).</summary>
+        static readonly Dictionary<int, int> CoaExtraLooks = new Dictionary<int, int> { { 66, 1 }, { 68, 1 }, { 69, 1 }, { 70, 2 }, { 71, 2 } };
+
+        /// <summary>Which races of the client keep their own number above 31: with CoA Custom's game, every one up to 127
+        /// that has no other number yet (a race played under a copied number keeps that one, so its characters stay).</summary>
+        void MarkOwnNumbers()
+        {
+            foreach (var r in races)
+            {
+                if (r.Pack != null || r.Virtual || r.Source < 32) { r.KeepsNumber = false; continue; }
+                int n;
+                bool other = int.TryParse(Raw("CustomRaces." + r.Key + ".Id", ""), out n) && n > 0 && n != r.Source;
+                r.KeepsNumber = High && r.Source < 128 && !other;
+            }
+        }
+
+        int ExtraLooksOf(ClientRace r, int id)
+        {
+            int kind;
+            if (!High || !CoaExtraLooks.TryGetValue(id, out kind)) return 0;
+            if (r.Pack == null) return r.KeepsNumber && r.Source == id ? kind : 0;
+            return r.Pack.SourceRace == id && IsCoaNumber(r) ? kind : 0;
+        }
+
+        Dictionary<int, string> coaRaceFiles;
+        /// <summary>The races of CoA Custom's game by number (its ClientFilestring), from the race table of its pack
+        /// (files\dbc\ChrRaces.dbc next to files\client_root); empty when it is not there.</summary>
+        Dictionary<int, string> CoaRaceFiles()
+        {
+            if (coaRaceFiles != null) return coaRaceFiles;
+            coaRaceFiles = new Dictionary<int, string>();
+            try
+            {
+                string root = ConfigOption.Unquote(Raw("CustomRaces.ClientRootFolder", ""));
+                if (root.Length == 0) return coaRaceFiles;
+                string dbc = Path.Combine(Path.GetDirectoryName(root.TrimEnd('\\', '/')), "dbc", "ChrRaces.dbc");
+                if (!File.Exists(dbc)) return coaRaceFiles;
+                var t = DbcTable.Parse(File.ReadAllBytes(dbc), "ChrRaces.dbc");
+                foreach (var row in t.Records)
+                {
+                    int id = (int)t.Field(row, 0);
+                    if (!coaRaceFiles.ContainsKey(id)) coaRaceFiles[id] = ClientRaces.Str(t, row, 11);
+                }
+            }
+            catch { }
+            return coaRaceFiles;
+        }
+
+        /// <summary>A race of the race folder made from CoA Custom's client, under the number CoA Custom gave it.</summary>
+        bool IsCoaNumber(ClientRace r)
+        {
+            if (r.Pack == null) return false;
+            int n = r.Pack.SourceRace;
+            string file;
+            return n >= 32 && n < 128 && CoaRaceFiles().TryGetValue(n, out file) && file.Equals(r.Pack.File.Length > 0 ? r.Pack.File : r.Pack.Key, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>With CoA Custom's game: the number CoA Custom gave a race of the race folder, while it is free here (no
+        /// row of this client and no other race has it); 0 otherwise.</summary>
+        int CoaNumberOf(ClientRace r)
+        {
+            if (!High || !IsCoaNumber(r)) return 0;
+            int n = r.Pack.SourceRace;
+            bool free = n < 64 ? moreSlots.Contains(n) : highSlots.Contains(n);
+            if (!free || races.Any(o => o != r && IdOf(o) == n)) return 0;
+            return n;
+        }
         List<int> Slots { get { return More ? slots.Concat(moreSlots).ToList() : slots; } }
         readonly HashSet<string> helmetPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string folder;
@@ -542,6 +615,40 @@ namespace CoAInstaller
                 }
             };
             more.Add(pickDll);
+            // CoA Custom's own exe knows the races it adds under their own numbers, up to 103
+            var highToggle = new Toggle(L.T("Races of CoA Custom's game keep their own numbers (up to 127)")) { BackColor = Ui.Surface, Margin = new Padding(0, 10, 0, 0) };
+            highToggle.Wrap(more.Inner - 40);
+            more.Add(highToggle);
+            more.Add(Small(L.T("For the game of CoA Custom: its own exe (Ascension-b.exe from its files\\client_root, which every player then starts instead of Ascension.exe) knows its races under the numbers CoA Custom gave them, up to 103. Switched on, those races keep their numbers instead of taking one of the free ones, and CoA Custom's EsteriaAppearance.dll gives Highmountain Tauren, Earthen, Haranir, Mechagnome, Skyborne, Vulpera and the others all their choices of looks - it knows them only by those numbers. A race already played under another number keeps it; \"Free its number\" lets it take its own. The server needs its core rebuilt once."), more.Inner - 20));
+            AddLoader(() => highToggle.Checked = High);
+            highToggle.CheckedChanged += (s, e) =>
+            {
+                if (Loading) return;
+                if (highToggle.Checked)
+                {
+                    string root = ConfigOption.Unquote(Raw("CustomRaces.ClientRootFolder", ""));
+                    if (root.Length == 0 || !Directory.Exists(root) || Directory.GetFiles(root, "Ascension*.exe").Length == 0)
+                    {
+                        Ui.Error(this, L.T("Choose the CoA Custom folder first (Files of CoA Custom next to the game, below): its own exe is what knows these race numbers."));
+                        highToggle.Checked = false;
+                        return;
+                    }
+                }
+                else
+                {
+                    var above = races.Where(r => IdOf(r) > 63 && Chosen().Any(c => c.Equals(r.Key, StringComparison.OrdinalIgnoreCase))).Select(r => r.Name).ToList();
+                    if (above.Count > 0 && !Ui.Confirm(this, L.F("{0}: race numbers above 63 stay off without CoA Custom's game; their characters play their base race until it is on again. Switch it off?", string.Join(", ", above))))
+                    {
+                        highToggle.Checked = true;
+                        return;
+                    }
+                }
+                Set("CustomRaces.HighRaces", highToggle.Checked ? "1" : "0");
+                MarkOwnNumbers();
+                Refresh();
+                UpdateUsage();
+                MessageBox.Show(this, L.T("Save the page, then open it again to see the race numbers. Build the server anew (Update server) and the client patch (Modules › Game client › Install)."), Product.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
             AddLoader(() => { moreToggle.Checked = More; showDll(); });
             moreToggle.CheckedChanged += (s, e) =>
             {
@@ -572,7 +679,7 @@ namespace CoAInstaller
             };
 
             // the files of CoA Custom that go next to the game (its files\client_root: Ascension-b.exe, the Esteria files, cursors)
-            var rootCard = Card(L.T("Files of CoA Custom next to the game"), L.F("CoA Custom brings files that belong next to Ascension.exe (its folder files\\client_root: its own Ascension.exe, EsteriaAppearance.dll with its .bin files, cursors). Choose the CoA Custom folder once: {0} copies all of them next to your game when you install the client patch (Modules › Game client › Install), and takes them away again when you choose to copy nothing. A file of the same name that was there before is kept as <name>.afk-backup; files that are already there, the same, stay when they are no longer wanted. They go into the ZIP for the other players as well (Modules › Game client › Export as ZIP …).", Product.Name), "client");
+            var rootCard = Card(L.T("Files of CoA Custom next to the game"), L.F("CoA Custom brings files that belong next to Ascension.exe (its folder files\\client_root: its own exe Ascension-b.exe, EsteriaAppearance.dll with its .bin files, cursors). Choose the CoA Custom folder once: {0} copies all of them next to your game when you install the client patch (Modules › Game client › Install), and takes them away again when you choose to copy nothing. A file of the same name that was there before is kept as <name>.afk-backup; files that are already there, the same, stay when they are no longer wanted. They go into the ZIP for the other players as well (Modules › Game client › Export as ZIP …).", Product.Name), "client");
             var rootNote = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(rootCard.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
             Action showRoot = () =>
             {
@@ -732,8 +839,10 @@ namespace CoAInstaller
             {
                 var scan = ClientRaces.Read(client, virtuals);
                 races.AddRange(scan.Races);
+                MarkOwnNumbers();
                 slots.AddRange(scan.FreeNumbers);
                 moreSlots.AddRange(scan.MoreNumbers);
+                highSlots.AddRange(scan.HighNumbers);
                 foreach (var h in scan.HelmetPrefixes) helmetPrefixes.Add(h);
                 return races.Count == 0 ? L.T("Your game client has no races beyond the stock ones.") : null;
             }
@@ -900,6 +1009,7 @@ namespace CoAInstaller
                 put("OwnHelmets", r.HasHelmets ? "1" : "0");
             }
             if (Raw("CustomRaces." + r.Key + ".Base", "").Length == 0) putText("Base", DefaultBase(r));
+            put("Appearance", ExtraLooksOf(r, id).ToString());
             // its racials: the set the server pack gives it (its rows travel to the server data folder as well)
             var racials = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), pack != null ? pack.Name : r.Name, CoaRaceOf(r));
             if (racials.Length > 0) putText("Racials", string.Join(" ", racials));
@@ -1011,6 +1121,7 @@ namespace CoAInstaller
                 if (toggle.Checked)
                 {
                     int id = IdOf(r);
+                    if (id == 0) id = CoaNumberOf(r);
                     if (id == 0)
                     {
                         id = FreeSlot();
@@ -1050,7 +1161,7 @@ namespace CoAInstaller
             if (!DeleteFolder(pack.Dir)) return;
             var chosen = Chosen().Where(c => !c.Equals(r.Key, StringComparison.OrdinalIgnoreCase)).ToList();
             Set("CustomRaces.Races", string.Join(" ", chosen));
-            foreach (var option in new[] { "Source", "Id", "Copy", "Import", "Name", "Prefix", "File", "MaleDisplay", "FemaleDisplay", "MaleOnly", "OwnHelmets", "Base", "Racials", "IconFile", "Icon" })
+            foreach (var option in new[] { "Source", "Id", "Copy", "Import", "Name", "Prefix", "File", "MaleDisplay", "FemaleDisplay", "MaleOnly", "OwnHelmets", "Base", "Racials", "IconFile", "Icon", "Appearance" })
                 Unset("CustomRaces." + r.Key + "." + option);
             row.Visible = false; about.Visible = false; button.Visible = false;
             races.Remove(r);

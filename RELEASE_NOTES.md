@@ -1,6 +1,10 @@
-# AFK Realm 1.0.6
+# AFK Realm 1.0.7
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.7
+
+- **All the looks of CoA Custom's races.** Highmountain Tauren, Earthen, Haranir, Mechagnome, Vulpera, Skyborne and the other Esteria races of CoA Custom only showed their standard choices on an AFK Realm server: CoA Custom's EsteriaAppearance.dll knows them only by the race numbers CoA Custom gave them, and AFK Realm gave them other ones. *Custom races → More than 31 races → Races of CoA Custom's game keep their own numbers* fixes that, and the server now stores the extra looks of Highmountain, Earthen and Haranir like CoA Custom's server does. Needs CoA Custom's folder (*Files of CoA Custom next to the game*), mod-custom-races updated, *Update server*, and every player starting the game with `Ascension-b.exe`.
 
 ## New in 1.0.6
 

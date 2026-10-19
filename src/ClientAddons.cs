@@ -279,6 +279,8 @@ namespace CoAInstaller
             if (root.Count > 0)
             {
                 note.AppendLine("   " + f(L.N("Next to Ascension.exe: {0}."), new object[] { string.Join(", ", root) }));
+                if (root.Any(r => r.Equals("Ascension-b.exe", StringComparison.OrdinalIgnoreCase)))
+                    note.AppendLine("   " + t(L.N("Start the game with Ascension-b.exe (the exe of CoA Custom), not with Ascension.exe: only it shows the races of CoA Custom and all their looks.")));
                 if (root.Any(r => r.Equals("Ascension.exe", StringComparison.OrdinalIgnoreCase)))
                     note.AppendLine("   " + t(L.N("The ZIP brings its own Ascension.exe (the one of CoA Custom). Keep a copy of yours first, as Ascension.exe.old for example, if you want to go back.")));
                 if (root.Any(r => r.Equals("EsteriaAppearance.dll", StringComparison.OrdinalIgnoreCase)))
