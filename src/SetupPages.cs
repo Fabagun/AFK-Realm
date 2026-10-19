@@ -487,13 +487,13 @@ namespace CoAInstaller
             fold.Add(make);
 
             // the server side: the rows of a race as the server data of the pack brings them
-            var serverData = Card(L.T("Server data"), L.T("Optional. Only needed for the races of a server pack that keeps their racial abilities in a server folder of its own (a folder with races\\*.json, a database folder or RACES.md). CoA Custom's races need none: mod-custom-races knows their racial abilities, and the rows of their spells come from the race packs or from your game client. Where a folder is chosen, its rows come first; the module puts them into the game database at the server's start and takes them out again when the race goes off."), "server");
+            var serverData = Card(L.T("Server data (optional)"), L.T("Leave this empty for CoA Custom: its races bring their racial abilities without it. Choose a folder only for another server pack that keeps the racial abilities of its races in a server folder of its own (with races\\*.json, a database folder or RACES.md). Its rows then come first; the module puts them into the game database at the server's start and takes them out again when a race goes off."), "server");
             var serverWhere = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(serverData.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
             serverData.Add(serverWhere);
             Action showServer = () =>
             {
                 string f = Raw("CustomRaces.ServerDataFolder", "");
-                serverWhere.Text = f.Length == 0 ? L.T("No server data folder chosen.") : f;
+                serverWhere.Text = f.Length == 0 ? L.T("No folder chosen. Not needed for CoA Custom.") : f;
             };
             var pickServer = Ui.Secondary(L.T("Choose the server data folder …"));
             pickServer.Click += (s, e) =>
