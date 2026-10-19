@@ -281,6 +281,8 @@ namespace CoAInstaller
                 note.AppendLine("   " + f(L.N("Next to Ascension.exe: {0}."), new object[] { string.Join(", ", root) }));
                 if (root.Any(r => r.Equals("Ascension.exe", StringComparison.OrdinalIgnoreCase)))
                     note.AppendLine("   " + t(L.N("The ZIP brings its own Ascension.exe (the one of CoA Custom). Keep a copy of yours first, as Ascension.exe.old for example, if you want to go back.")));
+                if (root.Any(r => r.Equals("EsteriaAppearance.dll", StringComparison.OrdinalIgnoreCase)))
+                    note.AppendLine("   " + t(L.N("The game folder must be writable: EsteriaAppearance.dll keeps the looks of the races in Interface\\AddOns\\EsteriaAppearanceCache. A game under C:\\Program Files is better moved to another folder.")));
                 if (root.Any(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
                     note.AppendLine("   " + t(L.N("If your antivirus program removes a .dll of the ZIP, allow it there.")));
             }

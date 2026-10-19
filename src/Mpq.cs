@@ -336,7 +336,8 @@ namespace CoAInstaller
                             length = input.Length;
                         }
                     }
-                    if (fs.Position > uint.MaxValue) throw new InvalidOperationException(L.F("The archive {0} would be larger than 4 GB.", System.IO.Path.GetFileName(path)));
+                    // the game reads the offsets of an archive as signed numbers: past 2 GB it fails to read (EsteriaWoW's race guide)
+                    if (fs.Position > int.MaxValue) throw new InvalidOperationException(L.F("The archive {0} would be larger than 2 GB, more than the game can read.", System.IO.Path.GetFileName(path)));
                     blockTable[block * 4] = (uint)offset;
                     blockTable[block * 4 + 1] = (uint)length;
                     blockTable[block * 4 + 2] = (uint)length;
@@ -402,6 +403,7 @@ namespace CoAInstaller
                 {
                     uint offset = (uint)fs.Position;
                     w.Write(file.Value);
+                    if (fs.Position > int.MaxValue) throw new InvalidOperationException(L.F("The archive {0} would be larger than 2 GB, more than the game can read.", System.IO.Path.GetFileName(path)));
                     blockTable[block * 4] = offset;
                     blockTable[block * 4 + 1] = (uint)file.Value.Length;
                     blockTable[block * 4 + 2] = (uint)file.Value.Length;

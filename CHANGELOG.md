@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.6
+
+- Client patch: CharSections.dbc and HDCharSections.dbc are written sorted by race, sex, section, variation and colour (rows and ids unchanged). The client counts the rows of a race, sex and section where they lie together; rows of one group spread over the table - imported races' HD rows taken from the nearest style, copies of a client race - made it write past what it counted, which crashes the game at its exit (found and fixed the same way in EsteriaWoW's race guide, where CoA Custom's races come from)
+- Archives: an archive AFK Realm writes (the client patch, a race archive) may be 2 GB at most, not 4 GB: the game reads archive offsets as signed numbers and fails past 2 GB
+- Game client ZIP: READ ME FIRST.txt says that the game folder must be writable when EsteriaAppearance.dll comes along (it keeps the looks of the races in Interface\AddOns\EsteriaAppearanceCache)
+
 ## 1.0.5
 
 - Custom races: the racial abilities of CoA Custom's races. CoA Custom has them compiled into its server (CoaCustomRacials.h), not in a file of its pack, so they were never found. mod-custom-races now carries that table (races.json "coaCustom"); a race gets the racials CoA Custom gives its race number (a race of the client: its row; a race of the race folder: the number it had in its client). The rows of the spells come from the server data folder, else from the race pack (made anew from CoA Custom's client, it carries them) or the game client, as plain spell_dbc rows; they go into Server\configs\modules\custom-races-racials (CustomRaces.RacialsFolder). The code of the racials Spell.dbc alone cannot express is CoA Custom's own, taken over by mod-custom-races; AFK Realm writes CoA Custom's spell rows, script bindings and procs of them (mod-custom-races data\coa-custom\racials.sql) into the file of each race, the spells their code casts besides included. Where a CoA Custom folder is chosen (Files of CoA Custom next to the game), its own rows (files\sql\10_esteria_racials_*.sql) win over that copy, so a newer CoA Custom brings changed rows along by itself. A racial that still needs code is named on the race's card

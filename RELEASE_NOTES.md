@@ -1,6 +1,12 @@
-# AFK Realm 1.0.5
+# AFK Realm 1.0.6
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.6
+
+- **Fewer crashes with imported races.** The game could crash when you quit (or when changing characters) with imported races: their skin and hair rows were spread over the client's table, and the game counts them in groups. AFK Realm now keeps every group together. Run *Modules → Game client → Install* once and give your players the new ZIP.
+- **Archives stay readable.** An archive AFK Realm writes may now be 2 GB at most: the game cannot read past 2 GB.
+- **A note for players with CoA Custom.** The READ ME of the ZIP says that the game folder must be writable (EsteriaAppearance.dll keeps a cache there); a game under C:\Program Files is better moved.
 
 ## New in 1.0.5
 

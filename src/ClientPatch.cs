@@ -384,9 +384,35 @@ namespace CoAInstaller
                 if (!int.TryParse(Text(e.SectionRules, "race"), out race) || race <= 0) continue;
                 RaceImport.SectionRules(load, save, race, Text(e.SectionRules, "maleOnly") == "1", notes == null ? null : new Action<string>(notes.Add));
             }
+            SortSections(files);
             FillHeights(files, client, plan, load);
             if (files.Count > 0) files[StampName] = Encoding.UTF8.GetBytes(Stamp(files) + string.Concat(plan.Imports.Select(w => "race " + w.Race + " " + w.Pack.Key + "\r\n")));
             return files;
+        }
+
+        /// <summary>
+        /// The skin, face, hair and underwear rows grouped the way the client expects them: by race, sex, section,
+        /// variation and colour. The client counts the rows of a race, sex and section where they lie together; rows of
+        /// one group spread over the table (rows added at its end, copies of a race of the client, HD rows taken from
+        /// the nearest style) make it write past what it counted, and the game crashes at its exit or when it changes
+        /// a character (EsteriaWoW's race guide, the repair of October 3, 2026). Sorting keeps every row and every id, so
+        /// the HD table still pairs with the plain one by id.
+        /// </summary>
+        static void SortSections(SortedDictionary<string, byte[]> files)
+        {
+            foreach (string name in new[] { "DBFilesClient\\CharSections.dbc", "DBFilesClient\\HDCharSections.dbc" })
+            {
+                byte[] bytes;
+                if (!files.TryGetValue(name, out bytes) || bytes == null) continue;
+                var t = DbcTable.Parse(bytes, name.Substring(name.LastIndexOf('\\') + 1));
+                if (t.Fields < 10) continue;
+                var sorted = t.Records.OrderBy(r => t.Field(r, 1)).ThenBy(r => t.Field(r, 2)).ThenBy(r => t.Field(r, 3))
+                    .ThenBy(r => t.Field(r, 8)).ThenBy(r => t.Field(r, 9)).ThenBy(r => t.Field(r, 0)).ToList();
+                if (sorted.SequenceEqual(t.Records)) continue;
+                t.Records.Clear();
+                t.Records.AddRange(sorted);
+                files[name] = t.ToBytes();
+            }
         }
 
         // ---------------------------------------------------------------------------- the size of the races
