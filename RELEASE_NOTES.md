@@ -4,6 +4,7 @@ Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with 
 
 ## New in 1.0.5
 
+- **CoA Custom's exe is copied too.** *Files of CoA Custom next to the game* copied everything except the exe: CoA Custom 1.8 brings its own `Ascension.exe`, and AFK Realm never replaced the game itself. It does now for this folder; your old exe is kept as `Ascension.exe.afk-backup` and comes back with *Copy nothing*. Close the game and its launcher, then *Modules → Game client → Install* again. Thanks to Feles Noctis for the report.
 - **Restore only parts of a backup – even from another server.** *Database → Backups → Restore only parts …* takes just the accounts, the characters (with the Playerbots data) or the settings and leaves everything else as it is. *From another server …* does the same with a backup folder copied from another AFK Realm server. After a broken update you can install a fresh server and take your accounts and characters over. Thanks for the suggestion!
 - **Long install folders work.** Installs in long folders failed at Boost or while compiling: Windows' old 260-character limit, which some build tools hit even with long paths switched on. AFK Realm now builds through a short path by itself (`<drive>\afk\…`), and the folder may be up to 120 characters long.
 - **World Journey: dungeons alone.** The World Journey page has a new card *Dungeons alone* (Difficulty tab): switch it on and set how strong the creatures of a solo dungeon are. Needs the World Journey update of today; players tick *Go alone* in the Dungeon Finder.

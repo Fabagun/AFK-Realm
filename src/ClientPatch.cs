@@ -99,7 +99,8 @@ namespace CoAInstaller
                     foreach (var one in Directory.GetFiles(top, "*", SearchOption.AllDirectories).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
                     {
                         string to = one.Substring(top.Length).Replace('/', '\\');
-                        if (!SafeRootPath(to) || plan.RootFiles.Any(r => r.To.Equals(to, StringComparison.OrdinalIgnoreCase))) continue;
+                        // the folder is the user's own choice: it may bring the game's exe too (CoA Custom 1.8 ships its Ascension.exe)
+                        if (!SafeRootPath(to, true) || plan.RootFiles.Any(r => r.To.Equals(to, StringComparison.OrdinalIgnoreCase))) continue;
                         plan.RootFiles.Add(new RootFile { Module = module, From = one, To = to, Zip = zip });
                     }
                 }
@@ -890,14 +891,17 @@ namespace CoAInstaller
             return h;
         }
 
-        /// <summary>A file next to the exe, or in a folder of its own there - never in the game's own folders and never the game itself.</summary>
-        static bool SafeRootPath(string to)
+        /// <summary>A file next to the exe, or in a folder of its own there - never in the game's own folders, never the realm list,
+        /// and the game itself only when gameExe (a folder the user chose).</summary>
+        static bool SafeRootPath(string to, bool gameExe = false)
         {
             if (to.Length == 0 || Path.IsPathRooted(to) || to.IndexOf(':') >= 0 || to.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return false;
             var parts = to.Split('\\');
             if (parts.Any(p => p.Length == 0 || p == "." || p == "..")) return false;
             if (new[] { "Data", "WTF", "Cache", "Interface", "Logs", "Errors", "AFK-Realm" }.Any(d => d.Equals(parts[0], StringComparison.OrdinalIgnoreCase)) && parts.Length > 1) return false;
-            return !new[] { "Ascension.exe", "Wow.exe", "Launcher.exe", "realmlist.wtf" }.Any(n => n.Equals(to, StringComparison.OrdinalIgnoreCase));
+            if (to.Equals("realmlist.wtf", StringComparison.OrdinalIgnoreCase)) return false;
+            // the game itself only from a folder the user chose (its old exe is kept as .afk-backup and comes back)
+            return gameExe || !new[] { "Ascension.exe", "Wow.exe", "Launcher.exe" }.Any(n => n.Equals(to, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>CoA Custom's files for next to the exe (files\client_root), from the folder of the pack, its files folder,
