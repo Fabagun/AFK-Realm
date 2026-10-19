@@ -275,6 +275,15 @@ namespace CoAInstaller
             note.AppendLine(t(L.N("2. Unpack this ZIP into your game folder (the folder with the \"Data\" folder).")));
             note.AppendLine("   " + t(L.N("Replace files that are already there.")) + (addons.Count > 0 ? " " + t(L.N("The add-ons land in Interface\\AddOns.")) : ""));
             if (withPatch) note.AppendLine("   " + f(L.N("Data\\{0} is the client patch of the modules."), new object[] { ClientPatch.ArchiveName }));
+            var root = withPatch ? patch.RootFiles.Where(r => r.Zip).Select(r => r.To).ToList() : new List<string>();
+            if (root.Count > 0)
+            {
+                note.AppendLine("   " + f(L.N("Next to Ascension.exe: {0}."), new object[] { string.Join(", ", root) }));
+                if (root.Any(r => r.Equals("Ascension.exe", StringComparison.OrdinalIgnoreCase)))
+                    note.AppendLine("   " + t(L.N("The ZIP brings its own Ascension.exe (the one of CoA Custom). Keep a copy of yours first, as Ascension.exe.old for example, if you want to go back.")));
+                if (root.Any(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
+                    note.AppendLine("   " + t(L.N("If your antivirus program removes a .dll of the ZIP, allow it there.")));
+            }
             if (addons.Any(a => a.ClearCache) || (withPatch && patch.ClearCache))
                 note.AppendLine(t(L.N("3. Delete the folder \"Cache\" in your game folder, so the game forgets old values of items, creatures and quests.")));
             note.AppendLine();

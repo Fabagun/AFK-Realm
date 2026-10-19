@@ -1154,7 +1154,7 @@ namespace CoAInstaller
             }
             finally { try { File.Delete(temp); } catch { } }
             CheckRootFiles(plan);
-            // the files the players have themselves (CoA Custom's, next to the exe) stay out
+            // the files next to the exe, CoA Custom's too (its Ascension.exe, EsteriaAppearance.dll, ...): a module may keep one out ("zip": false)
             foreach (var r in plan.RootFiles.Where(r => r.Zip)) zip.CreateEntryFromFile(r.From, r.To.Replace('\\', '/'), CompressionLevel.Optimal);
             int n = 0;
             foreach (var w in plan.Imports)
