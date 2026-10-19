@@ -150,7 +150,7 @@ namespace CoAInstaller
                     try
                     {
                         Directory.CreateDirectory(raceFolder);
-                        uint[] spells = ServerRacials.ClientSpells(serverDataFolder, race.Name);
+                        uint[] spells = ServerRacials.ClientSpells(serverDataFolder, race.Name, race.Id);
                         lines.Add(RacePacker.Pack(source, yours, race, raceFolder, label, spells, text => BeginInvoke((Action)(() => status.Text = text))));
                         race.InRaceFolder = true;
                         Made++;

@@ -1096,6 +1096,7 @@
     "{0} of its files are missing; the choices that need them are left out.": "Faltam {0} dos arquivos dela; as opções que precisam deles ficam de fora.",
     "A race of your game client.": "Uma raça do seu cliente do jogo.",
     "A race of your game client (row {0} of its race table).": "Uma raça do seu cliente do jogo (linha {0} da tabela de raças).",
+    "{0} of its {1} racial abilities need code of CoA Custom's server and do nothing here yet.": "{0} das suas {1} habilidades raciais precisam de código do servidor do CoA Custom e ainda não fazem nada aqui.",
     "Delete from the race folder": "Excluir da pasta de raças",
     "Looks from the race folder ({0}, {1} MB) instead of your client": "Aparência da pasta de raças ({0}, {1} MB) em vez do seu cliente",
     "Delete these looks from the race folder": "Excluir estas aparências da pasta de raças",

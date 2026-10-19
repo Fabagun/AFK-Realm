@@ -1096,6 +1096,7 @@
     "{0} of its files are missing; the choices that need them are left out.": "",
     "A race of your game client.": "",
     "A race of your game client (row {0} of its race table).": "",
+    "{0} of its {1} racial abilities need code of CoA Custom's server and do nothing here yet.": "",
     "Delete from the race folder": "",
     "Looks from the race folder ({0}, {1} MB) instead of your client": "",
     "Delete these looks from the race folder": "",

@@ -1096,6 +1096,7 @@
     "{0} of its files are missing; the choices that need them are left out.": "Не хватает файлов: {0}; варианты, которым они нужны, пропущены.",
     "A race of your game client.": "Раса вашего игрового клиента.",
     "A race of your game client (row {0} of its race table).": "Раса вашего игрового клиента (строка {0} таблицы рас).",
+    "{0} of its {1} racial abilities need code of CoA Custom's server and do nothing here yet.": "{0} из {1} её расовых способностей требуют кода сервера CoA Custom и здесь пока ничего не делают.",
     "Delete from the race folder": "Удалить из папки рас",
     "Looks from the race folder ({0}, {1} MB) instead of your client": "Внешний вид из папки рас ({0}, {1} МБ) вместо вашего клиента",
     "Delete these looks from the race folder": "Удалить эти внешние виды из папки рас",

@@ -1096,6 +1096,7 @@
     "{0} of its files are missing; the choices that need them are left out.": "缺少其 {0} 个文件；需要这些文件的选项已省略。",
     "A race of your game client.": "你游戏客户端中的种族。",
     "A race of your game client (row {0} of its race table).": "你游戏客户端中的种族（其种族表第 {0} 行）。",
+    "{0} of its {1} racial abilities need code of CoA Custom's server and do nothing here yet.": "其 {1} 项种族技能中有 {0} 项需要 CoA Custom 服务器的代码，在这里暂时没有效果。",
     "Delete from the race folder": "从种族文件夹中删除",
     "Looks from the race folder ({0}, {1} MB) instead of your client": "采用种族文件夹中的外观（{0}，{1} MB），而不是你客户端中的",
     "Delete these looks from the race folder": "从种族文件夹中删除此外观",

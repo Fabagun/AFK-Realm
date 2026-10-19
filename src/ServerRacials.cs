@@ -21,55 +21,155 @@ namespace CoAInstaller
             new[] { "spell_race_bull_rush", "110600", "110601" },
         };
 
-        /// <summary>The racial spell ids the server pack gives a race, as its entry writes them (script_grants).</summary>
-        public static uint[] Spells(string serverDataFolder, string raceName)
+        // CoA Custom's racials, by its race numbers: its server has them compiled in (CoaCustomRacials.h), so
+        // mod-custom-races carries the table in its races.json ("coaCustom", tools\coa_custom_racials.py).
+        static Dictionary<int, uint[]> coaRacials = new Dictionary<int, uint[]>();
+        static HashSet<uint> coaScripted = new HashSet<uint>();
+
+        /// <summary>The racials of CoA Custom's races (race number -> spells) and those that need code of its server.</summary>
+        public static void UseCoaCustom(Dictionary<int, uint[]> racials, IEnumerable<uint> scripted)
+        {
+            coaRacials = racials ?? new Dictionary<int, uint[]>();
+            coaScripted = new HashSet<uint>(scripted ?? new uint[0]);
+        }
+
+        /// <summary>The racial spell ids of a race: as the entry of the server pack writes them (script_grants), or else
+        /// those CoA Custom gives the race number it has there (coaRace: its number in CoA Custom's client).</summary>
+        public static uint[] Spells(string serverDataFolder, string raceName, int coaRace = 0)
         {
             var grants = Grants(serverDataFolder);
             List<uint> found;
             foreach (var key in Keys(raceName))
                 if (grants.TryGetValue(key, out found)) return found.ToArray();
+            uint[] coa;
+            if (coaRace > 0 && coaRacials.TryGetValue(coaRace, out coa)) return coa.ToArray();
             return new uint[0];
+        }
+
+        /// <summary>The racials of a race that do nothing without code of CoA Custom's server (not ported to the module).</summary>
+        public static uint[] NeedCode(IEnumerable<uint> spells)
+        {
+            return spells.Where(s => coaScripted.Contains(s) && !Ported.Any(p => uint.Parse(p[1]) == s || p.Skip(2).Any(x => uint.Parse(x) == s))).Distinct().ToArray();
         }
 
         /// <summary>The racial spells of a race as far as the client needs them too: the ones the server grants and the
         /// spells its ported scripts need besides (they come as an aura onto their targets, see CustomRaces.cpp).</summary>
-        public static uint[] ClientSpells(string serverDataFolder, string raceName)
+        public static uint[] ClientSpells(string serverDataFolder, string raceName, int coaRace = 0)
         {
-            var spells = Spells(serverDataFolder, raceName).ToList();
+            var spells = Spells(serverDataFolder, raceName, coaRace).ToList();
             foreach (var ported in Ported)
                 if (spells.Contains(uint.Parse(ported[1]))) spells.AddRange(ported.Skip(2).Select(uint.Parse));
             return spells.Distinct().OrderBy(s => s).ToArray();
         }
 
-        /// <summary>Writes the racial file of every race that is on, and takes the file of a race whose set is empty
-        /// away. A server data folder without race data is left alone.</summary>
-        public static void Sync(string serverDataFolder, Dictionary<string, string> races)
+        /// <summary>A race that is on, for the racial files: its key and name, its number in CoA Custom's client, and the
+        /// client rows of spells it brings itself (a race of the race folder: the rows of its pack).</summary>
+        public class Wanted
         {
-            if (races == null || string.IsNullOrEmpty(serverDataFolder) || !Directory.Exists(serverDataFolder)) return;
-            if (Grants(serverDataFolder).Count == 0) return;
-            var records = Records(serverDataFolder);
-            string dir = Path.Combine(serverDataFolder, "afk-realm", "races");
+            public string Key, Name;
+            public int CoaRace;
+            public Dictionary<uint, object[]> Rows = new Dictionary<uint, object[]>();
+        }
+
+        /// <summary>Writes the racial file of every race that is on into outDir, and takes the file of a race without racial
+        /// rows away. A spell's row comes from the server data folder (its own dump), or else from the client's spell
+        /// table: the race's pack, or the game client (client: its folder).</summary>
+        public static void Sync(string serverDataFolder, string outDir, string client, List<Wanted> races)
+        {
+            if (races == null || string.IsNullOrEmpty(outDir)) return;
+            var records = string.IsNullOrEmpty(serverDataFolder) || !Directory.Exists(serverDataFolder)
+                ? new Dictionary<uint, List<KeyValuePair<string, object>>>() : Records(serverDataFolder);
+            var wantedIds = new HashSet<uint>();
+            foreach (var race in races) wantedIds.UnionWith(ClientSpells(serverDataFolder, race.Name, race.CoaRace));
+            wantedIds.ExceptWith(records.Keys);
+            foreach (var race in races) foreach (var id in race.Rows.Keys) wantedIds.Remove(id);
+            var fromClient = wantedIds.Count > 0 ? ClientRows(client, wantedIds) : new Dictionary<uint, object[]>();
+            Directory.CreateDirectory(outDir);
             foreach (var race in races)
             {
-                var spells = ClientSpells(serverDataFolder, race.Value).Where(records.ContainsKey).ToList();
-                string file = Path.Combine(dir, race.Key + ".sql");
-                if (spells.Count == 0) { if (File.Exists(file)) File.Delete(file); continue; }
+                var all = ClientSpells(serverDataFolder, race.Name, race.CoaRace);
                 var lines = new List<string>();
-                lines.Add("-- spells " + string.Join(" ", spells));
-                foreach (uint spell in spells)
+                var spells = new List<uint>();
+                foreach (uint spell in all)
                 {
+                    object[] row;
+                    string insert = records.ContainsKey(spell) ? Insert("spell_dbc", records[spell])
+                        : race.Rows.TryGetValue(spell, out row) || fromClient.TryGetValue(spell, out row) ? InsertRow(row) : null;
+                    if (insert == null) continue;
+                    spells.Add(spell);
                     lines.Add("DELETE FROM `spell_dbc` WHERE `ID` = " + spell + ";");
-                    lines.Add(Insert("spell_dbc", records[spell]));
+                    lines.Add(insert);
                 }
+                string file = Path.Combine(outDir, race.Key + ".sql");
+                if (spells.Count == 0) { if (File.Exists(file)) File.Delete(file); continue; }
+                lines.Insert(0, "-- spells " + string.Join(" ", spells));
+                var needCode = NeedCode(all);
+                if (needCode.Length > 0) lines.Insert(1, "-- needs code of CoA Custom's server, does nothing yet: " + string.Join(" ", needCode));
                 // the scripts stay with the spells the module has ported; other races keep their rows plain
                 foreach (var ported in Ported.Where(p => spells.Contains(uint.Parse(p[1]))))
                 {
                     lines.Add("DELETE FROM `spell_script_names` WHERE `spell_id` = " + ported[1] + ";");
                     lines.Add("INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (" + ported[1] + ",'" + ported[0] + "');");
                 }
-                Directory.CreateDirectory(dir);
                 File.WriteAllText(file, string.Join("\r\n", lines) + "\r\n", new UTF8Encoding(false));
             }
+        }
+
+        // The columns of spell_dbc follow the fields of the client's Spell.dbc one to one (234 of them); these are floats,
+        // these signed, the texts are named by RaceImport.SpellTextFields, every other one is unsigned.
+        static readonly HashSet<int> FloatFields = new HashSet<int> { 47, 77, 78, 79, 101, 102, 103, 119, 120, 121, 216, 217, 218, 229, 230, 231 };
+        static readonly HashSet<int> SignedFields = new HashSet<int> { 0, 13, 15, 41, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,
+            68, 69, 70, 74, 75, 76, 80, 81, 82, 110, 111, 112, 113, 114, 115, 224, 228 };
+
+        /// <summary>A row of the client's spell table (texts as text) as a row of spell_dbc.</summary>
+        static string InsertRow(object[] row)
+        {
+            if (row == null || row.Length != RaceImport.SpellFields) return null;
+            var values = new string[row.Length];
+            for (int i = 0; i < row.Length; i++)
+            {
+                object v = row[i];
+                if (RaceImport.SpellTextFields.Contains(i)) { values[i] = Literal(Convert.ToString(v ?? "")); continue; }
+                uint bits = v is string ? 0 : (uint)(Convert.ToInt64(v ?? 0, CultureInfo.InvariantCulture) & 0xFFFFFFFF);
+                if (FloatFields.Contains(i)) values[i] = BitConverter.ToSingle(BitConverter.GetBytes(bits), 0).ToString("R", CultureInfo.InvariantCulture);
+                else if (SignedFields.Contains(i)) values[i] = unchecked((int)bits).ToString(CultureInfo.InvariantCulture);
+                else values[i] = bits.ToString(CultureInfo.InvariantCulture);
+            }
+            return "INSERT INTO `spell_dbc` VALUES (" + string.Join(", ", values) + ");";
+        }
+
+        /// <summary>The rows of the given spells in the game client's spell table (the archive the game reads last wins).</summary>
+        static Dictionary<uint, object[]> ClientRows(string client, HashSet<uint> ids)
+        {
+            var rows = new Dictionary<uint, object[]>();
+            if (string.IsNullOrEmpty(client) || ids.Count == 0) return rows;
+            string source;
+            byte[] bytes;
+            try { bytes = ClientPatch.FromClient(client, "DBFilesClient\\Spell.dbc", out source); } catch { return rows; }
+            if (bytes == null) return rows;
+            var table = DbcTable.Parse(bytes, "Spell.dbc");
+            if (table.Fields != RaceImport.SpellFields) return rows;
+            foreach (var record in table.Records)
+            {
+                uint id = table.Field(record, 0);
+                if (!ids.Contains(id)) continue;
+                var values = new object[table.Fields];
+                for (int k = 0; k < table.Fields; k++)
+                {
+                    uint field = table.Field(record, k);
+                    values[k] = RaceImport.SpellTextFields.Contains(k) ? (object)Text(table, field) : field;
+                }
+                rows[id] = values;
+            }
+            return rows;
+        }
+
+        static string Text(DbcTable t, uint at)
+        {
+            if (at == 0 || at >= t.Strings.Length) return "";
+            int end = (int)at;
+            while (end < t.Strings.Length && t.Strings[end] != 0) end++;
+            return Encoding.UTF8.GetString(t.Strings, (int)at, end - (int)at);
         }
 
         /// <summary>A spell record as SQL writes it: it carries its own column names, whoever wrote the dump.</summary>

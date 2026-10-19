@@ -90,6 +90,8 @@ namespace CoAInstaller
                     switch (c.ToLowerInvariant()) { case "cc": return "CoA Custom"; case "ashen": return "Ashen Order"; case "fta": return "From the Ashes"; default: return c; }
                 }
             }
+            /// <summary>Its race number in the client it was taken from (0 when unknown).</summary>
+            public int SourceRace { get { object v; return Info.TryGetValue("race", out v) && v != null ? Convert.ToInt32(v) : 0; } }
             public int Missing { get { object v; return Info.TryGetValue("missing", out v) && v != null ? Convert.ToInt32(v) : 0; } }
             public long Bytes { get { object v; return Info.TryGetValue("bytes", out v) && v != null ? Convert.ToInt64(v) : 0; } }
         }
@@ -107,7 +109,7 @@ namespace CoAInstaller
         }
 
         const string InfoName = "race.info.json";
-        const int InfoVersion = 1;
+        const int InfoVersion = 2;
 
         /// <summary>What the page needs of a race, from its full race.json.</summary>
         static Dictionary<string, object> MakeInfo(string dir, Dictionary<string, object> data, string stamp)
@@ -124,7 +126,7 @@ namespace CoAInstaller
             return new Dictionary<string, object>
             {
                 { "version", InfoVersion }, { "stamp", stamp }, { "key", Str(data, "key") }, { "name", Str(data, "name") }, { "prefix", Str(data, "prefix") },
-                { "file", file }, { "icon", Str(data, "icon") }, { "client", source == null ? "" : Str(source, "client") }, { "side", side ?? 2 },
+                { "file", file }, { "icon", Str(data, "icon") }, { "client", source == null ? "" : Str(source, "client") }, { "race", source == null ? 0 : Num(source.ContainsKey("race") ? source["race"] : null) }, { "side", side ?? 2 },
                 { "female", female }, { "missing", List(data, "missing").Length }, { "bytes", bytes }, { "files", files },
             };
         }

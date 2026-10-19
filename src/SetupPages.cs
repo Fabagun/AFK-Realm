@@ -691,6 +691,23 @@ namespace CoAInstaller
                         virtuals[kv.Key] = new KeyValuePair<int, string>(Convert.ToInt32(v["source"]), Convert.ToString(v["name"]));
                     }
                 }
+                // CoA Custom's racials by its race numbers (its server has them compiled in)
+                object coa;
+                if (data.TryGetValue("coaCustom", out coa) && coa is Dictionary<string, object>)
+                {
+                    var c = (Dictionary<string, object>)coa;
+                    var table = new Dictionary<int, uint[]>();
+                    object racials, scripted;
+                    if (c.TryGetValue("racials", out racials) && racials is Dictionary<string, object>)
+                        foreach (var pair in (Dictionary<string, object>)racials)
+                        {
+                            int race;
+                            if (int.TryParse(pair.Key, out race) && pair.Value is object[])
+                                table[race] = ((object[])pair.Value).Select(x => (uint)Convert.ToInt64(x)).ToArray();
+                        }
+                    var code = c.TryGetValue("scripted", out scripted) && scripted is object[] ? ((object[])scripted).Select(x => (uint)Convert.ToInt64(x)).ToArray() : new uint[0];
+                    ServerRacials.UseCoaCustom(table, code);
+                }
             }
             catch (Exception ex) { Shown += (s, e) => Ui.Error(this, L.F("What mod-custom-races knows of the races could not be read ({0}): {1}", file, ex.Message)); }
             if (bases.Count == 0) bases.AddRange(new[] { "Human", "Orc", "Dwarf", "NightElf", "Undead", "Tauren", "Gnome", "Troll", "BloodElf", "Draenei" });
@@ -791,16 +808,37 @@ namespace CoAInstaller
         {
             try
             {
-                var on = new Dictionary<string, string>();
+                var on = new List<ServerRacials.Wanted>();
                 foreach (var key in Chosen())
                 {
                     var r = races.FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
                     string name = Raw("CustomRaces." + key + ".Name", "");
-                    on[key] = name.Length > 0 ? name : r != null ? r.Name : key;
+                    var wanted = new ServerRacials.Wanted { Key = key, Name = name.Length > 0 ? name : r != null ? r.Name : key, CoaRace = r != null ? CoaRaceOf(r) : 0 };
+                    var pack = r != null ? PackOf(r) : null;
+                    if (pack != null)
+                        foreach (var spell in pack.Spells)
+                        {
+                            object id, row;
+                            if (spell.TryGetValue("id", out id) && spell.TryGetValue("row", out row) && row is object[])
+                                wanted.Rows[(uint)Convert.ToInt64(id)] = (object[])row;
+                        }
+                    on.Add(wanted);
                 }
-                ServerRacials.Sync(Raw("CustomRaces.ServerDataFolder", ""), on);
+                ServerRacials.Sync(Raw("CustomRaces.ServerDataFolder", ""), RacialsFolder, ClientAddons.ClientFolder, on);
             }
             catch (Exception ex) { Ui.Error(this, L.T("The racial rows could not be written:") + "\n" + ex.Message); }
+        }
+
+        /// <summary>Where the racial rows of the races go for the server (CustomRaces.RacialsFolder).</summary>
+        string RacialsFolder { get { return Path.Combine(inst.ConfigDir, "modules", "custom-races-racials"); } }
+
+        /// <summary>The race's number in the client it comes from, for CoA Custom's racials: a race of the client its own
+        /// row, a race of the race folder the number it had in its client.</summary>
+        int CoaRaceOf(ClientRace r)
+        {
+            var pack = PackOf(r);
+            if (pack != null) return pack.SourceRace;
+            return r.Virtual ? 0 : r.Source;
         }
 
         int IdOf(ClientRace r)
@@ -854,7 +892,7 @@ namespace CoAInstaller
             }
             if (Raw("CustomRaces." + r.Key + ".Base", "").Length == 0) putText("Base", DefaultBase(r));
             // its racials: the set the server pack gives it (its rows travel to the server data folder as well)
-            var racials = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), pack != null ? pack.Name : r.Name);
+            var racials = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), pack != null ? pack.Name : r.Name, CoaRaceOf(r));
             if (racials.Length > 0) putText("Racials", string.Join(" ", racials));
             // its icon: from its folder, or from the icons of the race folder (_Icons)
             string icon = null;
@@ -877,6 +915,8 @@ namespace CoAInstaller
         {
             // the race folder found by itself (Downloads\AFK-Rassen) is written, so the client patch finds it too
             if (folder != null && Raw("CustomRaces.ImportFolder", "").Length == 0) Set("CustomRaces.ImportFolder", "\"" + folder + "\"");
+            // the racial rows go into a folder of the server's own configuration (the module reads them from there)
+            if (ConfigOption.Unquote(Raw("CustomRaces.RacialsFolder", "")) != RacialsFolder) Set("CustomRaces.RacialsFolder", "\"" + RacialsFolder + "\"");
             foreach (var r in races)
                 if (Raw("CustomRaces." + r.Key + ".Source", "").Length > 0) Describe(r, IdOf(r));
         }
@@ -910,6 +950,10 @@ namespace CoAInstaller
                     (r.Pack.Missing > 0 ? " " + L.F("{0} of its files are missing; the choices that need them are left out.", r.Pack.Missing) : "")
                 : k != null && k.About.Length > 0 ? L.Outside(k.About) : r.Virtual ? L.T("A race of your game client.") : L.F("A race of your game client (row {0} of its race table).", r.Source);
             if (k != null && k.Note.Length > 0) about += " " + L.Outside(k.Note);
+            var racialSpells = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), r.Pack != null ? r.Pack.Name : r.Name, CoaRaceOf(r));
+            var needCode = ServerRacials.NeedCode(racialSpells);
+            if (needCode.Length > 0)
+                about += " " + L.F("{0} of its {1} racial abilities need code of CoA Custom's server and do nothing here yet.", needCode.Length, racialSpells.Length);
             var aboutLabel = Small(about, card.Inner - 40, 46);
             card.Add(aboutLabel);
             if (r.Pack != null)
