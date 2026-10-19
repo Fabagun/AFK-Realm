@@ -487,7 +487,7 @@ namespace CoAInstaller
             fold.Add(make);
 
             // the server side: the rows of a race as the server data of the pack brings them
-            var serverData = Card(L.T("Server data"), L.T("The server data folder of your server pack: the one with its races and database files. Where a race brings rows of its own on the server (its racial abilities and the like), the module takes them from here into the game database at the server's start - and back out when the race or the module goes off again."), "server");
+            var serverData = Card(L.T("Server data"), L.T("Optional. Only needed for the races of a server pack that keeps their racial abilities in a server folder of its own (a folder with races\\*.json, a database folder or RACES.md). CoA Custom's races need none: mod-custom-races knows their racial abilities, and the rows of their spells come from the race packs or from your game client. Where a folder is chosen, its rows come first; the module puts them into the game database at the server's start and takes them out again when the race goes off."), "server");
             var serverWhere = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(serverData.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
             serverData.Add(serverWhere);
             Action showServer = () =>
@@ -572,7 +572,7 @@ namespace CoAInstaller
             };
 
             // the files of CoA Custom that go next to the game (its files\client_root: Ascension-b.exe, the Esteria files, cursors)
-            var rootCard = Card(L.T("Files of CoA Custom next to the game"), L.F("CoA Custom brings files that belong next to Ascension.exe (its folder files\\client_root: Ascension-b.exe, EsteriaAppearance.dll with its .bin files, cursors). Choose the CoA Custom folder once: {0} copies all of them next to your game when you install the client patch (Modules › Game client › Install), and takes them away again when you choose to copy nothing. A file of the same name that was there before is kept as <name>.afk-backup; files that are already there, the same, stay when they are no longer wanted. They do not go into the ZIP: the other players have the client of CoA Custom themselves.", Product.Name), "client");
+            var rootCard = Card(L.T("Files of CoA Custom next to the game"), L.F("CoA Custom brings files that belong next to Ascension.exe (its folder files\\client_root: its own Ascension.exe, EsteriaAppearance.dll with its .bin files, cursors). Choose the CoA Custom folder once: {0} copies all of them next to your game when you install the client patch (Modules › Game client › Install), and takes them away again when you choose to copy nothing. A file of the same name that was there before is kept as <name>.afk-backup; files that are already there, the same, stay when they are no longer wanted. They do not go into the ZIP: the other players have the client of CoA Custom themselves.", Product.Name), "client");
             var rootNote = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(rootCard.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
             Action showRoot = () =>
             {
