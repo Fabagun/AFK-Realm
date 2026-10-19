@@ -1475,6 +1475,8 @@
     "The database rejected the password. Use the password from the first installation.": "O banco de dados recusou a senha. Use a senha da primeira instalação.",
     "{0} is incomplete ({1} of {2} tables) but already contains data. It was left unchanged; restore it from a backup.": "{0} está incompleto ({1} de {2} tabelas), mas já contém dados. Ele não foi alterado; restaure-o a partir de um backup.",
     "A database update failed. The MySQL error is shown just above in the log.": "Uma atualização do banco de dados falhou. O erro do MySQL aparece logo acima no log.",
+    "Manastorm: the return pad in {0} was missing from the world database (a fault of the CoA core). AFK Realm put it back.": "Manastorm: a plataforma de retorno em {0} estava faltando no banco de dados do mundo (uma falha do núcleo do CoA). O AFK Realm a recolocou.",
+    "Manastorm: the CoA core brings its own return pads now; the ones AFK Realm had added were taken out.": "Manastorm: o núcleo do CoA agora traz suas próprias plataformas de retorno; as que o AFK Realm havia adicionado foram removidas.",
     "The database could not be stopped cleanly. Close it manually and check logs\\mysql-error.log.": "Não foi possível parar o banco de dados corretamente. Feche-o manualmente e verifique logs\\mysql-error.log.",
     "{0} is at {1} instead of {2}.": "{0} está em {1} em vez de {2}.",
     "Could not reach {0}. Check the internet connection.": "Não foi possível acessar {0}. Verifique a conexão com a internet.",

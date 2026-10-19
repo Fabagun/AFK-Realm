@@ -1475,6 +1475,8 @@
     "The database rejected the password. Use the password from the first installation.": "База данных отклонила пароль. Используйте пароль из первой установки.",
     "{0} is incomplete ({1} of {2} tables) but already contains data. It was left unchanged; restore it from a backup.": "{0} неполна (таблиц: {1} из {2}), но уже содержит данные. Она оставлена без изменений; восстановите её из резервной копии.",
     "A database update failed. The MySQL error is shown just above in the log.": "Обновление базы данных не удалось. Ошибка MySQL показана чуть выше в журнале.",
+    "Manastorm: the return pad in {0} was missing from the world database (a fault of the CoA core). AFK Realm put it back.": "Manastorm: в базе данных мира не хватало платформы возврата в {0} (ошибка ядра CoA). AFK Realm вернул её на место.",
+    "Manastorm: the CoA core brings its own return pads now; the ones AFK Realm had added were taken out.": "Manastorm: ядро CoA теперь само содержит платформы возврата; добавленные AFK Realm удалены.",
     "The database could not be stopped cleanly. Close it manually and check logs\\mysql-error.log.": "Не удалось корректно остановить базу данных. Закройте её вручную и проверьте logs\\mysql-error.log.",
     "{0} is at {1} instead of {2}.": "{0} на {1} вместо {2}.",
     "Could not reach {0}. Check the internet connection.": "Не удалось связаться с {0}. Проверьте подключение к интернету.",

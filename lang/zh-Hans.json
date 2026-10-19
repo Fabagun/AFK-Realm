@@ -1475,6 +1475,8 @@
     "The database rejected the password. Use the password from the first installation.": "数据库拒绝了密码。请使用首次安装时的密码。",
     "{0} is incomplete ({1} of {2} tables) but already contains data. It was left unchanged; restore it from a backup.": "{0} 不完整（{1}/{2} 张表），但已包含数据。它未被改动；请从备份中恢复。",
     "A database update failed. The MySQL error is shown just above in the log.": "数据库更新失败。MySQL 错误显示在日志中紧挨着的上方。",
+    "Manastorm: the return pad in {0} was missing from the world database (a fault of the CoA core). AFK Realm put it back.": "Manastorm：世界数据库中缺少 {0} 的返回传送台（CoA 核心的错误）。AFK Realm 已将其恢复。",
+    "Manastorm: the CoA core brings its own return pads now; the ones AFK Realm had added were taken out.": "Manastorm：CoA 核心现在自带返回传送台；AFK Realm 之前添加的已被移除。",
     "The database could not be stopped cleanly. Close it manually and check logs\\mysql-error.log.": "无法正常停止数据库。请手动关闭它并检查 logs\\mysql-error.log。",
     "{0} is at {1} instead of {2}.": "{0} 处于 {1}，而不是 {2}。",
     "Could not reach {0}. Check the internet connection.": "无法连接 {0}。请检查网络连接。",

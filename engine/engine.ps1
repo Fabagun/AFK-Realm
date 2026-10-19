@@ -776,9 +776,52 @@ function Update-Databases([string]$Password) {
                 $revision = Get-ProgramOutput $script:GitExe @('-C', $m.Folder, 'rev-parse', 'HEAD')
                 if ($revision) { [void](Invoke-Sql $root ('UPDATE afk_modules.modules SET revision = {0} WHERE name = {1};' -f (ConvertTo-SqlString $revision), (ConvertTo-SqlString $m.Name))) }
             }
+            try { Repair-ManastormReturnPads $root } catch { Write-Log "Manastorm return pads could not be checked: $($_.Exception.Message)" Yellow }
         } finally { Save-ModuleList $root }
     } finally { Remove-Item $root -Force -ErrorAction SilentlyContinue }
     Write-Log 'Databases are complete and up to date.'
+}
+
+# Manastorm (CoA core) sends players who die or wipe in a run back to a Teleport Pad in Stormwind or
+# Orgrimmar: manastorm_hub_return names the two pads by their gameobject guid, and Manastorm does not
+# load at all when one of them is missing ("hub returns require exactly two valid rows"). The CoA core
+# gives the Orgrimmar pad guid 6901536, which its Basalthane raid updates delete again (they use
+# 6901536-6901538 for their pillars), so on a fresh server the Horde pad is gone. Until the core fixes
+# that, a pad that is missing is spawned again here under a free guid, at the place and with the values
+# of Manastorm's own SQL, and Manastorm is pointed at it. Nothing happens while the core's pads are
+# fine, and pads AFK Realm added that Manastorm no longer points at (the core brought its own) are
+# taken out again.
+$ManastormReturnPads = @(
+    @{ Team = 0; Map = 0; Place = 'Stormwind'; Values = '-8888.36, 590.391, 93.5542, 2.21732, 0, 0, 0.895101, 0.445863' },
+    @{ Team = 1; Map = 1; Place = 'Orgrimmar'; Values = '1648.1, -4431.11, 16.9532, 2.18527, 0, 0, 0.887843, 0.460146' }
+)
+$ManastormPadMark = 'AFK Realm: Manastorm return pad'
+
+function Repair-ManastormReturnPads([string]$Options) {
+    $found = Get-SqlValue $Options "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'acore_world' AND table_name = 'manastorm_hub_return';"
+    if ($found -ne '1') { return }
+    foreach ($pad in $ManastormReturnPads) {
+        $row = Get-SqlValue $Options "SELECT COUNT(*) FROM acore_world.manastorm_hub_return WHERE team_id = $($pad.Team);"
+        if ($row -ne '1') { continue }
+        $fine = Get-SqlValue $Options ("SELECT COUNT(*) FROM acore_world.manastorm_hub_return r JOIN acore_world.gameobject g ON g.guid = r.gameobject_guid " +
+            "AND g.id = 20832 AND g.map = $($pad.Map) WHERE r.team_id = $($pad.Team);")
+        if ($fine -eq '1') { continue }
+        $comment = ConvertTo-SqlString "$ManastormPadMark ($($pad.Place))"
+        [void](Invoke-Sql $Options @"
+USE acore_world;
+SET @guid := (SELECT MAX(guid) + 1 FROM gameobject);
+INSERT INTO gameobject (guid, id, map, zoneId, areaId, spawnMask, phaseMask, position_x, position_y, position_z, orientation,
+    rotation0, rotation1, rotation2, rotation3, spawntimesecs, animprogress, state, ScriptName, VerifiedBuild, Comment)
+VALUES (@guid, 20832, $($pad.Map), 0, 0, 1, 1, $($pad.Values), 300, 0, 1, '', NULL, $comment);
+UPDATE manastorm_hub_return SET gameobject_guid = @guid WHERE team_id = $($pad.Team);
+"@)
+        Write-Log (Tr 'Manastorm: the return pad in {0} was missing from the world database (a fault of the CoA core). AFK Realm put it back.' $pad.Place) Yellow
+    }
+    $spare = "FROM acore_world.gameobject WHERE Comment LIKE '$ManastormPadMark%' AND guid NOT IN (SELECT gameobject_guid FROM acore_world.manastorm_hub_return)"
+    if ((Get-SqlValue $Options "SELECT COUNT(*) $spare;") -ne '0') {
+        [void](Invoke-Sql $Options "DELETE $spare;")
+        Write-Log (Tr 'Manastorm: the CoA core brings its own return pads now; the ones AFK Realm had added were taken out.')
+    }
 }
 
 function Stop-Database([string]$Password) {
