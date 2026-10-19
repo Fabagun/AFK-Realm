@@ -42,6 +42,30 @@ namespace CoAInstaller
         {
             coaRacials = racials ?? new Dictionary<int, uint[]>();
             coaScripted = ported ? new HashSet<uint>() : new HashSet<uint>(scripted ?? new uint[0]);
+            UseCoaRows(rowsFile);
+        }
+
+        /// <summary>The file of CoA Custom's rows of its racials in its server pack (files\sql\10_esteria_racials_*.sql, the
+        /// newest), from the CoA Custom folder chosen on the races page (the pack, its files folder or files\client_root);
+        /// null when there is none.</summary>
+        public static string PackRows(string coaCustomFolder)
+        {
+            if (string.IsNullOrEmpty(coaCustomFolder)) return null;
+            string root = ClientPatch.ClientRootOf(coaCustomFolder);
+            string files = root != null ? Path.GetDirectoryName(root.TrimEnd('\\', '/')) : null;
+            foreach (var dir in new[] { files == null ? null : Path.Combine(files, "sql"), Path.Combine(coaCustomFolder, "files", "sql"), Path.Combine(coaCustomFolder, "sql") })
+            {
+                if (dir == null || !Directory.Exists(dir)) continue;
+                var found = Directory.GetFiles(dir, "*esteria_racials*.sql").OrderBy(f => f, StringComparer.OrdinalIgnoreCase).LastOrDefault();
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        /// <summary>Reads CoA Custom's rows of its racials from a file of its own (its server pack's, or the copy of
+        /// mod-custom-races): spell_dbc, spell_script_names and spell_proc, by spell.</summary>
+        public static void UseCoaRows(string rowsFile)
+        {
             coaSpellRows = new Dictionary<uint, string>();
             coaScripts = new Dictionary<uint, string>();
             coaProcs = new Dictionary<uint, string>();

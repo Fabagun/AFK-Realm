@@ -710,6 +710,12 @@ namespace CoAInstaller
                     bool hasCode = c.TryGetValue("ported", out ported) && ported is bool && (bool)ported;
                     string rowsFile = c.TryGetValue("rows", out rows) && rows is string ? Path.Combine(Path.GetDirectoryName(file), ((string)rows).Replace('/', Path.DirectorySeparatorChar)) : null;
                     ServerRacials.UseCoaCustom(table, code, hasCode, rowsFile);
+                    // the rows of the CoA Custom pack chosen on this page win over the copy of the module: a newer
+                    // CoA Custom brings its changed rows along by itself
+                    string coaFolder = Raw("CustomRaces.ClientRootFolder", "");
+                    if (ConfigOption.IsQuoted(coaFolder)) coaFolder = ConfigOption.Unquote(coaFolder);
+                    string packRows = ServerRacials.PackRows(coaFolder);
+                    if (packRows != null) ServerRacials.UseCoaRows(packRows);
                 }
             }
             catch (Exception ex) { Shown += (s, e) => Ui.Error(this, L.F("What mod-custom-races knows of the races could not be read ({0}): {1}", file, ex.Message)); }
