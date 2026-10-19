@@ -1,6 +1,10 @@
-# AFK Realm 1.0.4
+# AFK Realm 1.0.5
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.5
+
+- **Removing World Journey puts the world back.** World Journey changes the levels of items, creatures and quests while the server runs. Removing it in AFK Realm now puts the original values back before its folder is deleted. Before, the changed levels stayed in the database.
 
 ## New in 1.0.4
 

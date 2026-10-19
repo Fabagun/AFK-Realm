@@ -1476,6 +1476,7 @@
     "{0} was installed. Its options are in the server settings.": "{0} se instaló. Sus opciones están en la configuración del servidor.",
     "{0} was installed.": "{0} se instaló.",
     "{0}: its changes to the world database are put back for the database updates; it takes them up again at the next start.": "{0}: sus cambios en la base de datos del mundo se deshacen para las actualizaciones de la base de datos; los vuelve a aplicar en el próximo arranque.",
+    "{0} is no longer installed: its changes to the world database were put back.": "{0} ya no está instalado: sus cambios en la base de datos del mundo se han revertido.",
     "{0} could not be applied: the code it changes has changed. The server is built without it. ({1})": "No se pudo aplicar {0}: el código que modifica ha cambiado. El servidor se compila sin él. ({1})",
     "{0} could not be applied: the code it changes has changed. The server is built without it.": "No se pudo aplicar {0}: el código que modifica ha cambiado. El servidor se compila sin él.",
     "{0} set {1} to {2} in {3} (was {4}). {5}": "{0} puso {1} en {2} en {3} (antes {4}). {5}",

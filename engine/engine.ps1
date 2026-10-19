@@ -1389,6 +1389,14 @@ function Complete-ModuleChange([string]$Password, $State) {
         Install-ModuleJournal $root
         $managed = @(Get-ManagedModules $root | ForEach-Object { $_.Name })
         foreach ($r in $State.Removed) {
+            # What it changed while the server ran goes back first (its folder is set aside, so this forgets it as well).
+            $manifest = if ($r.Aside) { Join-Path $r.Aside $ModuleManifestName } else { $null }
+            if ($manifest -and (Test-Path $manifest)) {
+                try { Save-ModuleLedgers $root $r.Name ([IO.File]::ReadAllText($manifest) | ConvertFrom-Json) } catch { Write-Log "$($r.Name): $ModuleManifestName could not be read ($($_.Exception.Message))." Yellow }
+            }
+        }
+        Restore-ModuleLedgers $root
+        foreach ($r in $State.Removed) {
             if ($r.Aside) { Invoke-ModuleRemoveSql $root $r.Name $r.Aside }
             if ($managed -contains $r.Name) { Undo-ModuleSql $root $r.Name }
             else { Send-Event 'NOTE' (Tr '{0} was removed. It was not installed through AFK Realm, so its database changes (if any) stay in place.' $r.Name) }
@@ -1496,28 +1504,49 @@ function Get-ManifestList($Data, [string]$Name) {
 # A backup table has the keys of its source and, per column it changes, orig_<column> and applied_<column>. Before the
 # database updates the originals go back - only where a value is still the one the module gave it - so the updates of
 # the core see the stock rows they were written for. The module takes its changes up again at the next start.
+#
+# The ledgers are remembered in afk_modules.ledgers. A module whose folder is gone - removed through AFK Realm, or by
+# hand - has its originals put back for good from there, and is then forgotten.
+function Save-ModuleLedgers([string]$Root, [string]$Name, $Data) {
+    $sql = 'DELETE FROM afk_modules.ledgers WHERE module = {0};' -f (ConvertTo-SqlString $Name)
+    foreach ($ledger in (Get-ManifestList $Data 'ledgers')) {
+        $backup = Get-ManifestText $ledger 'backup'; $source = Get-ManifestText $ledger 'source'
+        if ($backup -notmatch '^\w+$' -or $source -notmatch '^\w+$') { continue }
+        $sql += ' REPLACE INTO afk_modules.ledgers (module, backup, source) VALUES ({0}, {1}, {2});' -f (ConvertTo-SqlString $Name), (ConvertTo-SqlString $backup), (ConvertTo-SqlString $source)
+    }
+    [void](Invoke-Sql $Root $sql)
+}
+
+# Puts the originals of one backup table back into its source. $true when it did.
+function Restore-Ledger([string]$Root, [string]$Backup, [string]$Source) {
+    if ($Backup -notmatch '^\w+$' -or $Source -notmatch '^\w+$') { return $false }
+    $columns = @(Invoke-Sql $Root ("SELECT COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'acore_world' AND TABLE_NAME = '{0}';" -f $Backup) |
+        Where-Object { $_ } | ForEach-Object { $f = "$_".Split("`t"); [pscustomobject]@{ Name = $f[0]; Key = $(if ($f.Count -gt 1) { $f[1] } else { '' }) } })
+    if ($columns.Count -eq 0) { return $false }                                     # the module has not run yet
+    $own = @(Invoke-Sql $Root ("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'acore_world' AND TABLE_NAME = '{0}';" -f $Source) | Where-Object { $_ })
+    $names = @($columns | ForEach-Object { $_.Name })
+    $keys = @($columns | Where-Object { $_.Key -eq 'PRI' } | ForEach-Object { $_.Name })
+    $changed = @($names | Where-Object { $_ -like 'orig_*' } | ForEach-Object { $_.Substring(5) } | Where-Object { ($names -contains ('applied_' + $_)) -and ($own -contains $_) })
+    if ($keys.Count -eq 0 -or $changed.Count -eq 0 -or @($keys | Where-Object { $own -notcontains $_ }).Count -gt 0) { return $false }
+    $join = ($keys | ForEach-Object { 's.`{0}` = b.`{0}`' -f $_ }) -join ' AND '
+    $set = ($changed | ForEach-Object { 's.`{0}` = IF(s.`{0}` <=> b.`applied_{0}`, b.`orig_{0}`, s.`{0}`)' -f $_ }) -join ', '
+    [void](Invoke-Sql $Root ('UPDATE acore_world.`{0}` s JOIN acore_world.`{1}` b ON {2} SET {3};' -f $Source, $Backup, $join, $set))
+    return $true
+}
+
 function Restore-ModuleLedgers([string]$Root) {
-    foreach ($m in @(Get-ModuleManifests)) {
-        $ledgers = Get-ManifestList $m.Data 'ledgers'
-        if ($ledgers.Count -eq 0) { continue }
+    foreach ($m in @(Get-ModuleManifests)) { Save-ModuleLedgers $Root $m.Name $m.Data }
+    $rows = @(Invoke-Sql $Root 'SELECT module, backup, source FROM afk_modules.ledgers ORDER BY module, backup;' | Where-Object { $_ } | ForEach-Object {
+        $f = "$_".Split("`t"); [pscustomobject]@{ Module = $f[0]; Backup = $f[1]; Source = $f[2] } })
+    foreach ($group in @($rows | Group-Object Module)) {
         $restored = 0
-        foreach ($ledger in $ledgers) {
-            $backup = Get-ManifestText $ledger 'backup'; $source = Get-ManifestText $ledger 'source'
-            if ($backup -notmatch '^\w+$' -or $source -notmatch '^\w+$') { continue }
-            $columns = @(Invoke-Sql $Root ("SELECT COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'acore_world' AND TABLE_NAME = '{0}';" -f $backup) |
-                Where-Object { $_ } | ForEach-Object { $f = "$_".Split("`t"); [pscustomobject]@{ Name = $f[0]; Key = $(if ($f.Count -gt 1) { $f[1] } else { '' }) } })
-            if ($columns.Count -eq 0) { continue }                                        # the module has not run yet
-            $own = @(Invoke-Sql $Root ("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'acore_world' AND TABLE_NAME = '{0}';" -f $source) | Where-Object { $_ })
-            $names = @($columns | ForEach-Object { $_.Name })
-            $keys = @($columns | Where-Object { $_.Key -eq 'PRI' } | ForEach-Object { $_.Name })
-            $changed = @($names | Where-Object { $_ -like 'orig_*' } | ForEach-Object { $_.Substring(5) } | Where-Object { ($names -contains ('applied_' + $_)) -and ($own -contains $_) })
-            if ($keys.Count -eq 0 -or $changed.Count -eq 0 -or @($keys | Where-Object { $own -notcontains $_ }).Count -gt 0) { continue }
-            $join = ($keys | ForEach-Object { 's.`{0}` = b.`{0}`' -f $_ }) -join ' AND '
-            $set = ($changed | ForEach-Object { 's.`{0}` = IF(s.`{0}` <=> b.`applied_{0}`, b.`orig_{0}`, s.`{0}`)' -f $_ }) -join ', '
-            [void](Invoke-Sql $Root ('UPDATE acore_world.`{0}` s JOIN acore_world.`{1}` b ON {2} SET {3};' -f $source, $backup, $join, $set))
-            $restored++
+        foreach ($ledger in $group.Group) { if (Restore-Ledger $Root $ledger.Backup $ledger.Source) { $restored++ } }
+        if (Test-Path (Join-Path $Paths.Modules $group.Name)) {
+            if ($restored -gt 0) { Write-Log (Tr '{0}: its changes to the world database are put back for the database updates; it takes them up again at the next start.' $group.Name) }
+        } else {
+            if ($restored -gt 0) { Write-Log (Tr '{0} is no longer installed: its changes to the world database were put back.' $group.Name) }
+            [void](Invoke-Sql $Root ('DELETE FROM afk_modules.ledgers WHERE module = {0};' -f (ConvertTo-SqlString $group.Name)))
         }
-        if ($restored -gt 0) { Write-Log (Tr '{0}: its changes to the world database are put back for the database updates; it takes them up again at the next start.' $m.Name) }
     }
 }
 

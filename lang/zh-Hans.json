@@ -1476,6 +1476,7 @@
     "{0} was installed. Its options are in the server settings.": "{0} 已安装。其选项在服务器设置中。",
     "{0} was installed.": "{0} 已安装。",
     "{0}: its changes to the world database are put back for the database updates; it takes them up again at the next start.": "{0}：为进行数据库更新，它对世界数据库的更改已恢复为原值；下次启动时会重新应用。",
+    "{0} is no longer installed: its changes to the world database were put back.": "{0} 已不再安装：它对世界数据库所做的更改已还原。",
     "{0} could not be applied: the code it changes has changed. The server is built without it. ({1})": "无法应用 {0}：它要修改的代码已经变了。服务器将在不含它的情况下编译。（{1}）",
     "{0} could not be applied: the code it changes has changed. The server is built without it.": "无法应用 {0}：它要修改的代码已经变了。服务器将在不含它的情况下编译。",
     "{0} set {1} to {2} in {3} (was {4}). {5}": "{0} 将 {3} 中的 {1} 设为 {2}（原为 {4}）。{5}",

@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS modules (
     note      TEXT         NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Tables in which a module keeps the originals of rows it changes while the server runs ("ledgers" of its
+-- afk-realm.json): remembered so they can be put back even after its folder is gone.
+CREATE TABLE IF NOT EXISTS ledgers (
+    module  VARCHAR(100) NOT NULL,
+    backup  VARCHAR(64)  NOT NULL,
+    source  VARCHAR(64)  NOT NULL,
+    PRIMARY KEY (module, backup)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- One batch = the SQL files of one module applied to one database in one run.
 CREATE TABLE IF NOT EXISTS batches (
     id      INT AUTO_INCREMENT PRIMARY KEY,
