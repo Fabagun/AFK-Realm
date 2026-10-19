@@ -18,6 +18,8 @@
         Setup     database, world data and configuration only, no compiling
         Backup    snapshot of the server: programs, configs, databases and versions
         Restore   roll the server back to a snapshot (-Snapshot <folder name>)
+        RestoreParts  take only parts of a snapshot (-Snapshot <folder name or full path>,
+                  -Parts "accounts,characters,settings"); the snapshot may come from another server
         Modules   add modules (-AddModules "<git url>;...") and/or remove them
                   (-RemoveModules "<folder name>;..."), rebuild, record or undo
                   their database changes
@@ -32,8 +34,9 @@
 param(
     [string]$InstallRoot = '',
     [ValidateRange(1024, 65535)][int]$DatabasePort = 3307,
-    [ValidateSet('', 'Install', 'Update', 'Rebuild', 'Setup', 'Backup', 'Restore', 'Modules')][string]$Mode = '',
+    [ValidateSet('', 'Install', 'Update', 'Rebuild', 'Setup', 'Backup', 'Restore', 'RestoreParts', 'Modules')][string]$Mode = '',
     [string]$Snapshot = '',
+    [string]$Parts = '',
     [string]$AddModules = '',
     [string]$RemoveModules = '',
     [switch]$NonInteractive
@@ -112,6 +115,43 @@ $Paths = @{
 }
 $Paths.Modules = Join-Path $Paths.Source 'modules'
 $Paths.Playerbots = Join-Path $Paths.Modules $Project.Playerbots.Folder
+# A long server folder makes the paths of the build longer than Windows' 260 characters: Boost's installer, the
+# compiler and MSBuild then fail. A new server in a folder longer than 24 characters therefore builds through a short
+# junction, <drive>\afk\<8 characters>, that leads to its Dependencies folder - the files stay where they are, only the
+# paths the tools see are short. A server that has already been built at its long path keeps it.
+function Use-ShortDependencies {
+    $real = $Paths.Deps
+    $marker = Join-Path $real 'short-path.txt'
+    $short = $null
+    if (Test-Path $marker) { $short = [IO.File]::ReadAllText($marker).Trim() }
+    elseif ($InstallRoot.Length -gt 24 -and -not (Test-Path $Paths.BuildMarker)) {
+        $sha = [Security.Cryptography.SHA1]::Create()
+        $hash = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($InstallRoot.ToLowerInvariant()))[0..3] | ForEach-Object { $_.ToString('x2') })
+        $short = Join-Path ([IO.Path]::GetPathRoot($InstallRoot)) "afk\$hash"
+    }
+    if (-not $short) { return }
+    try {
+        if (-not (Test-Path $short)) {
+            New-Item -ItemType Directory -Force -Path (Split-Path $short) | Out-Null
+            $out = & cmd.exe /c "mklink /J `"$short`" `"$real`"" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "$out" }
+        }
+        [IO.File]::WriteAllText($marker, $short)
+        # The junction has to lead to this very folder: the marker is seen through it.
+        if (-not (Test-Path (Join-Path $short 'short-path.txt'))) { throw "$short leads somewhere else" }
+    } catch {
+        Remove-Item $marker -Force -ErrorAction SilentlyContinue
+        Write-Log "The short path for the build could not be made ($($_.Exception.Message)); building at $real." Yellow
+        return
+    }
+    foreach ($key in @('Deps', 'Downloads', 'Source', 'Build', 'Revisions', 'BuildMarker', 'ModuleList', 'ModuleTrash', 'ModuleSettings')) {
+        $Paths[$key] = $short + $Paths[$key].Substring($real.Length)
+    }
+    $Paths.Modules = Join-Path $Paths.Source 'modules'
+    $Paths.Playerbots = Join-Path $Paths.Modules $Project.Playerbots.Folder
+    Write-Log "Long server folder: the build works through $short (it leads to $real)."
+}
+
 # SQL procedures that record and undo the database changes of modules (extracted next to this script).
 $JournalSql = Join-Path $PSScriptRoot 'module-journal.sql'
 
@@ -1889,6 +1929,88 @@ function Restore-Snapshot([string]$Name, [string]$Password) {
     Write-Log "The server is back at the state of $($manifest['created'])." Green
 }
 
+# Takes only parts of a snapshot - the accounts, the characters (with the Playerbots database) or the settings -
+# and leaves the rest of the server as it is. The snapshot may come from another server (a backup folder copied from
+# there): the parts are copied as they are, then the database updates of this server bring them up to its version.
+function Restore-SnapshotParts([string]$Name, [string]$Parts, [string]$Password) {
+    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+    if (-not $Name) { throw (Tr 'No backup was chosen.') }
+    $folder = if ([IO.Path]::IsPathRooted($Name)) { $Name } else { Join-Path $Paths.Backups $Name }
+    $manifest = Read-SnapshotManifest $folder
+    $chosen = @($Parts.Split(',') | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ -in 'accounts', 'characters', 'settings' })
+    if ($chosen.Count -eq 0) { throw (Tr 'Nothing was chosen to restore.') }
+    Assert-ServerStopped
+    Write-Log "Restoring from the backup $folder (made $($manifest['created']), $($manifest['reason'])): $($chosen -join ', ')"
+    $inBackup = @($manifest['databases'].Split(',') | Where-Object { $_ })
+    $databases = @()
+    if ($chosen -contains 'accounts') { $databases += 'acore_auth' }
+    if ($chosen -contains 'characters') { $databases += 'acore_characters'; if ($inBackup -contains 'acore_playerbots') { $databases += 'acore_playerbots' } }
+    foreach ($db in $databases) {
+        if ($inBackup -notcontains $db -or -not (Test-Path (Join-Path $folder "$db.sql.gz"))) { throw (Tr 'The backup is missing {0}.' "$db.sql.gz") }
+    }
+
+    Enter-Phase 'restore' 'Restoring the databases'
+    Start-Database
+    $root = New-ClientOptions 'root' $Password
+    $realms = Join-Path $Paths.Downloads 'realmlist-kept.sql.gz'
+    try {
+        if (-not (Test-SqlLogin $root)) { throw (Tr 'The database rejected the password.') }
+        if ($databases -contains 'acore_auth') {
+            # The realm list belongs to this server (its name, address and port), not to the accounts.
+            Invoke-Stream (Get-MySqlTool 'mysqldump.exe') @("--defaults-extra-file=$root", '--no-create-info', '--skip-triggers', '--hex-blob',
+                '--set-gtid-purged=OFF', '--default-character-set=utf8mb4', 'acore_auth', 'realmlist') -GzipOut $realms
+        }
+        foreach ($db in $databases) {
+            Write-Log "Restoring the database $db ..."
+            [void](Invoke-Sql $root "DROP DATABASE IF EXISTS ``$db``; CREATE DATABASE ``$db`` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
+            Invoke-Stream (Get-MySqlTool 'mysql.exe') @("--defaults-extra-file=$root", '--max-allowed-packet=512M', "--database=$db") -GzipIn (Join-Path $folder "$db.sql.gz")
+        }
+        if ($databases -contains 'acore_auth') {
+            [void](Invoke-Sql $root 'DELETE FROM acore_auth.realmlist;')
+            Invoke-Stream (Get-MySqlTool 'mysql.exe') @("--defaults-extra-file=$root", '--max-allowed-packet=512M', '--database=acore_auth') -GzipIn $realms
+            Write-Log 'The realm list of this server is kept.'
+        }
+        if ($databases.Count -gt 0) {
+            # The number of characters per account shown in the realm list.
+            [void](Invoke-Sql $root ('SET @realm = (SELECT MIN(id) FROM acore_auth.realmlist); DELETE FROM acore_auth.realmcharacters WHERE realmid = @realm; ' +
+                'INSERT INTO acore_auth.realmcharacters (realmid, acctid, numchars) SELECT @realm, a.id, COUNT(c.guid) FROM acore_auth.account a ' +
+                'LEFT JOIN acore_characters.characters c ON c.account = a.id GROUP BY a.id;') -AllowFailure)
+            $orphans = [int](Get-SqlValue $root 'SELECT COUNT(*) FROM acore_characters.characters c LEFT JOIN acore_auth.account a ON a.id = c.account WHERE a.id IS NULL;')
+            if ($orphans -gt 0) { Write-Log (Tr '{0} characters belong to no account of this server. Restore the accounts from the same backup to bring them back.' $orphans) Yellow }
+        }
+    } finally { Remove-Item $root -Force -ErrorAction SilentlyContinue; Remove-Item $realms -Force -ErrorAction SilentlyContinue }
+
+    if ($chosen -contains 'settings') {
+        Enter-Phase 'files' 'Restoring the settings'
+        # Only the config files: the programs stay those of this server. A config of a module this server does not have
+        # is left out; the connection to the database and the folders are set for this server again right after.
+        $zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $folder 'server.zip'))
+        $taken = 0
+        try {
+            foreach ($entry in $zip.Entries) {
+                $relative = $entry.FullName.Replace('/', '\')
+                if (-not $entry.Name -or $relative -notmatch '^configs\\' -or $entry.Name -notmatch '\.conf$') { continue }
+                $target = Join-Path $Paths.Server $relative
+                if (-not (Test-Path $target) -and -not (Test-Path "$target.dist")) { continue }
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true)
+                $taken++
+            }
+        } finally { $zip.Dispose() }
+        $savedSettings = Join-Path $folder 'module-settings.txt'
+        if (Test-Path $savedSettings) { Copy-Item $savedSettings $Paths.ModuleSettings -Force }
+        Set-ServerConfig $Password
+        Set-ModuleSettings
+        Write-Log ('{0} settings files restored.' -f $taken)
+    }
+
+    if ($databases.Count -gt 0) {
+        Enter-Phase 'finish' 'Bringing the databases up to date'
+        Update-Databases $Password
+    }
+    Stop-Database $Password
+    Write-Log "Restored from the backup of $($manifest['created']): $($chosen -join ', ')." Green
+}
+
 # =============================================================================
 #  Main
 # =============================================================================
@@ -1944,6 +2066,7 @@ $password = $null
 try {
     New-Item -ItemType Directory -Force -Path $Paths.Logs, $Paths.Deps, $Paths.Downloads, $Paths.Db, $Paths.Data | Out-Null
     Write-Log "===== $($Project.Name) server builder - $(Get-Date -Format 'yyyy-MM-dd HH:mm') - $InstallRoot ====="
+    Use-ShortDependencies
     if (-not [Environment]::Is64BitOperatingSystem -or [Environment]::OSVersion.Version.Major -lt 10) { throw (Tr 'Windows 10 or 11 (64-bit) is required.') }
     Assert-Administrator
     Read-Revisions
@@ -1957,6 +2080,12 @@ try {
         $action = if ($finished) { 'Setup' } else { 'Resume' }
     }
     Write-Log "Mode: $action"
+    if ($action -eq 'RestoreParts') {
+        if (-not $password) { $password = Read-Password }
+        Restore-SnapshotParts $Snapshot $Parts $password
+        Send-Event 'DONE' 'ok'
+        exit 0
+    }
     if ($action -eq 'Backup' -or $action -eq 'Restore') {
         if (-not $password) { $password = Read-Password }
         if ($action -eq 'Backup') {

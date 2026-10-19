@@ -78,7 +78,7 @@ namespace CoAInstaller
                 {
                     string full = Path.GetFullPath(p);
                     if (full.Any(ch => ch > 127)) error = L.T("The path contains non-English or special characters, which some build tools cannot handle.");
-                    else if (full.Length > 60) error = L.T("The path is too long (60 characters at most). Compiling creates very long file paths.");
+                    else if (full.Length > 120) error = L.T("The path is too long (120 characters at most).");
                     else if (full.IndexOf("OneDrive", StringComparison.OrdinalIgnoreCase) >= 0) error = L.T("Please do not use a OneDrive folder: syncing interferes with the database and the build.");
                     else if (full.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), StringComparison.OrdinalIgnoreCase)
                           || full.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.Windows), StringComparison.OrdinalIgnoreCase))

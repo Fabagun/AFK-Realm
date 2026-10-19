@@ -41,6 +41,7 @@ namespace CoAInstaller
         public static Phase[] For(string mode)
         {
             if (mode == "Backup") return new[] { new Phase("backup", L.T("Back up the server"), 1) };
+            if (mode == "RestoreParts") return new[] { new Phase("restore", L.T("Restore the databases"), 3), new Phase("files", L.T("Restore the settings"), 1), new Phase("finish", L.T("Bring the databases up to date"), 3) };
             if (mode == "Restore") return new[] { new Phase("restore", L.T("Restore the databases"), 4), new Phase("files", L.T("Restore the server programs and versions"), 1) };
             if (mode == "Modules")
             {

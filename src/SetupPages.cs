@@ -1300,6 +1300,17 @@ namespace CoAInstaller
             var xp = Card(L.T("Quest experience"), L.T("On top of Rate.XP.Quest of the server."), "journey");
             AddSlider(xp, "Journey.Quests.XpRate", L.T("All quests"), 0, 3, 0.05, v => "×" + v.ToString("0.##", CultureInfo.InvariantCulture));
 
+            var alone = Card(L.T("Dungeons alone"), L.T("A player who ticks \"Go alone\" in the Dungeon Finder (or types .journey solo) gets his dungeon at once, just for him; without the tick the Dungeon Finder waits for a group of five as always. Only in a dungeon entered that way do the creatures get the factors below - other instances of the same dungeon stay as they are."), "gamemaster");
+            AddToggle(alone, "Journey.SoloDungeon.Enable", L.T("Players may go into dungeons alone"));
+            Func<double, string> times = v => "×" + v.ToString("0.##", CultureInfo.InvariantCulture);
+            AddSlider(alone, "Journey.SoloDungeon.Health", L.T("Health of the creatures"), 0.1, 1.5, 0.05, times);
+            AddSlider(alone, "Journey.SoloDungeon.Damage", L.T("Their melee damage"), 0.1, 1.5, 0.05, times);
+            AddSlider(alone, "Journey.SoloDungeon.SpellDamage", L.T("Their spell damage"), 0.1, 1.5, 0.05, times);
+            AddSlider(alone, "Journey.SoloDungeon.Boss.Health", L.T("Health of the bosses"), 0.1, 1.5, 0.05, times);
+            AddSlider(alone, "Journey.SoloDungeon.Boss.Damage", L.T("Melee damage of the bosses"), 0.1, 1.5, 0.05, times);
+            AddSlider(alone, "Journey.SoloDungeon.Boss.SpellDamage", L.T("Spell damage of the bosses"), 0.1, 1.5, 0.05, times);
+            alone.Add(Small(L.F("For comparison: mod-autobalance gives a single player about ×0.66 of health and damage. The tick in the Dungeon Finder needs the add-on ZoneLevels, which {0} puts into your game; the Dungeon Finder needs World Journey's change to the core, which {0} brings in when it builds the server.", Product.Name), alone.Inner));
+
             // ---- what follows
             Tab(L.T("What follows"));
             var follows = Card(L.T("What follows the journey"), L.T("Switch off what should stay as it came."), "modules");

@@ -2,6 +2,9 @@
 
 ## 1.0.5
 
+- Backups: *Restore only parts …* takes just the accounts, the characters (with the Playerbots database) or the settings from a backup and leaves the rest of the server as it is; *From another server …* does the same with the backup folder of another AFK Realm server. The realm list stays this server's; restored settings get this server's database connection and folders again; the restored databases are brought up to this server's version (dbimport and the module SQL files) afterwards, so a backup of an older server works too. The engine mode is RestoreParts (-Snapshot <folder name or full path> -Parts accounts,characters,settings) (suggested on Discord)
+- World Journey page: the card *Dungeons alone* (Journey.SoloDungeon.*: on/off, health, melee and spell damage of creatures and bosses in dungeons entered alone)
+- Long server folders: a new server in a folder longer than 24 characters builds through a short junction (<drive>\afk\<8 characters>) that leads to its Dependencies folder, because Boost's installer, the compiler and MSBuild fail on paths over 260 characters even with Windows' long paths switched on. A server already built at its long path keeps it. The folder may now be up to 120 characters long (was 60)
 - Removing a module: what a module with "ledgers" changed in the world database while the server ran goes back before its folder is gone for good. The ledgers are remembered in afk_modules.ledgers, so a module whose folder disappeared another way has its originals put back at the next server update, too. Before, removing World Journey left the levels of items, creatures and quests as the journey had set them
 
 ## 1.0.4

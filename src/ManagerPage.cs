@@ -422,6 +422,7 @@ namespace CoAInstaller
                     d.ShowDialog(this);
                     if (d.BackUpNow) RunEngine("Backup", null, false);
                     else if (d.RestoreName != null) RunEngine("Restore", null, true, "-Snapshot \"" + d.RestoreName + "\"");
+                    else if (d.Parts != null) RunEngine("RestoreParts", null, true, "-Snapshot \"" + d.PartsFolder.TrimEnd('\\') + "\" -Parts \"" + d.Parts + "\"");
                 }
             };
 

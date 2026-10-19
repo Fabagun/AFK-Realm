@@ -43,7 +43,7 @@ Everything AFK Realm installs goes into the one folder you choose. Nothing is in
 
 1. Start `AFK-Realm.exe`. Windows may warn about an unknown publisher because the program is not code-signed; choose *More info → Run anyway*.
 2. Choose **Install a new server**.
-3. Pick a folder, for example `C:\CoA-Server`. Use a short path on a local drive.
+3. Pick a folder, for example `C:\CoA-Server`, on a local drive (120 characters at most). In a longer folder the build works through a short junction (`<drive>\afk\<8 characters>`) that leads to the server's `Dependencies` folder, because Boost's installer and the compiler fail on paths over 260 characters even when Windows' long paths are switched on.
 4. Give the server a **name**. It is what players see in the realm list when they log in; you can change it later (see [Server name](#server-name)).
 5. Set a **database password** (at least 10 characters). You do not need to type it again later, but keep it somewhere.
 6. Read the summary and click **Install**.
@@ -449,6 +449,8 @@ AFK Realm also allows the servers through the Windows Firewall.
 - One is made automatically before every update and every module change.
 - **Back up now** makes one by hand, for example before you try something risky.
 - **Restore …** puts the server back to that moment. Everything that happened since then is lost: character progress, new accounts, changed settings.
+- **Restore only parts …** takes just the accounts, the characters (with the Playerbots data) or the settings from a backup and leaves everything else as it is. The realm list, the programs, the database password and the folders stay those of this server, and the parts are brought up to this server's version afterwards. Take the accounts along with the characters: characters belong to their accounts by number.
+- **From another server …** does the same with the backup folder of another AFK Realm server (copy the folder with the date as its name, the one that holds `manifest.txt`). This also helps after a broken update: install a fresh server and take the accounts and characters over from a backup of the old one.
 - The newest three backups are kept; older ones are deleted.
 
 Map data is not part of a backup; updates do not touch it.

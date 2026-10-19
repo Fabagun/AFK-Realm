@@ -18,10 +18,13 @@ namespace CoAInstaller
     {
         public bool BackUpNow { get; private set; }
         public string RestoreName { get; private set; }
+        /// <summary>Only parts of a backup: its folder (a name in Backups, or the full path of a backup of another server) and the parts.</summary>
+        public string PartsFolder { get; private set; }
+        public string Parts { get; private set; }
 
         readonly Install inst;
         readonly ListView list = new ListView { View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false, Dock = DockStyle.Fill, Font = Ui.Base, BorderStyle = BorderStyle.FixedSingle };
-        readonly Button restore = Ui.Primary(L.T("Restore …")), delete = Ui.Secondary(L.T("Delete"));
+        readonly Button restore = Ui.Primary(L.T("Restore …")), parts = Ui.Secondary(L.T("Restore only parts …")), delete = Ui.Secondary(L.T("Delete"));
         string Folder { get { return Path.Combine(inst.Root, "Backups"); } }
 
         class Snapshot { public string Name, Created, Reason, Core, Bots; public long Bytes; }
@@ -30,7 +33,7 @@ namespace CoAInstaller
         {
             inst = i;
             Text = Product.Name + " – " + L.T("Backups"); Font = Ui.Base; BackColor = Ui.Surface; ShowIcon = false;
-            StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(820, 470); MinimumSize = new Size(700, 380);
+            StartPosition = FormStartPosition.CenterParent; ClientSize = new Size(980, 470); MinimumSize = new Size(900, 380);
 
             var top = new Panel { Dock = DockStyle.Top, Height = 104, Padding = new Padding(16, 12, 16, 6) };
             var intro = new Label { Dock = DockStyle.Top, Height = 48, Font = Ui.Base, ForeColor = Ui.Muted,
@@ -61,13 +64,16 @@ namespace CoAInstaller
             openFolder.Click += (s, e) => { Directory.CreateDirectory(Folder); Process.Start("explorer.exe", "\"" + Folder + "\""); };
             var now = Ui.Secondary(L.T("Back up now"));
             now.Click += (s, e) => { BackUpNow = true; Close(); };
-            bottom.Controls.Add(close); bottom.Controls.Add(openFolder); bottom.Controls.Add(delete); bottom.Controls.Add(restore); bottom.Controls.Add(now);
+            var other = Ui.Secondary(L.T("From another server …"));
+            other.Click += (s, e) => FromOtherServer();
+            bottom.Controls.Add(close); bottom.Controls.Add(openFolder); bottom.Controls.Add(delete); bottom.Controls.Add(other); bottom.Controls.Add(parts); bottom.Controls.Add(restore); bottom.Controls.Add(now);
 
             Controls.Add(listPanel);
             Controls.Add(bottom);
             Controls.Add(top);
 
             restore.Click += (s, e) => Restore();
+            parts.Click += (s, e) => { var b = Selected; if (b != null) ChooseParts(b.Name, b.Created); };
             delete.Click += (s, e) => Delete();
             list.SelectedIndexChanged += (s, e) => UpdateButtons();
             Fill();
@@ -111,7 +117,67 @@ namespace CoAInstaller
         }
 
         Snapshot Selected { get { return list.SelectedItems.Count > 0 ? list.SelectedItems[0].Tag as Snapshot : null; } }
-        void UpdateButtons() { restore.Enabled = delete.Enabled = Selected != null; }
+        void UpdateButtons() { restore.Enabled = parts.Enabled = delete.Enabled = Selected != null; }
+
+        /// <summary>A backup folder of another server (copied here or on another drive): only parts of it can be taken.</summary>
+        void FromOtherServer()
+        {
+            using (var d = new FolderBrowserDialog { Description = L.T("The folder of a backup of another AFK Realm server (it holds manifest.txt)") })
+            {
+                if (d.ShowDialog(this) != DialogResult.OK) return;
+                var b = Read(d.SelectedPath);
+                if (b == null || !File.Exists(Path.Combine(d.SelectedPath, "server.zip")))
+                {
+                    Ui.Error(this, L.T("This folder is not a backup of AFK Realm. Choose the folder with the date as its name, the one that holds manifest.txt."));
+                    return;
+                }
+                ChooseParts(d.SelectedPath, b.Created);
+            }
+        }
+
+        /// <summary>Asks which parts to take from a backup.</summary>
+        void ChooseParts(string folder, string created)
+        {
+            using (var f = new AfkForm { Text = L.T("Restore only parts"), FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false,
+                StartPosition = FormStartPosition.CenterParent, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(18) })
+            {
+                var flow = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true };
+                Func<string, Label> text = t => new Label { Text = t, AutoSize = true, MaximumSize = new Size(560, 0), Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(22, 0, 0, 10) };
+                flow.Controls.Add(new Label { Text = L.F("From the backup of {0}, take:", created), AutoSize = true, Font = Ui.Bold, ForeColor = Ui.Text, Margin = new Padding(0, 0, 0, 10) });
+                var accounts = new CheckBox { Text = L.T("Accounts"), AutoSize = true, Font = Ui.Base };
+                var characters = new CheckBox { Text = L.T("Characters"), AutoSize = true, Font = Ui.Base };
+                var settings = new CheckBox { Text = L.T("Settings"), AutoSize = true, Font = Ui.Base };
+                flow.Controls.Add(accounts);
+                flow.Controls.Add(text(L.T("Every account with its password and GM rights. The realm list (name, address, port) stays that of this server.")));
+                flow.Controls.Add(characters);
+                flow.Controls.Add(text(L.T("Every character with everything it has - bags, bank, mail, guilds - and the Playerbots data. Characters belong to their accounts by number: take the accounts along, unless the backup comes from this very server.")));
+                flow.Controls.Add(settings);
+                flow.Controls.Add(text(L.T("The settings of the server and of the modules it has. The programs stay those of this server, and so do the database password and the folders.")));
+                flow.Controls.Add(new Label { Text = L.T("What you take replaces what this server has now; everything else stays. The parts are brought up to this server's version afterwards, so a backup of an older server works too. The server is stopped for this."),
+                    AutoSize = true, MaximumSize = new Size(580, 0), Font = Ui.Small, ForeColor = Ui.Warn, Margin = new Padding(0, 4, 0, 12) });
+                var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Anchor = AnchorStyles.Right, Margin = new Padding(0) };
+                var ok = Ui.Primary(L.T("Restore")); var cancel = Ui.Secondary(L.T("Cancel"));
+                cancel.Click += (s, e) => f.Close();
+                ok.Click += (s, e) =>
+                {
+                    var chosen = new List<string>();
+                    if (accounts.Checked) chosen.Add("accounts");
+                    if (characters.Checked) chosen.Add("characters");
+                    if (settings.Checked) chosen.Add("settings");
+                    if (chosen.Count == 0) { Ui.Error(f, L.T("Choose at least one part.")); return; }
+                    if (characters.Checked && !accounts.Checked && Path.IsPathRooted(folder) &&
+                        !Ui.Confirm(f, L.T("The characters of another server belong to its accounts. Without them, characters whose account number this server does not have cannot be played. Restore only the characters anyway?"))) return;
+                    PartsFolder = folder;
+                    Parts = string.Join(",", chosen);
+                    f.DialogResult = DialogResult.OK;
+                };
+                buttons.Controls.Add(cancel); buttons.Controls.Add(ok);
+                flow.Controls.Add(buttons);
+                f.Controls.Add(flow);
+                f.AcceptButton = ok; f.CancelButton = cancel;
+                if (f.ShowDialog(this) == DialogResult.OK) Close();
+            }
+        }
 
         void Restore()
         {
