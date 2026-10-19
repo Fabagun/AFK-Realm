@@ -21,6 +21,10 @@ namespace CoAInstaller
             new[] { "spell_race_bull_rush", "110600", "110601" },
         };
 
+        /// <summary>Racials of CoA Custom whose code mod-custom-races has (src\\CustomRaces.cpp) besides the scripts above:
+        /// the passives of the Highmountain Tauren, Rugged Tenacity and Waste Not, Want Not.</summary>
+        static readonly HashSet<uint> Handled = new HashSet<uint> { 110603, 110605 };
+
         // CoA Custom's racials, by its race numbers: its server has them compiled in (CoaCustomRacials.h), so
         // mod-custom-races carries the table in its races.json ("coaCustom", tools\coa_custom_racials.py).
         static Dictionary<int, uint[]> coaRacials = new Dictionary<int, uint[]>();
@@ -49,7 +53,7 @@ namespace CoAInstaller
         /// <summary>The racials of a race that do nothing without code of CoA Custom's server (not ported to the module).</summary>
         public static uint[] NeedCode(IEnumerable<uint> spells)
         {
-            return spells.Where(s => coaScripted.Contains(s) && !Ported.Any(p => uint.Parse(p[1]) == s || p.Skip(2).Any(x => uint.Parse(x) == s))).Distinct().ToArray();
+            return spells.Where(s => coaScripted.Contains(s) && !Handled.Contains(s) && !Ported.Any(p => uint.Parse(p[1]) == s || p.Skip(2).Any(x => uint.Parse(x) == s))).Distinct().ToArray();
         }
 
         /// <summary>The racial spells of a race as far as the client needs them too: the ones the server grants and the
