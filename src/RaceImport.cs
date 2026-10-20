@@ -203,6 +203,27 @@ namespace CoAInstaller
 
         /// <summary>Adds an imported race to the client tables: its race row (the base race's, with its own model, file
         /// name and prefix), models and displays, and its sections, hair and beards with new numbers.</summary>
+        /// <summary>Whether a sex of the race has a body texture of its own, or only compositor rows.</summary>
+        static bool HasRealSkin(List<object[]> rows, int sex)
+        {
+            foreach (var r in rows)
+            {
+                if (Convert.ToInt32(r[2]) != sex || Convert.ToInt32(r[3]) != 0) continue;
+                for (int k = 4; k <= 6 && k < r.Length; k++)
+                {
+                    string texture = Convert.ToString(r[k] ?? "").Trim();
+                    if (texture.Length == 0) continue;
+                    string name = System.IO.Path.GetFileName(texture);
+                    if (name.Equals("neutral.blp", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (name.IndexOf("compositor", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        static string ModelStem(string path) { return System.IO.Path.GetFileNameWithoutExtension(path ?? "").ToLowerInvariant(); }
+
         public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name, Action<string> note = null, string helmetPrefix = null)
         {
             var cr = DbcTable.Parse(load("DBFilesClient\\ChrRaces.dbc"), "ChrRaces.dbc");
@@ -292,6 +313,83 @@ namespace CoAInstaller
             Func<object[], string> key = r => Num(r[2]) + "/" + Num(r[3]) + "/" + Num(r[8]) + "/" + Num(r[9]);
             var plain = pack.Rows("sections");
             var hdRows = pack.Rows("hd_sections");
+
+            // compositor fallback at import time: an imported race whose pack still has compositor-only
+            // sections (old packs, or races whose source client has no donor) borrows the plain and HD
+            // sections of another race in the target client that uses the same model.
+            string packModelStem = "";
+            if (modelsOfPack != null)
+            {
+                object m;
+                if (modelsOfPack.TryGetValue("male", out m) && m is Dictionary<string, object>)
+                    packModelStem = ModelStem(Convert.ToString(((Dictionary<string, object>)m)["path"]));
+                else if (modelsOfPack.Values.OfType<Dictionary<string, object>>().Any())
+                    packModelStem = ModelStem(Convert.ToString(modelsOfPack.Values.OfType<Dictionary<string, object>>().First()["path"]));
+            }
+            if (plain.Count > 0 && !HasRealSkin(plain, 0) && !HasRealSkin(plain, 1) && packModelStem.Length > 0)
+            {
+                try
+                {
+                    var di2 = DbcTable.Parse(load("DBFilesClient\\CreatureDisplayInfo.dbc"), "CreatureDisplayInfo.dbc");
+                    var md2 = DbcTable.Parse(load("DBFilesClient\\CreatureModelData.dbc"), "CreatureModelData.dbc");
+                    var cs2 = DbcTable.Parse(load("DBFilesClient\\CharSections.dbc"), "CharSections.dbc");
+                    var hd2 = DbcTable.Parse(load("DBFilesClient\\HDCharSections.dbc"), "HDCharSections.dbc");
+                    int donorRace = 0;
+                    foreach (var r in cr.Records)
+                    {
+                        int rid = (int)cr.Field(r, 0);
+                        if (rid == race || rid == baseRace) continue;
+                        for (int sex = 0; sex < 2; sex++)
+                        {
+                            uint disp = cr.Field(r, 4 + sex);
+                            var drow = di2.Records.FirstOrDefault(x => di2.Field(x, 0) == disp);
+                            if (drow == null) continue;
+                            var mrow = md2.Records.FirstOrDefault(x => md2.Field(x, 0) == di2.Field(drow, 1));
+                            if (mrow == null) continue;
+                            string stem = System.IO.Path.GetFileNameWithoutExtension(Str(md2, mrow, 2)).ToLowerInvariant();
+                            if (stem != packModelStem) continue;
+                            var cand = new List<object[]>();
+                            foreach (var c in cs2.Records)
+                                if (cs2.Field(c, 1) == rid)
+                                {
+                                    var candRow = new object[cs2.Fields];
+                                    for (int k = 0; k < cs2.Fields; k++)
+                                        candRow[k] = (k >= 4 && k <= 6) ? (object)Str(cs2, c, k) : cs2.Field(c, k);
+                                    cand.Add(candRow);
+                                }
+                            if (!HasRealSkin(cand, 0) && !HasRealSkin(cand, 1)) continue;
+                            donorRace = rid;
+                            plain.Clear();
+                            foreach (var c in cs2.Records)
+                            {
+                                if (cs2.Field(c, 1) != rid) continue;
+                                var donorRow = new object[cs.Fields];
+                                for (int k = 0; k < cs.Fields; k++)
+                                    donorRow[k] = (k >= 4 && k <= 6) ? (object)Str(cs2, c, k) : cs2.Field(c, k);
+                                donorRow[1] = (uint)race;
+                                plain.Add(donorRow);
+                            }
+                            if (hdRows.Count == 0)
+                            {
+                                foreach (var c in hd2.Records)
+                                {
+                                    if (hd2.Field(c, 1) != rid) continue;
+                                    var donorRow = new object[hd.Fields];
+                                    for (int k = 0; k < hd.Fields; k++)
+                                        donorRow[k] = (k >= 4 && k <= 6) ? (object)Str(hd2, c, k) : hd2.Field(c, k);
+                                    donorRow[1] = (uint)race;
+                                    hdRows.Add(donorRow);
+                                }
+                            }
+                            break;
+                        }
+                        if (donorRace > 0) break;
+                    }
+                    if (donorRace > 0 && note != null) note(L.F("Borrowed skin from race {0}.", donorRace));
+                }
+                catch { /* donor search failed, proceed with original sections */ }
+            }
+
             var idOf = new Dictionary<string, uint>();
             foreach (var r in plain.OrderBy(r => Num(r[2])).ThenBy(r => Num(r[3])).ThenBy(r => Num(r[8])).ThenBy(r => Num(r[9])))
             {

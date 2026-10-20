@@ -1,6 +1,10 @@
-# AFK Realm 1.0.13
+# AFK Realm 1.0.14
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.14
+
+- **Imported races get their skin even from old packs.** The importer now borrows skin layers from a matching race in the target client when a pack has compositor-only sections, so races like Vulpera Esteria show their skin even if the pack was created before the fallback was added.
 
 ## New in 1.0.13
 

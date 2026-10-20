@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.14
+
+- Custom races: the importer now borrows skin, face and HD layers from a donor race in the target client when a pack has compositor-only sections (old packs or races without a donor in the source client). This makes the import robust even when packs were created before the compositor fallback was added.
+
 ## 1.0.13
 
 - Custom races: races of the CoA client that share a name (Vulpera 19 and VulperaEsteria 74) are now listed separately in the setup page, with keys taken from their file names, so both can be chosen and configured independently.
