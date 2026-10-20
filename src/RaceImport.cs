@@ -224,6 +224,12 @@ namespace CoAInstaller
                 var dsrc = List(m, "display");
                 foreach (int k in new[] { 3, 4, 5, 14 })
                     if (k < dsrc.Length && k < di.Fields) di.SetField(display, k, Num(dsrc[k]));
+                // and its own textures (TextureVariation 1-3) where it has some: texture slots of its model that take them
+                // (horns, eyes, a blindfold); race packs made before had none, so the base race's stay
+                var own = m.ContainsKey("textures") ? List(m, "textures") : new object[0];
+                if (own.Any(t => !string.IsNullOrEmpty(Convert.ToString(t))))
+                    for (int k = 0; k < 3 && k < own.Length && 6 + k < di.Fields; k++)
+                        di.SetField(display, 6 + k, di.AddString(Convert.ToString(own[k] ?? "")));
                 di.Records.Add(display);
                 newDisplay[sex] = id;
             }
@@ -413,6 +419,31 @@ namespace CoAInstaller
         /// the race's number with a new id; without any of this the race is mute.</summary>
         static void AddVoice(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace)
         {
+            // the sounds of its own voice the race pack brings (rows of the sound table this client lacks), so that the rows
+            // below that name them are kept
+            var soundRows = pack.Rows("sound_entries");
+            if (soundRows.Count > 0)
+            {
+                var sb = load("DBFilesClient\\SoundEntries.dbc");
+                var se = sb == null ? null : DbcTable.Parse(sb, "SoundEntries.dbc");
+                if (se != null)
+                {
+                    var have = new HashSet<uint>(se.Records.Select(r => se.Field(r, 0)));
+                    int added = 0;
+                    foreach (var r in soundRows)
+                    {
+                        uint id = Num(r[0]);
+                        if (id == 0 || have.Contains(id) || r.Length != se.Fields) continue;
+                        var rec = new byte[se.RecordSize];
+                        for (int k = 0; k < se.Fields; k++)
+                            se.SetField(rec, k, r[k] is string ? se.AddString((string)r[k]) : Num(r[k]));
+                        se.Records.Add(rec);
+                        have.Add(id);
+                        added++;
+                    }
+                    if (added > 0) save("DBFilesClient\\SoundEntries.dbc", se.ToBytes());
+                }
+            }
             HashSet<uint> sounds = null;
             Func<uint, bool> hasSound = id =>
             {

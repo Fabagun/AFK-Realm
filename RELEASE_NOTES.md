@@ -1,6 +1,14 @@
-# AFK Realm 1.0.8
+# AFK Realm 1.0.10
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.10
+
+- **Imported races look complete.** Race packs now also take the race's helmets (no more checkered boxes on their heads), the textures of its horns, eyes or blindfold, every file of its own model folder, and its own voice. Make your race packs once more (*Custom races → Create race packs from a client …*), then *Modules → Game client → Install*.
+
+## New in 1.0.9
+
+- **Big races fit again.** The archives AFK Realm writes for imported races are now compressed like the game's own, often to half their size. A race with many textures could make its archive larger than the 2 GB the game can read, and *Install* stopped with "would be larger than 2 GB". Just click *Install* again.
 
 ## New in 1.0.8
 

@@ -451,24 +451,88 @@ namespace CoAInstaller
                 var m = d == null ? null : md.Records.FirstOrDefault(r => md.Field(r, 0) == di.Field(d, 1));
                 if (m == null) continue;
                 string path = Str(md, m, 2);
+                // the textures of the display (TextureVariation 1-3): a model may have texture slots of its own that take
+                // them (horns, eyes, a blindfold), named after the model's folder
+                var textures = new[] { 6, 7, 8 }.Select(k => di.Field(d, k) == 0 ? "" : Str(di, d, k)).ToArray();
                 models[sex == 0 ? "male" : "female"] = new Dictionary<string, object>
                 {
                     { "display", Enumerable.Range(0, di.Fields).Select(k => (object)di.Field(d, k)).ToArray() },
                     { "model", Enumerable.Range(0, md.Fields).Select(k => (object)md.Field(m, k)).ToArray() },
                     { "path", path },
+                    { "textures", textures },
                 };
+                string modelDir = M2(path).Contains("\\") ? M2(path).Substring(0, M2(path).LastIndexOf('\\') + 1) : "";
+                foreach (var t in textures.Where(t => t.Length > 0)) files.Add(modelDir + t + ".blp");
                 progress(L.F("Reading the model of the {0} …", race.Name));
                 foreach (var f in ModelFiles(source, path)) files.Add(f);
                 // the race's folder in the client (custom\highmountain for example) holds more than the tables and the
                 // model header name: an appearance patch of a creator loads further files itself, so its whole tree goes in
                 var parts = M2(path).Split('\\');
                 if (parts.Length >= 3 && parts[0].Equals("custom", StringComparison.OrdinalIgnoreCase)) roots.Add(parts[0] + "\\" + parts[1] + "\\");
+                // the same for a folder of its own elsewhere (Character\IllidariNightElf\, Creature\WhimMurloc\): textures its
+                // model or its creator's code loads by name - as long as the player's client has nothing in that folder, so
+                // that no file of a stock race is ever replaced
+                else if (parts.Length >= 3)
+                {
+                    string root = parts[0] + "\\" + parts[1] + "\\";
+                    if (yours == null || yours.Under(root).Count == 0) roots.Add(root);
+                }
             }
             if (models.Count == 0) throw new InvalidOperationException(L.F("The {0} has no model in these archives.", race.Name));
 
             // everything else the race's own folder in the client holds
             foreach (var root in roots)
                 foreach (var f in source.Under(root)) files.Add(f);
+
+            // the helmets of the race: the game shows a helmet with a model of the race's own (Item\ObjectComponents\Head\
+            // <helmet>_<prefix><M|F>.m2); without them every helmet is a checkered box. A client like CoA Custom brings them
+            // for its races.
+            string prefix = Str(cr, row, 6);
+            int helmets = 0;
+            if (!string.IsNullOrEmpty(prefix))
+            {
+                progress(L.F("Reading the helmets of the {0} …", race.Name));
+                foreach (var f in source.Under("Item\\ObjectComponents\\Head"))
+                    if (f.EndsWith("_" + prefix + "M.m2", StringComparison.OrdinalIgnoreCase) || f.EndsWith("_" + prefix + "F.m2", StringComparison.OrdinalIgnoreCase))
+                    {
+                        helmets++;
+                        foreach (var m in ModelFiles(source, f)) files.Add(m);
+                    }
+            }
+
+            // the voice of the race: the sounds its emotes and its voice in the interface name. Those the player's client
+            // does not have (a voice of its own, as CoA Custom gives the Grummle) travel along - their rows of the sound
+            // table and their files - so that the race is not given its base race's voice for want of them.
+            var vocal = Rows(Table(source, "VocalUISounds"), 2, race.Id);
+            var emotes = Rows(Table(source, "EmotesTextSound"), 2, race.Id);
+            var hdEmotes = Rows(Table(source, "HDEmotesTextSound"), 2, race.Id);
+            var soundIds = new HashSet<uint>();
+            foreach (object[] r in vocal) foreach (int k in new[] { 3, 4 }) if (k < r.Length) soundIds.Add(Convert.ToUInt32(r[k]));
+            foreach (object[] r in emotes.Concat(hdEmotes)) if (r.Length > 4) soundIds.Add(Convert.ToUInt32(r[4]));
+            soundIds.Remove(0);
+            var soundRows = new List<object>();
+            var sourceSounds = Table(source, "SoundEntries");
+            var yourSounds = yours == null ? null : Table(yours, "SoundEntries");
+            if (sourceSounds != null && yourSounds != null && soundIds.Count > 0)
+            {
+                var have = new HashSet<uint>(yourSounds.Records.Select(r => yourSounds.Field(r, 0)));
+                var texts = new HashSet<int>(new[] { 2, 23 }.Concat(Enumerable.Range(3, 10)));
+                foreach (var r in sourceSounds.Records)
+                {
+                    uint id = sourceSounds.Field(r, 0);
+                    if (!soundIds.Contains(id) || have.Contains(id) || sourceSounds.Fields < 24) continue;
+                    var row2 = new object[sourceSounds.Fields];
+                    for (int k = 0; k < sourceSounds.Fields; k++)
+                        row2[k] = texts.Contains(k) ? (object)(sourceSounds.Field(r, k) == 0 ? "" : Str(sourceSounds, r, k)) : sourceSounds.Field(r, k);
+                    soundRows.Add(row2);
+                    string dir = ((string)row2[23]).TrimEnd('\\');
+                    for (int k = 3; k <= 12; k++)
+                    {
+                        var file = (string)row2[k];
+                        if (file.Length > 0) files.Add(dir.Length > 0 ? dir + "\\" + file : file);
+                    }
+                }
+            }
 
             var sections = Rows(Table(source, "CharSections"), 1, race.Id, 4, 5, 6);
             var hdSections = Rows(Table(source, "HDCharSections"), 1, race.Id, 4, 5, 6);
@@ -571,9 +635,10 @@ namespace CoAInstaller
                 { "facial_hair", Rows(Table(source, "CharacterFacialHairStyles"), 0, race.Id) },
                 { "hd_facial_hair", Rows(Table(source, "HDCharacterFacialHairStyles"), 1, race.Id) },
                 { "hair_textures", Rows(Table(source, "CharHairTextures"), 1, race.Id) },
-                { "vocal_ui_sounds", Rows(Table(source, "VocalUISounds"), 2, race.Id) },
-                { "emotes_text_sound", Rows(Table(source, "EmotesTextSound"), 2, race.Id) },
-                { "hd_emotes_text_sound", Rows(Table(source, "HDEmotesTextSound"), 2, race.Id) },
+                { "vocal_ui_sounds", vocal },
+                { "emotes_text_sound", emotes },
+                { "hd_emotes_text_sound", hdEmotes },
+                { "sound_entries", soundRows },
                 { "spells", racialSpells },
                 { "spells_missing", spellsMissing },
                 { "missing", missing },
@@ -585,6 +650,7 @@ namespace CoAInstaller
             File.WriteAllText(Path.Combine(dest, "race.json"), new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(json), new UTF8Encoding(false));
             return L.F("{0}: {1} files, {2} MB", race.Name, keep.Count, bytes / 1000000) + (same.Count > 0 ? L.F(", {0} taken from your client", same.Count) : "") +
                 (racialSpells.Count > 0 ? L.F(", {0} racial spells", racialSpells.Count) : "") +
+                (helmets > 0 ? L.F(", {0} helmet models", helmets) : "") +
                 (missing.Count > 0 ? L.F(", {0} missing", missing.Count) : "") + ".";
         }
     }

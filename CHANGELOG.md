@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.10
+
+- Race packs take more of what a race needs from the other client: its helmet models (Item\ObjectComponents\Head\*_<prefix><M|F>.m2 with their skins and textures - without them every helmet of the race was a checkered box, at the character creation too), its display textures (TextureVariation 1-3, which texture slots of the model take: horns, eyes, a blindfold - they are written into the race's display instead of the base race's), the whole folder of its model where the player's client has nothing in that folder (Character\IllidariNightElf\ for example; never a folder of a stock race), and the sounds of its own voice the player's client lacks (their rows of SoundEntries.dbc and their files, so its emotes keep its voice). A race whose pack brings helmets keeps them in the game (CustomRaces.<race>.OwnHelmets). Race packs made before need *Create race packs* once more (reported on Discord)
+
+## 1.0.9
+
+- Archives: the files of an archive AFK Realm writes (the client patch, the archives of imported races) are compressed with zlib in sectors of 4096 bytes, as the game's own archives are; a file that would not get smaller is stored whole. They were all stored whole, so the archive of a race with many textures grew past the 2 GB the game can read and the install stopped ("The archive patch-ZY24.MPQ.new would be larger than 2 GB", reported on Discord). Archives already installed stay as they are until they are built again
+
 ## 1.0.8
 
 - Custom races: the racial rows AFK Realm writes for each race (Server\configs\modules\custom-races-racials\<race>.sql) write the line breaks of a spell text as \n. They were written as they are, so a racial whose description had a line break split its statement over two lines; mod-custom-races runs one statement per line, the database could not read the halves, and the core stops the whole worldserver on such an error - right after "mod-custom-races: ... voice(s) of their base races lent to ... race(s)" (reported on Discord). mod-custom-races now joins such lines itself and leaves out a statement it cannot complete, so files written before start as well
