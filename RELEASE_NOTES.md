@@ -1,6 +1,10 @@
-# AFK Realm 1.0.12
+# AFK Realm 1.0.13
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.13
+
+- **Two Vulpera show up separately.** The setup page now lists Vulpera 19 and the Esteria Vulpera 74 as two distinct races instead of one, so both can be switched on and configured on their own.
 
 ## New in 1.0.12
 

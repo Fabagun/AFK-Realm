@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.13
+
+- Custom races: races of the CoA client that share a name (Vulpera 19 and VulperaEsteria 74) are now listed separately in the setup page, with keys taken from their file names, so both can be chosen and configured independently.
+
 ## 1.0.12
 
 - Custom races: generic fixes for CoA Custom's Esteria races. Race packs whose sections are compositor-only (Esteria races that paint through EsteriaAppearance.dll) now take the skin, face and HD layers of another race on the same model, so they show their own skin instead of neutral placeholders. Icons are found under more names, helmet prefixes are read from the pack's files, and races sharing a name (Vulpera 19 and VulperaEsteria 74) no longer collapse into one pack. MaleOnly detection now accepts a race that brings only one section row per style.

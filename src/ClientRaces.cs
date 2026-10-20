@@ -201,8 +201,25 @@ namespace CoAInstaller
                     if (name.Length == 0 || stockNames.Contains(name) || KeyOf(name).Length == 0) continue;     // a copy of a stock race
                     if (!hasModel(races.Field(rows[id], 4))) continue;                                         // no body
                     string key = KeyOf(name);
-                    if (scan.Races.Any(r => r.Key.Equals(key, StringComparison.OrdinalIgnoreCase))) key += id;
-                    scan.Races.Add(make(id, key, name));
+                    string fileKey = KeyOf(Str(races, rows[id], 11));
+                    bool sameName = scan.Races.Any(r => r.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    bool usedKey = scan.Races.Any(r => r.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+                    if (usedKey)
+                    {
+                        if (fileKey.Length > 0 && !fileKey.Equals(key, StringComparison.OrdinalIgnoreCase) &&
+                            !scan.Races.Any(r => r.Key.Equals(fileKey, StringComparison.OrdinalIgnoreCase))) key = fileKey;
+                        else if (sameName) continue;                                // an HD copy of a row already listed
+                        else key += id;
+                    }
+                    if (scan.Races.Any(r => r.Key.Equals(key, StringComparison.OrdinalIgnoreCase))) continue;
+                    string displayName = name;
+                    if (sameName)
+                    {
+                        string suffix = fileKey.StartsWith(KeyOf(name), StringComparison.OrdinalIgnoreCase) ? fileKey.Substring(KeyOf(name).Length) : fileKey;
+                        if (suffix.Length == 0) suffix = id.ToString();
+                        displayName = name + " " + suffix;
+                    }
+                    scan.Races.Add(make(id, key, displayName));
                 }
                 foreach (var v in virtuals ?? new Dictionary<string, KeyValuePair<int, string>>())
                 {
