@@ -484,20 +484,25 @@ namespace CoAInstaller
             foreach (var root in roots)
                 foreach (var f in source.Under(root)) files.Add(f);
 
-            // the helmets of the race: the game shows a helmet with a model of the race's own (Item\ObjectComponents\Head\
-            // <helmet>_<prefix><M|F>.m2); without them every helmet is a checkered box. A client like CoA Custom brings them
-            // for its races.
+            // the items fitted to the race: the game finds a helmet (and any other item part made per race) by the prefix
+            // of the race - Item\ObjectComponents\Head\<helmet>_<prefix><M|F>.m2, its skins, textures named so; without
+            // them every helmet is a checkered box. A client like CoA Custom brings them for some of its races.
             string prefix = Str(cr, row, 6);
             int helmets = 0;
             if (!string.IsNullOrEmpty(prefix))
             {
                 progress(L.F("Reading the helmets of the {0} …", race.Name));
-                foreach (var f in source.Under("Item\\ObjectComponents\\Head"))
-                    if (f.EndsWith("_" + prefix + "M.m2", StringComparison.OrdinalIgnoreCase) || f.EndsWith("_" + prefix + "F.m2", StringComparison.OrdinalIgnoreCase))
+                var fitted = new Regex(@"_" + Regex.Escape(prefix) + @"[MF](\d\d)?\.(m2|skin|blp)$", RegexOptions.IgnoreCase);
+                foreach (var f in source.Under("Item"))
+                {
+                    if (!fitted.IsMatch(f)) continue;
+                    if (f.EndsWith(".m2", StringComparison.OrdinalIgnoreCase))
                     {
-                        helmets++;
+                        if (f.StartsWith("Item\\ObjectComponents\\Head\\", StringComparison.OrdinalIgnoreCase)) helmets++;
                         foreach (var m in ModelFiles(source, f)) files.Add(m);
                     }
+                    else files.Add(f);
+                }
             }
 
             // the voice of the race: the sounds its emotes and its voice in the interface name. Those the player's client
