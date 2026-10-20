@@ -353,6 +353,7 @@
     "Starting the authserver ...": "Iniciando el authserver ...",
     "Starting the worldserver ...": "Iniciando el worldserver ...",
     "The worldserver stopped while starting. The end of its log:": "El worldserver se detuvo al iniciarse. El final de su registro:",
+    "Errors.log (the reason for the stop):": "Errors.log (el motivo de la parada):",
     "The {0} stopped while starting. The end of its log:": "El {0} se detuvo al iniciarse. El final de su registro:",
     "The {0} did not start. See {1}": "El {0} no se inició. Consulta {1}",
     "({0} could not be read)": "(no se pudo leer {0})",
