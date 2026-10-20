@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.8
+
+- Custom races: the racial rows AFK Realm writes for each race (Server\configs\modules\custom-races-racials\<race>.sql) write the line breaks of a spell text as \n. They were written as they are, so a racial whose description had a line break split its statement over two lines; mod-custom-races runs one statement per line, the database could not read the halves, and the core stops the whole worldserver on such an error - right after "mod-custom-races: ... voice(s) of their base races lent to ... race(s)" (reported on Discord). mod-custom-races now joins such lines itself and leaves out a statement it cannot complete, so files written before start as well
+- Server start: when the worldserver stops while starting, the message shows the last lines of Errors.log as well. The core writes the reason of a stop of its own (a database error, an assertion) there, not into Server.log, so the message only showed the last normal line before
+
 ## 1.0.7
 
 - Custom races: *Races of CoA Custom's game keep their own numbers (up to 127)* (CustomRaces.HighRaces). CoA Custom's EsteriaAppearance.dll knows its races only by the numbers CoA Custom gave them (Highmountain Tauren 66, Mechagnome 67, Earthen 68/69, Haranir 70/71 …, up to 103), so with AFK Realm's free numbers they had only the stock choices of looks. Switched on, a race of the client keeps its own number above 31 (ClientRace.KeepsNumber), a race of the race folder made from CoA Custom takes CoA Custom's number while it is free (checked against files\dbc\ChrRaces.dbc of the pack), and CustomRaces.<race>.Appearance tells the server which races keep a sixth byte (66, 68, 69) or a 64-bit number (70, 71) of looks. A race played under another number keeps it. Needs the CoA Custom folder (its Ascension-b.exe); the ZIP's READ ME tells the players to start Ascension-b.exe. Race archives may have three digits (patch-ZY103.MPQ)

@@ -1,6 +1,11 @@
-# AFK Realm 1.0.7
+# AFK Realm 1.0.8
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.8
+
+- **Servers with many custom races start again.** A racial ability whose description had a line break broke the file AFK Realm writes for its race, and the worldserver stopped while starting, right after "voices of their base races lent". Fixed in AFK Realm and in mod-custom-races (*Check for updates and install* brings the module up to date).
+- **The real reason when the server stops.** If the worldserver stops while starting, the message now also shows the end of Errors.log, where the server writes why.
 
 ## New in 1.0.7
 
