@@ -895,6 +895,13 @@ namespace CoAInstaller
         }
 
         /// <summary>The stock race a race of the client most likely leans on, by its name.</summary>
+        /// <summary>The helmet prefix of each stock race a race can lean on.</summary>
+        static readonly Dictionary<string, string> BasePrefixes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Human", "Hu" }, { "Orc", "Or" }, { "Dwarf", "Dw" }, { "NightElf", "Ni" }, { "Undead", "Sc" }, { "Tauren", "Ta" },
+            { "Gnome", "Gn" }, { "Troll", "Tr" }, { "BloodElf", "Be" }, { "Draenei", "Dr" },
+        };
+
         string DefaultBase(ClientRace r)
         {
             var k = KnownOf(r);
@@ -1012,6 +1019,17 @@ namespace CoAInstaller
                 put("OwnHelmets", r.HasHelmets ? "1" : "0");
             }
             if (Raw("CustomRaces." + r.Key + ".Base", "").Length == 0) putText("Base", DefaultBase(r));
+            // a race without helmet models of its own wears those of its base race, as CoA Custom does it (its races take
+            // the helmet prefix of the closest stock race): the client finds helmets by the prefix of the race
+            // (Item\ObjectComponents\Head\<helmet>_<prefix><M|F>.m2), and without any every helmet is a checkered box
+            string borrowed;
+            if (Raw("CustomRaces." + r.Key + ".OwnHelmets", "1") == "0" && BasePrefixes.TryGetValue(ConfigOption.Unquote(Raw("CustomRaces." + r.Key + ".Base", "")), out borrowed))
+            {
+                putText("HelmetPrefix", borrowed);
+                put("OwnHelmets", "1");
+            }
+            else
+                putText("HelmetPrefix", "");
             put("Appearance", ExtraLooksOf(r, id).ToString());
             // its racials: the set the server pack gives it (its rows travel to the server data folder as well)
             var racials = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), pack != null ? pack.Name : r.Name, CoaRaceOf(r));
@@ -1164,7 +1182,7 @@ namespace CoAInstaller
             if (!DeleteFolder(pack.Dir)) return;
             var chosen = Chosen().Where(c => !c.Equals(r.Key, StringComparison.OrdinalIgnoreCase)).ToList();
             Set("CustomRaces.Races", string.Join(" ", chosen));
-            foreach (var option in new[] { "Source", "Id", "Copy", "Import", "Name", "Prefix", "File", "MaleDisplay", "FemaleDisplay", "MaleOnly", "OwnHelmets", "Base", "Racials", "IconFile", "Icon", "Appearance" })
+            foreach (var option in new[] { "Source", "Id", "Copy", "Import", "Name", "Prefix", "File", "MaleDisplay", "FemaleDisplay", "MaleOnly", "OwnHelmets", "HelmetPrefix", "Base", "Racials", "IconFile", "Icon", "Appearance" })
                 Unset("CustomRaces." + r.Key + "." + option);
             row.Visible = false; about.Visible = false; button.Visible = false;
             races.Remove(r);

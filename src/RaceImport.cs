@@ -183,7 +183,7 @@ namespace CoAInstaller
 
         /// <summary>Adds an imported race to the client tables: its race row (the base race's, with its own model, file
         /// name and prefix), models and displays, and its sections, hair and beards with new numbers.</summary>
-        public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name, Action<string> note = null)
+        public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name, Action<string> note = null, string helmetPrefix = null)
         {
             var cr = DbcTable.Parse(load("DBFilesClient\\ChrRaces.dbc"), "ChrRaces.dbc");
             var di = DbcTable.Parse(load("DBFilesClient\\CreatureDisplayInfo.dbc"), "CreatureDisplayInfo.dbc");
@@ -239,7 +239,8 @@ namespace CoAInstaller
             cr.SetField(row, 1, 0xC);                       // playable
             cr.SetField(row, 4, newDisplay[0]);
             cr.SetField(row, 5, newDisplay[1]);
-            cr.SetField(row, 6, cr.AddString(pack.Prefix.Length > 0 ? pack.Prefix : "Hu"));
+            // the prefix the client finds the helmets of the race by: its own, or the base race's when it has no helmets
+            cr.SetField(row, 6, cr.AddString(!string.IsNullOrEmpty(helmetPrefix) ? helmetPrefix : pack.Prefix.Length > 0 ? pack.Prefix : "Hu"));
             cr.SetField(row, 11, cr.AddString(pack.File.Length > 0 ? pack.File : pack.Key));
             foreach (int k in new[] { 14, 31, 48 }) cr.SetField(row, k, cr.AddString(name));
             cr.Records.Add(row);

@@ -376,7 +376,8 @@ namespace CoAInstaller
                 if (!int.TryParse(Text(e.ImportRace, "id"), out race) || race <= 0) continue;
                 if (!int.TryParse(Text(e.ImportRace, "base"), out baseRace)) baseRace = BaseRaceId(Text(e.ImportRace, "base"));
                 string name = Text(e.ImportRace, "name");
-                RaceImport.AddRace(load, save, pack, race, baseRace, name.Length > 0 ? name : pack.Name, notes == null ? null : new Action<string>(notes.Add));
+                RaceImport.AddRace(load, save, pack, race, baseRace, name.Length > 0 ? name : pack.Name, notes == null ? null : new Action<string>(notes.Add),
+                    Text(e.ImportRace, "helmetPrefix"));
             }
             foreach (var e in plan.Edits.Where(e => e.SectionRules != null))
             {

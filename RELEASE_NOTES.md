@@ -4,6 +4,7 @@ Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with 
 
 ## New in 1.0.10
 
+- **Helmets for every race.** A race without helmet models of its own now wears the helmets of the race it leans on, the way CoA Custom does it, instead of checkered boxes. Needs mod-custom-races updated (*Check for updates and install*), then *Save* on the race page and *Game client → Install*.
 - **Imported races look complete.** Race packs now also take the race's helmets (no more checkered boxes on their heads), the textures of its horns, eyes or blindfold, every file of its own model folder, and its own voice. Make your race packs once more (*Custom races → Create race packs from a client …*), then *Modules → Game client → Install*.
 
 ## New in 1.0.9
