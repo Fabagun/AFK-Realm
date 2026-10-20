@@ -1,6 +1,10 @@
-# AFK Realm 1.0.10
+# AFK Realm 1.0.11
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.11
+
+- **Drakonid and Drakkin get their skin.** CoA Custom's EsteriaAppearance.dll paints them only under CoA Custom's race numbers (98 and 99), and AFK Realm gave them other ones. On the race page switch each of them off, click *Free its number*, switch it on again, save, then *Game client → Install*.
 
 ## New in 1.0.10
 
