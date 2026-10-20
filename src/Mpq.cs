@@ -285,6 +285,58 @@ namespace CoAInstaller
 
         public void Dispose() { stream.Dispose(); }
 
+        /// <summary>A file as the archive holds it, compressed the way the game's own archives are: in sectors of 4096
+        /// bytes (the sector size the writers put in the header), each one zlib-compressed where that makes it smaller,
+        /// behind a table of where each sector begins. A file that would not get smaller is stored whole. Stored whole,
+        /// the archives of imported races grew past the 2 GB the game can read.</summary>
+        static byte[] Pack(byte[] data, out uint flags)
+        {
+            const int sector = 4096;
+            flags = FileExists;
+            if (data.Length < 64) return data;
+            int sectors = (data.Length + sector - 1) / sector;
+            var offsets = new uint[sectors + 1];
+            using (var body = new MemoryStream())
+            {
+                long tableSize = offsets.Length * 4;
+                for (int s = 0; s < sectors; s++)
+                {
+                    offsets[s] = (uint)(tableSize + body.Length);
+                    int from = s * sector, count = Math.Min(sector, data.Length - from);
+                    byte[] z = Zlib(data, from, count);
+                    if (z.Length + 1 < count) { body.WriteByte(0x02); body.Write(z, 0, z.Length); }
+                    else body.Write(data, from, count);
+                }
+                offsets[sectors] = (uint)(tableSize + body.Length);
+                if (tableSize + body.Length >= data.Length) return data;
+                var result = new byte[tableSize + body.Length];
+                Buffer.BlockCopy(offsets, 0, result, 0, (int)tableSize);
+                body.Position = 0;
+                body.Read(result, (int)tableSize, (int)body.Length);
+                flags = FileExists | FileCompress;
+                return result;
+            }
+        }
+
+        /// <summary>A zlib stream: its header, the deflate data and the Adler-32 sum the game's zlib checks.</summary>
+        static byte[] Zlib(byte[] data, int from, int count)
+        {
+            using (var output = new MemoryStream())
+            {
+                output.WriteByte(0x78);
+                output.WriteByte(0x9C);
+                using (var deflate = new DeflateStream(output, CompressionLevel.Optimal, true)) deflate.Write(data, from, count);
+                uint a = 1, b = 0;
+                for (int i = from; i < from + count; i++) { a = (a + data[i]) % 65521; b = (b + a) % 65521; }
+                uint adler = (b << 16) | a;
+                output.WriteByte((byte)(adler >> 24));
+                output.WriteByte((byte)(adler >> 16));
+                output.WriteByte((byte)(adler >> 8));
+                output.WriteByte((byte)adler);
+                return output.ToArray();
+            }
+        }
+
         /// <summary>
         /// Writes an archive of format 1 from files on disk (streamed, stored whole) and a few files in memory, with a
         /// (listfile). For the archives of imported races, which hold hundreds of megabytes.
@@ -320,28 +372,20 @@ namespace CoAInstaller
                 const int headerSize = 32;
                 fs.Position = headerSize;
                 int block = 0;
-                var buffer = new byte[1 << 20];
                 foreach (var name in names)
                 {
                     long offset = fs.Position;
-                    long length;
                     byte[] data;
-                    if (memory.TryGetValue(name, out data)) { w.Write(data); length = data.Length; }
-                    else
-                    {
-                        using (var input = File.OpenRead(disk[name]))
-                        {
-                            int n;
-                            while ((n = input.Read(buffer, 0, buffer.Length)) > 0) fs.Write(buffer, 0, n);
-                            length = input.Length;
-                        }
-                    }
+                    if (!memory.TryGetValue(name, out data)) data = File.ReadAllBytes(disk[name]);
+                    uint flags;
+                    byte[] packed = Pack(data, out flags);
+                    w.Write(packed);
                     // the game reads the offsets of an archive as signed numbers: past 2 GB it fails to read (EsteriaWoW's race guide)
                     if (fs.Position > int.MaxValue) throw new InvalidOperationException(L.F("The archive {0} would be larger than 2 GB, more than the game can read.", System.IO.Path.GetFileName(path)));
                     blockTable[block * 4] = (uint)offset;
-                    blockTable[block * 4 + 1] = (uint)length;
-                    blockTable[block * 4 + 2] = (uint)length;
-                    blockTable[block * 4 + 3] = FileExists;
+                    blockTable[block * 4 + 1] = (uint)packed.Length;
+                    blockTable[block * 4 + 2] = (uint)data.Length;
+                    blockTable[block * 4 + 3] = flags;
                     uint index = MpqCrypt.Hash(name, MpqCrypt.TableOffset) & (uint)(hashCount - 1);
                     while (hashTable[index * 4 + 3] != 0xFFFFFFFF) index = (index + 1) & (uint)(hashCount - 1);
                     hashTable[index * 4] = MpqCrypt.Hash(name, MpqCrypt.HashA);
@@ -402,12 +446,14 @@ namespace CoAInstaller
                 foreach (var file in all)
                 {
                     uint offset = (uint)fs.Position;
-                    w.Write(file.Value);
+                    uint flags;
+                    byte[] packed = Pack(file.Value, out flags);
+                    w.Write(packed);
                     if (fs.Position > int.MaxValue) throw new InvalidOperationException(L.F("The archive {0} would be larger than 2 GB, more than the game can read.", System.IO.Path.GetFileName(path)));
                     blockTable[block * 4] = offset;
-                    blockTable[block * 4 + 1] = (uint)file.Value.Length;
+                    blockTable[block * 4 + 1] = (uint)packed.Length;
                     blockTable[block * 4 + 2] = (uint)file.Value.Length;
-                    blockTable[block * 4 + 3] = FileExists;
+                    blockTable[block * 4 + 3] = flags;
 
                     uint index = MpqCrypt.Hash(file.Key, MpqCrypt.TableOffset) & (uint)(hashCount - 1);
                     while (hashTable[index * 4 + 3] != 0xFFFFFFFF) index = (index + 1) & (uint)(hashCount - 1);
