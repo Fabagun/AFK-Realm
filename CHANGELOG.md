@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.12
+
+- Custom races: generic fixes for CoA Custom's Esteria races. Race packs whose sections are compositor-only (Esteria races that paint through EsteriaAppearance.dll) now take the skin, face and HD layers of another race on the same model, so they show their own skin instead of neutral placeholders. Icons are found under more names, helmet prefixes are read from the pack's files, and races sharing a name (Vulpera 19 and VulperaEsteria 74) no longer collapse into one pack. MaleOnly detection now accepts a race that brings only one section row per style.
+- Labels of the character-creation style buttons are taken from the source race's row.
+
 ## 1.0.11
 
 - Custom races: a race of the race folder made from CoA Custom keeps CoA Custom's number when the file name of its row there matches (DrakonidHorde, DrakkinAlliance), not only when its own file name does (HighmountainTauren). The Drakonid and the Drakkin took free numbers instead of 98 and 99, so EsteriaAppearance.dll, which paints their skin, knew nothing of them and they stayed white. Race packs keep that file name (race.info.json is made anew); a race already on under another number keeps it until its number is freed

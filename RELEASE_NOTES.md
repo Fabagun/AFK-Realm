@@ -1,6 +1,11 @@
-# AFK Realm 1.0.11
+# AFK Realm 1.0.12
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.12
+
+- **Imported Esteria races get their skin.** Races of CoA Custom whose looks are painted by EsteriaAppearance.dll (Vulpera Esteria and others) now keep their own skin, face and hair in AFK Realm instead of neutral placeholders. Make their race packs once more (*Custom races -> Create race packs from a client*), then *Modules -> Game client -> Install*.
+- **Two Vulpera stay two.** Vulpera 19 and the Esteria Vulpera 74 no longer collapse into one pack; both can be offered.
 
 ## New in 1.0.11
 
