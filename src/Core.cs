@@ -23,7 +23,7 @@ namespace CoAInstaller
         public const string Name = "AFK Realm";                   // window titles, dialogs
         public const string ShortName = "AFK Realm";              // desktop shortcut, firewall rules
         public const string FileStem = "AFK-Realm";                // exe name, settings folder
-        public const string Version = "1.0.7";                    // a release; "-preview" marks a pre-release
+        public const string Version = "1.0.8";                    // a release; "-preview" marks a pre-release
         public const string Tagline = "build, run and tweak your own server the lazy way";
         public const string BuildsFor = "Conquest of AzerothCore";
         public const string WindowTitle = Name;
@@ -473,7 +473,20 @@ namespace CoAInstaller
         }
         Exception WorldStopped()
         {
-            return new InvalidOperationException(L.T("The worldserver stopped while starting. The end of its log:") + "\n\n" + LogTail(Path.Combine(inst.ServerDir, "Server.log"), 8));
+            return new InvalidOperationException(L.T("The worldserver stopped while starting. The end of its log:") + "\n\n" + LogTail(Path.Combine(inst.ServerDir, "Server.log"), 8) + ErrorsTail());
+        }
+        /// <summary>The reason the server gives for a stop of its own (a database error, an assertion) goes to Errors.log,
+        /// not to Server.log: its last lines, when it was written during this start.</summary>
+        string ErrorsTail()
+        {
+            try
+            {
+                var file = new FileInfo(Path.Combine(inst.ServerDir, "Errors.log"));
+                if (!file.Exists || file.Length == 0 || file.LastWriteTime < DateTime.Now.AddMinutes(-15)) return "";
+                string tail = LogTail(file.FullName, 6);
+                return tail.Trim().Length == 0 ? "" : "\n\n" + L.T("Errors.log (the reason for the stop):") + "\n\n" + tail;
+            }
+            catch { return ""; }
         }
         /// <summary>Waits in the background until the worldserver accepts players (true) or closes first (false, with the reason).</summary>
         public void WatchWorld(Process p, Action<bool, string> finished)

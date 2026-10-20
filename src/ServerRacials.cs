@@ -283,7 +283,8 @@ namespace CoAInstaller
         static string Literal(object value)
         {
             if (value == null) return "NULL";
-            if (value is string) return "'" + ((string)value).Replace("\\", "\\\\").Replace("'", "''") + "'";
+            // one statement per line, so the line breaks of a text are written as SQL reads them (\n), never as they are
+            if (value is string) return "'" + ((string)value).Replace("\\", "\\\\").Replace("'", "''").Replace("\r", "\\r").Replace("\n", "\\n").Replace("\0", "\\0") + "'";
             if (value is bool) return (bool)value ? "1" : "0";
             if (value is double || value is float || value is decimal) return Convert.ToDouble(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture);
             return Convert.ToString(value, CultureInfo.InvariantCulture);
