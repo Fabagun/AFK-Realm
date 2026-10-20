@@ -480,6 +480,22 @@ namespace CoAInstaller
             }
             if (models.Count == 0) throw new InvalidOperationException(L.F("The {0} has no model in these archives.", race.Name));
 
+            // a folder of the race's own under custom\ (custom\drakonid\ for the Drakonid), wherever its model lies: the
+            // creators of the races put textures, item parts and looks there that the model never names - found by the
+            // race's name, its key, its file name in the race table or the folder of its model, letters only
+            Func<string, string> letters = t => Regex.Replace(t ?? "", "[^A-Za-z]", "").ToLowerInvariant();
+            var names = new HashSet<string>(new[] { race.Name, race.Key, Str(cr, row, 11) }.Select(letters).Where(n => n.Length > 2));
+            foreach (var m in models.Values.OfType<Dictionary<string, object>>())
+            {
+                var parts = M2(Convert.ToString(m["path"])).Split('\\');
+                if (parts.Length >= 3) names.Add(letters(parts[1]));
+            }
+            foreach (var n in source.Under("custom"))
+            {
+                var parts = n.Split('\\');
+                if (parts.Length >= 3 && names.Contains(letters(parts[1]))) roots.Add(parts[0] + "\\" + parts[1] + "\\");
+            }
+
             // everything else the race's own folder in the client holds
             foreach (var root in roots)
                 foreach (var f in source.Under(root)) files.Add(f);
