@@ -494,7 +494,10 @@ namespace CoAInstaller
             if (r.Pack == null) return false;
             int n = r.Pack.SourceRace;
             string file;
-            return n >= 32 && n < 128 && CoaRaceFiles().TryGetValue(n, out file) && file.Equals(r.Pack.File.Length > 0 ? r.Pack.File : r.Pack.Key, StringComparison.OrdinalIgnoreCase);
+            // the same race of CoA Custom's table: by the file name of its row there (DrakonidHorde, DrakkinAlliance), or
+            // by the file name the race folder gives it (HighmountainTauren)
+            return n >= 32 && n < 128 && CoaRaceFiles().TryGetValue(n, out file) &&
+                (file.Equals(r.Pack.SourceFile, StringComparison.OrdinalIgnoreCase) || file.Equals(r.Pack.File.Length > 0 ? r.Pack.File : r.Pack.Key, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>With CoA Custom's game: the number CoA Custom gave a race of the race folder, while it is free here (no

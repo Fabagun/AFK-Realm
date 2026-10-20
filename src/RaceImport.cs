@@ -74,6 +74,8 @@ namespace CoAInstaller
             /// it had in its client, which a client may have reused (Ashen's Void Elf sits in the row of the Fel Orc).</summary>
             public string File { get { string f = Str(Info, "file"); return f.Length > 0 ? f : Key; } }
             public string Icon { get { return Str(Info, "icon"); } }
+            /// <summary>The file name of its row in the client it came from (CoA Custom's DrakonidHorde for the Drakonid).</summary>
+            public string SourceFile { get { return Str(Info, "sourceFile"); } }
             public List<string> Files { get { return List(Info, "files").Select(Convert.ToString).ToList(); } }
             public List<object[]> Rows(string name) { return List(Data, name).OfType<object[]>().ToList(); }
             /// <summary>The racial spells the pack carries: its id, its row of the other client's spell table (texts
@@ -109,7 +111,7 @@ namespace CoAInstaller
         }
 
         const string InfoName = "race.info.json";
-        const int InfoVersion = 2;
+        const int InfoVersion = 3;
 
         /// <summary>What the page needs of a race, from its full race.json.</summary>
         static Dictionary<string, object> MakeInfo(string dir, Dictionary<string, object> data, string stamp)
@@ -126,7 +128,7 @@ namespace CoAInstaller
             return new Dictionary<string, object>
             {
                 { "version", InfoVersion }, { "stamp", stamp }, { "key", Str(data, "key") }, { "name", Str(data, "name") }, { "prefix", Str(data, "prefix") },
-                { "file", file }, { "icon", Str(data, "icon") }, { "client", source == null ? "" : Str(source, "client") }, { "race", source == null ? 0 : Num(source.ContainsKey("race") ? source["race"] : null) }, { "side", side ?? 2 },
+                { "file", file }, { "sourceFile", Str(data, "file") }, { "icon", Str(data, "icon") }, { "client", source == null ? "" : Str(source, "client") }, { "race", source == null ? 0 : Num(source.ContainsKey("race") ? source["race"] : null) }, { "side", side ?? 2 },
                 { "female", female }, { "missing", List(data, "missing").Length }, { "bytes", bytes }, { "files", files },
             };
         }
