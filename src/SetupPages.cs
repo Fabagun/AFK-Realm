@@ -619,7 +619,7 @@ namespace CoAInstaller
             var highToggle = new Toggle(L.T("Races of CoA Custom's game keep their own numbers (up to 127)")) { BackColor = Ui.Surface, Margin = new Padding(0, 10, 0, 0) };
             highToggle.Wrap(more.Inner - 40);
             more.Add(highToggle);
-            more.Add(Small(L.T("For the game of CoA Custom: its own exe (Ascension-b.exe from its files\\client_root, which every player then starts instead of Ascension.exe) knows its races under the numbers CoA Custom gave them, up to 103. Switched on, those races keep their numbers instead of taking one of the free ones, and CoA Custom's EsteriaAppearance.dll gives Highmountain Tauren, Earthen, Haranir, Mechagnome, Skyborne, Vulpera and the others all their choices of looks - it knows them only by those numbers. A race already played under another number keeps it; \"Free its number\" lets it take its own. The server needs its core rebuilt once."), more.Inner - 20));
+            more.Add(Small(L.T("For the game of CoA Custom: its own patched exe (Ascension.exe or Ascension-b.exe from its files\\client_root, which every player then starts) knows its races under the numbers CoA Custom gave them, up to 103. Switched on, those races keep their numbers instead of taking one of the free ones, and CoA Custom's EsteriaAppearance.dll gives Highmountain Tauren, Earthen, Haranir, Mechagnome, Skyborne, Vulpera and the others all their choices of looks - it knows them only by those numbers. A race already played under another number keeps it; \"Free its number\" lets it take its own. The server needs its core rebuilt once."), more.Inner - 20));
             AddLoader(() => highToggle.Checked = High);
             highToggle.CheckedChanged += (s, e) =>
             {
@@ -678,8 +678,8 @@ namespace CoAInstaller
                 }
             };
 
-            // the files of CoA Custom that go next to the game (its files\client_root: Ascension-b.exe, the Esteria files, cursors)
-            var rootCard = Card(L.T("Files of CoA Custom next to the game"), L.F("CoA Custom brings files that belong next to Ascension.exe (its folder files\\client_root: its own exe Ascension-b.exe, EsteriaAppearance.dll with its .bin files, cursors). Choose the CoA Custom folder once: {0} copies all of them next to your game when you install the client patch (Modules › Game client › Install), and takes them away again when you choose to copy nothing. A file of the same name that was there before is kept as <name>.afk-backup; files that are already there, the same, stay when they are no longer wanted. They go into the ZIP for the other players as well (Modules › Game client › Export as ZIP …).", Product.Name), "client");
+            // the files of CoA Custom that go next to the game (its files\client_root: its patched exe, the Esteria files, cursors)
+            var rootCard = Card(L.T("Files of CoA Custom next to the game"), L.F("CoA Custom brings files that belong next to Ascension.exe (its folder files\\client_root: its own patched exe Ascension.exe or Ascension-b.exe, EsteriaAppearance.dll with its .bin files, cursors). Choose the CoA Custom folder once: {0} copies all of them next to your game when you install the client patch (Modules › Game client › Install), and takes them away again when you choose to copy nothing. A file of the same name that was there before is kept as <name>.afk-backup; files that are already there, the same, stay when they are no longer wanted. They go into the ZIP for the other players as well (Modules › Game client › Export as ZIP …).", Product.Name), "client");
             var rootNote = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(rootCard.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
             Action showRoot = () =>
             {

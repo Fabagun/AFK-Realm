@@ -3,6 +3,7 @@
 ## 1.0.10
 
 - Race packs take more of what a race needs from the other client: its helmet models (Item\ObjectComponents\Head\*_<prefix><M|F>.m2 with their skins and textures - without them every helmet of the race was a checkered box, at the character creation too), its display textures (TextureVariation 1-3, which texture slots of the model take: horns, eyes, a blindfold - they are written into the race's display instead of the base race's), the whole folder of its model where the player's client has nothing in that folder (Character\IllidariNightElf\ for example; never a folder of a stock race), and the sounds of its own voice the player's client lacks (their rows of SoundEntries.dbc and their files, so its emotes keep its voice). A race whose pack brings helmets keeps them in the game (CustomRaces.<race>.OwnHelmets). Race packs made before need *Create race packs* once more (reported on Discord)
+- Custom races: the texts name CoA Custom's patched exe as it comes - Ascension.exe in CoA Custom's own packs (AFK Realm keeps the old one as Ascension.exe.afk-backup), Ascension-b.exe in some others - instead of always Ascension-b.exe
 
 ## 1.0.9
 
