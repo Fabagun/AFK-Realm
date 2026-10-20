@@ -350,7 +350,12 @@ namespace CoAInstaller
             var yours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (yourClient != null)
                 try { foreach (var r in ClientRaces.Read(yourClient, null).Races) yours.Add(r.Key); } catch { }
-            var packed = new HashSet<string>(RaceImport.Read(raceFolder).Select(p => p.Key), StringComparer.OrdinalIgnoreCase);
+            // the pack of a key, and which race of its client it came from: a key that is only the name of a race can
+            // be shared by two rows of the other client (Vulpera 19 and VulperaEsteria 74), so a pack of another race
+            // must not make this one look installed
+            var packedByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in RaceImport.Read(raceFolder))
+                if (!packedByKey.ContainsKey(p.Key)) packedByKey[p.Key] = p.SourceRace;
 
             var rows = races.Records.GroupBy(r => (int)races.Field(r, 0)).ToDictionary(g => g.Key, g => g.First());
             var stockNames = new HashSet<string>(ClientRaces.Stock.Where(rows.ContainsKey).Select(id => NameOf(races, rows[id])), StringComparer.OrdinalIgnoreCase);
@@ -363,10 +368,35 @@ namespace CoAInstaller
                 string key = ClientRaces.KeyOf(name);
                 if (key.Length == 0 || stockNames.Contains(name)) continue;
                 if (!hasBody(races.Field(row, 4))) continue;
-                if (list.Any(c => c.Key.Equals(key, StringComparison.OrdinalIgnoreCase))) continue;       // HD duplicates
+                string nameKey = key;
+                // Two rows of the other client can have the same display name (Vulpera 19 and VulperaEsteria 74);
+                // the file name of the row keeps them apart. Without one, the number does.
+                string fileKey = ClientRaces.KeyOf(Str(races, row, 11));
+                bool sameName = list.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                bool usedKey = list.Any(c => c.Key.Equals(key, StringComparison.OrdinalIgnoreCase)) ||
+                    (packedByKey.ContainsKey(key) && packedByKey[key] != id);
+                if (usedKey)
+                {
+                    if (fileKey.Length > 0 && !fileKey.Equals(key, StringComparison.OrdinalIgnoreCase) &&
+                        !list.Any(c => c.Key.Equals(fileKey, StringComparison.OrdinalIgnoreCase)) &&
+                        (!packedByKey.ContainsKey(fileKey) || packedByKey[fileKey] == id)) key = fileKey;
+                    else if (sameName) continue;                                // an HD copy of a row already listed
+                    else key += id;
+                }
+                if (list.Any(c => c.Key.Equals(key, StringComparison.OrdinalIgnoreCase))) continue;
+                // The client knows a race by its name, and the character selection hands only that name back. Two
+                // rows with the same name (Vulpera 19 and the Esteria Vulpera 74) therefore need distinct names,
+                // or the old race would find the new one: use what its file name adds to the race name.
+                string displayName = name;
+                if (sameName)
+                {
+                    string suffix = fileKey.StartsWith(nameKey, StringComparison.OrdinalIgnoreCase) ? fileKey.Substring(nameKey.Length) : fileKey;
+                    if (suffix.Length == 0) suffix = id.ToString();
+                    displayName = name + " " + suffix;
+                }
                 int female; skins.TryGetValue(id * 2L + 1, out female);
-                list.Add(new Candidate { Id = id, Key = key, Name = name, MaleOnly = female < 10 || !hasBody(races.Field(row, 5)),
-                    InYourClient = yours.Contains(key), InRaceFolder = packed.Contains(key) });
+                list.Add(new Candidate { Id = id, Key = key, Name = displayName, MaleOnly = female == 0 || !hasBody(races.Field(row, 5)),
+                    InYourClient = yours.Contains(key), InRaceFolder = packedByKey.ContainsKey(key) });
             }
             return list;
         }
@@ -429,6 +459,89 @@ namespace CoAInstaller
                 list.Add(row);
             }
             return list;
+        }
+
+        /// <summary>Whether a sex of the race has a body texture of its own. Esteria races that are assembled by their
+        /// appearance DLL have CharSections rows with a compositor only: those rows name no skin, and an imported race
+        /// that keeps them would show the model's neutral placeholders. A body texture from another race on the same
+        /// model is the base their compositor was meant to paint over.</summary>
+        static bool HasRealSkin(List<object> rows, int sex)
+        {
+            foreach (object[] r in rows)
+            {
+                if (Convert.ToInt32(r[2]) != sex || Convert.ToInt32(r[3]) != 0) continue;
+                for (int k = 4; k <= 6 && k < r.Length; k++)
+                {
+                    string texture = Convert.ToString(r[k] ?? "").Trim();
+                    if (texture.Length == 0) continue;
+                    string name = Path.GetFileName(texture);
+                    if (name.Equals("neutral.blp", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (name.IndexOf("compositor", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        static string ModelStem(string path) { return Path.GetFileNameWithoutExtension(M2(path ?? "")).ToLowerInvariant(); }
+
+        /// <summary>Replaces compositor-only skins with the plain and HD section rows of another race that uses the same
+        /// model. Esteria's source rows only paint through its DLL; a client without its race number can still show the
+        /// race's own skin, face and HD layers if another row of the same source client has them (Vulpera 74 and 19).
+        /// The rows keep the donor's textures, so the packer also takes those files.</summary>
+        static void RepairSections(Archives source, DbcTable cr, DbcTable di, DbcTable md, Candidate race,
+            Dictionary<string, object> models, List<object> sections, List<object> hdSections)
+        {
+            var cs = Table(source, "CharSections");
+            var hd = Table(source, "HDCharSections");
+            if (cs == null) return;
+            var stems = new string[2];
+            for (int sex = 0; sex < 2; sex++)
+            {
+                object m;
+                if (models.TryGetValue(sex == 0 ? "male" : "female", out m))
+                    stems[sex] = ModelStem(Convert.ToString(((Dictionary<string, object>)m)["path"]));
+            }
+            Func<object[], int> sexOf = r => Convert.ToInt32(r[2]);
+            for (int sex = 0; sex < 2; sex++)
+            {
+                if (string.IsNullOrEmpty(stems[sex])) continue;
+                if (HasRealSkin(sections.Where(r => sexOf((object[])r) == sex).ToList(), sex)) continue;
+                byte[] donor = null;
+                List<object> donorSections = null, donorHd = null;
+                foreach (var other in cr.Records)
+                {
+                    int id = (int)cr.Field(other, 0);
+                    if (id == race.Id || id == 0) continue;
+                    uint display = cr.Field(other, 4 + sex);
+                    var d = di.Records.FirstOrDefault(r => di.Field(r, 0) == display);
+                    if (d == null) continue;
+                    var m = md.Records.FirstOrDefault(r => md.Field(r, 0) == di.Field(d, 1));
+                    if (m == null || ModelStem(Str(md, m, 2)) != stems[sex]) continue;
+                    var candidate = Rows(cs, 1, id, 4, 5, 6);
+                    if (!HasRealSkin(candidate, sex)) continue;
+                    donor = other;
+                    donorSections = candidate;
+                    donorHd = Rows(hd, 1, id, 4, 5, 6);
+                    break;
+                }
+                if (donor == null) continue;
+                sections.RemoveAll(r => sexOf((object[])r) == sex);
+                foreach (var row in donorSections.Where(r => sexOf((object[])r) == sex))
+                {
+                    var copy = (object[])((object[])row).Clone();
+                    copy[1] = (uint)race.Id;
+                    sections.Add(copy);
+                }
+                hdSections.RemoveAll(r => sexOf((object[])r) == sex);
+                if (donorHd != null)
+                    foreach (var row in donorHd.Where(r => sexOf((object[])r) == sex))
+                    {
+                        var copy = (object[])((object[])row).Clone();
+                        copy[1] = (uint)race.Id;
+                        hdSections.Add(copy);
+                    }
+            }
         }
 
         /// <summary>Puts one race of the other client into the race folder (RaceFolder\Key\race.json and files\). Returns a
@@ -557,12 +670,34 @@ namespace CoAInstaller
 
             var sections = Rows(Table(source, "CharSections"), 1, race.Id, 4, 5, 6);
             var hdSections = Rows(Table(source, "HDCharSections"), 1, race.Id, 4, 5, 6);
+            RepairSections(source, cr, di, md, race, models, sections, hdSections);
             foreach (object[] r in sections.Concat(hdSections))
                 for (int k = 4; k <= 6; k++) { var t = r[k] as string; if (!string.IsNullOrEmpty(t)) files.Add(t); }
             string icon = "Interface\\Icons\\CoA_Race_" + race.Key;
-            // its icon: from the other client, or from the player's (CoA has icons for races it does not offer)
-            var iconFrom = source.Has(icon + ".blp") ? source : yours != null && yours.Has(icon + ".blp") ? yours : null;
-            bool hasIcon = iconFrom != null;
+            // Its icon: from the other client, or from the player's (CoA has icons for races it does not offer).
+            // Some creators name it after the race without the CoA_Race_ prefix (Arakkoa: Race_Arakkoa_Male), and an
+            // Esteria row can use the icon of its base row (VulperaEsteria: CoA_Race_Vulpera); both are copied under
+            // the canonical name so the race keeps its icon wherever the archive order puts it.
+            string iconFileKey = ClientRaces.KeyOf(Str(cr, row, 11));
+            var iconNames = new List<string>
+            {
+                "CoA_Race_" + race.Key,
+                "CoA_Race_" + ClientRaces.KeyOf(race.Name),
+                "CoA_Race_" + iconFileKey,
+                "Race_" + race.Key + "_Male",
+                "Race_" + race.Key + "_Female",
+                "Race_" + ClientRaces.KeyOf(race.Name) + "_Male",
+                "Race_" + ClientRaces.KeyOf(race.Name) + "_Female",
+            };
+            Archives iconFrom = null;
+            string iconFound = null;
+            foreach (var n in iconNames.Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                string candidate = "Interface\\Icons\\" + n + ".blp";
+                if (source.Has(candidate)) { iconFrom = source; iconFound = candidate; break; }
+                if (yours != null && yours.Has(candidate)) { iconFrom = yours; iconFound = candidate; break; }
+            }
+            bool hasIcon = iconFound != null;
 
             // which files the race folder needs: those the player's client lacks, or has otherwise
             var missing = new List<string>();
@@ -575,7 +710,7 @@ namespace CoAInstaller
             {
                 string to = Path.Combine(filesDir, (icon + ".blp").Replace('\\', Path.DirectorySeparatorChar));
                 Directory.CreateDirectory(Path.GetDirectoryName(to));
-                File.WriteAllBytes(to, iconFrom.Read(icon + ".blp"));
+                File.WriteAllBytes(to, iconFrom.Read(iconFound));
                 keep.Add(icon + ".blp");
             }
             int done = 0;
@@ -609,6 +744,8 @@ namespace CoAInstaller
                 keep.Add(f);
                 bytes += data.Length;
             }
+
+            RepairDecorationTextures(filesDir, keep);
 
             // the client rows of the race's racial spells (the ids the server data names): the texts as text and the
             // icon as the picture it stands for - the player's client may give the same picture another number
@@ -648,6 +785,7 @@ namespace CoAInstaller
                 { "side", cr.Field(row, 13) },
                 { "prefix", Str(cr, row, 6) },
                 { "file", Str(cr, row, 11) },
+                { "labels", cr.Fields > 67 ? new[] { Str(cr, row, 65), Str(cr, row, 66), Str(cr, row, 67) } : new string[0] },
                 { "models", models },
                 { "sections", sections },
                 { "hd_sections", hdSections },
@@ -673,6 +811,68 @@ namespace CoAInstaller
                 (racialSpells.Count > 0 ? L.F(", {0} racial spells", racialSpells.Count) : "") +
                 (helmets > 0 ? L.F(", {0} helmet models", helmets) : "") +
                 (missing.Count > 0 ? L.F(", {0} missing", missing.Count) : "") + ".";
+        }
+
+        /// <summary>
+        /// Some conversions of a race model leave the first decorative texture slot on the neutral 4x4 placeholder
+        /// (the female Highmountain Tauren: her jewelry texture is in the race folder, but her model names neutral.blp
+        /// in the slot the male model names the jewelry in). When the race folder holds a jewelry/decor/accessory
+        /// texture named after the model, the model is given that path. The path is appended to the model and the
+        /// texture record points at it, so no other block of the model moves.
+        /// </summary>
+        static void RepairDecorationTextures(string filesDir, IEnumerable<string> files)
+        {
+            var list = files.ToList();
+            var decorations = list.Where(f => f.EndsWith(".blp", StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (var path in list.Where(f => f.EndsWith(".m2", StringComparison.OrdinalIgnoreCase)))
+            {
+                string file = Path.Combine(filesDir, path.Replace('\\', Path.DirectorySeparatorChar));
+                if (!File.Exists(file)) continue;
+                byte[] b;
+                try { b = File.ReadAllBytes(file); } catch { continue; }
+                if (b.Length < 0x58 || b[0] != (byte)'M' || b[1] != (byte)'D' || b[2] != (byte)'2' || b[3] != (byte)'0') continue;
+                uint count = BitConverter.ToUInt32(b, 0x50);
+                uint at = BitConverter.ToUInt32(b, 0x54);
+                if (count == 0 || at > b.Length || count > (b.Length - at) / 16) continue;
+
+                int slot = -1;
+                for (int i = 0; i < count; i++)
+                {
+                    uint record = at + (uint)i * 16;
+                    uint type = BitConverter.ToUInt32(b, (int)record);
+                    uint length = BitConverter.ToUInt32(b, (int)record + 8);
+                    uint offset = BitConverter.ToUInt32(b, (int)record + 12);
+                    if (type != 0 || length == 0 || offset >= b.Length) continue;
+                    int end = (int)Math.Min((long)b.Length, (long)offset + length);
+                    string texture = Encoding.UTF8.GetString(b, (int)offset, end - (int)offset).TrimEnd('\0').Trim();
+                    if (texture.Length == 0) continue;
+                    if (slot < 0)
+                    {
+                        slot = (int)record;
+                        if (!Path.GetFileName(texture).Equals("neutral.blp", StringComparison.OrdinalIgnoreCase)) { slot = -1; break; }
+                    }
+                }
+                if (slot < 0) continue;
+
+                string baseName = Path.GetFileNameWithoutExtension(path);
+                string decoration = decorations.FirstOrDefault(f =>
+                {
+                    string name = Path.GetFileName(f);
+                    if (!name.StartsWith(baseName + "_", StringComparison.OrdinalIgnoreCase)) return false;
+                    string lower = name.ToLowerInvariant();
+                    return lower.Contains("jewelry") || lower.Contains("jewellery") ||
+                           lower.Contains("decor") || lower.Contains("accessory");
+                });
+                if (decoration == null) continue;
+
+                byte[] text = Encoding.UTF8.GetBytes(decoration + "\0");
+                long where = b.Length;
+                Array.Resize(ref b, b.Length + text.Length);
+                Buffer.BlockCopy(text, 0, b, (int)where, text.Length);
+                BitConverter.GetBytes((uint)where).CopyTo(b, slot + 12);
+                BitConverter.GetBytes((uint)text.Length).CopyTo(b, slot + 8);
+                try { File.WriteAllBytes(file, b); } catch { }
+            }
         }
     }
 }

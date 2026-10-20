@@ -189,7 +189,9 @@ namespace CoAInstaller
                     var r = new ClientRace { Source = id, Key = key, Name = name, Prefix = Str(races, row, 6), File = Str(races, row, 11),
                         MaleDisplay = races.Field(row, 4), FemaleDisplay = races.Field(row, 5) };
                     r.HasHelmets = scan.HelmetPrefixes.Contains(r.Prefix);
-                    r.MaleOnly = r.FemaleDisplay == r.MaleDisplay || r.FemaleDisplay == 0 || !hasModel(r.FemaleDisplay) || skinsOf(id, 1) < 10;
+                    // a race with a female body and at least one female section has a woman: some custom races
+                    // bring only one plain row per section (the Esteria looks), not the ten rows of a stock race
+                    r.MaleOnly = r.FemaleDisplay == r.MaleDisplay || r.FemaleDisplay == 0 || !hasModel(r.FemaleDisplay) || skinsOf(id, 1) == 0;
                     return r;
                 };
                 foreach (var id in rows.Keys.OrderBy(i => i))

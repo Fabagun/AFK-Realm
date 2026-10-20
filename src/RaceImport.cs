@@ -78,6 +78,8 @@ namespace CoAInstaller
             public string SourceFile { get { return Str(Info, "sourceFile"); } }
             public List<string> Files { get { return List(Info, "files").Select(Convert.ToString).ToList(); } }
             public List<object[]> Rows(string name) { return List(Data, name).OfType<object[]>().ToList(); }
+            /// <summary>The labels of the hair, facial hair and extra-feature buttons of its ChrRaces row (fields 65-67).</summary>
+            public List<string> Labels { get { return List(Data, "labels").Select(Convert.ToString).ToList(); } }
             /// <summary>The racial spells the pack carries: its id, its row of the other client's spell table (texts
             /// as text) and the texture of its icon.</summary>
             public List<Dictionary<string, object>> Spells { get { return List(Data, "spells").OfType<Dictionary<string, object>>().ToList(); } }
@@ -183,6 +185,22 @@ namespace CoAInstaller
 
         // ---------------------------------------------------------------------------------------- the rows
 
+        /// <summary>The names the client knows for the three character-creation style buttons. A row of another client
+        /// may spell them in another case ("Normal"); the client compares them as written, so they are put in the one
+        /// spelling it expects. A name it does not know would hide the button, and the base race's row would be wrong
+        /// for the imported race anyway, so an unknown name falls back to the button without styles.</summary>
+        static readonly HashSet<string> RaceLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "NORMAL", "FEATURES", "TUSKS", "PIERCINGS", "MARKINGS", "HAIR", "EARRINGS", "NONE", "HORNS", "MURLOCARMOR",
+        };
+
+        static string RaceLabel(string value)
+        {
+            string label = (value ?? "").Trim().ToUpperInvariant();
+            if (label.Length == 0) return "";
+            return RaceLabels.Contains(label) ? label : "NORMAL";
+        }
+
         /// <summary>Adds an imported race to the client tables: its race row (the base race's, with its own model, file
         /// name and prefix), models and displays, and its sections, hair and beards with new numbers.</summary>
         public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name, Action<string> note = null, string helmetPrefix = null)
@@ -244,6 +262,10 @@ namespace CoAInstaller
             // the prefix the client finds the helmets of the race by: its own, or the base race's when it has no helmets
             cr.SetField(row, 6, cr.AddString(!string.IsNullOrEmpty(helmetPrefix) ? helmetPrefix : pack.Prefix.Length > 0 ? pack.Prefix : "Hu"));
             cr.SetField(row, 11, cr.AddString(pack.File.Length > 0 ? pack.File : pack.Key));
+            // the three style buttons (hair, facial hair, extra features): its source row's names, not the base race's
+            var labels = pack.Labels;
+            if (cr.Fields > 67 && labels.Count >= 3)
+                for (int k = 0; k < 3; k++) cr.SetField(row, 65 + k, cr.AddString(RaceLabel(labels[k])));
             foreach (int k in new[] { 14, 31, 48 }) cr.SetField(row, k, cr.AddString(name));
             cr.Records.Add(row);
             save("DBFilesClient\\ChrRaces.dbc", cr.ToBytes());

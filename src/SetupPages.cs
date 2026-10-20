@@ -983,12 +983,33 @@ namespace CoAInstaller
             return 0;
         }
 
+        /// <summary>The helmet prefix of the models in a race pack, if it has any. A race may bring helmets under a
+        /// prefix other than the prefix of its source row (the Esteria Vulpera uses Vu, its row says Gn).</summary>
+        static string PackHelmetPrefix(RaceImport.Pack pack)
+        {
+            var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in pack.Files)
+            {
+                if (!f.StartsWith("Item\\ObjectComponents\\Head\\", StringComparison.OrdinalIgnoreCase) ||
+                    !f.EndsWith(".m2", StringComparison.OrdinalIgnoreCase)) continue;
+                string stem = Path.GetFileNameWithoutExtension(f);
+                if (stem.Length < 4) continue;
+                char sex = stem[stem.Length - 1];
+                if (sex != 'M' && sex != 'F') continue;
+                prefixes.Add(stem.Substring(stem.Length - 3, 2));
+            }
+            if (prefixes.Count == 0) return "";
+            if (pack.Prefix.Length > 0 && prefixes.Contains(pack.Prefix)) return pack.Prefix;
+            return prefixes.Count == 1 ? prefixes.First() : "";
+        }
+
         /// <summary>Writes what the server and the client patch need of a race, as the client has it now.</summary>
         void Describe(ClientRace r, int id)
         {
             Action<string, string> put = (name, value) => { if (Raw("CustomRaces." + r.Key + "." + name, null) != value) Set("CustomRaces." + r.Key + "." + name, value); };
             Action<string, string> putText = (name, value) => { if (Raw("CustomRaces." + r.Key + "." + name, null) != value) Set("CustomRaces." + r.Key + "." + name, "\"" + value.Replace("\"", "") + "\""); };
             var pack = PackOf(r);
+            string ownHelmetPrefix = "";
             if (pack != null)
             {
                 // from the race folder: its rows and files; its model gets new display numbers
@@ -1006,6 +1027,7 @@ namespace CoAInstaller
                 bool packHelmets = pack.Prefix.Length > 0 && pack.Files.Any(f => f.StartsWith("Item\\ObjectComponents\\Head\\", StringComparison.OrdinalIgnoreCase)
                     && (f.EndsWith("_" + pack.Prefix + "M.m2", StringComparison.OrdinalIgnoreCase) || f.EndsWith("_" + pack.Prefix + "F.m2", StringComparison.OrdinalIgnoreCase)));
                 put("OwnHelmets", helmetPrefixes.Count == 0 || helmetPrefixes.Contains(pack.Prefix) || packHelmets ? "1" : "0");
+                ownHelmetPrefix = PackHelmetPrefix(pack);
             }
             else
             {
@@ -1026,7 +1048,12 @@ namespace CoAInstaller
             // the helmet prefix of the closest stock race): the client finds helmets by the prefix of the race
             // (Item\ObjectComponents\Head\<helmet>_<prefix><M|F>.m2), and without any every helmet is a checkered box
             string borrowed;
-            if (Raw("CustomRaces." + r.Key + ".OwnHelmets", "1") == "0" && BasePrefixes.TryGetValue(ConfigOption.Unquote(Raw("CustomRaces." + r.Key + ".Base", "")), out borrowed))
+            if (ownHelmetPrefix.Length > 0)
+            {
+                putText("HelmetPrefix", ownHelmetPrefix);
+                put("OwnHelmets", "1");
+            }
+            else if (Raw("CustomRaces." + r.Key + ".OwnHelmets", "1") == "0" && BasePrefixes.TryGetValue(ConfigOption.Unquote(Raw("CustomRaces." + r.Key + ".Base", "")), out borrowed))
             {
                 putText("HelmetPrefix", borrowed);
                 put("OwnHelmets", "1");
