@@ -921,9 +921,21 @@ function Find-Updates([string]$Git) {
         $behind = [int](Get-ProgramOutput $Git @('-C', $dir.FullName, 'rev-list', '--count', 'HEAD..@{u}'))
         if ($behind -eq 0) { Write-Log "$($dir.Name) is up to date."; continue }
         if (Get-ProgramOutput $Git @('-C', $dir.FullName, 'status', '--porcelain', '--untracked-files=no')) {
-            Write-Log "$($dir.Name): $behind new commit(s), but it contains local changes; skipped." Yellow; continue
-        }
-        if ($null -eq (Get-ProgramOutput $Git @('-C', $dir.FullName, 'merge', '--ff-only', '@{u}'))) {
+            # The working tree can already hold exactly what the new commit holds - the changes were applied by
+            # hand, or the module was prepared before its commit was pushed. Then only the recorded HEAD is behind,
+            # and a fast-forward loses nothing. Without this, the same local changes would keep the module "new"
+            # forever: the update skips it every time, while the update check keeps announcing it.
+            $aheadText = Get-ProgramOutput $Git @('-C', $dir.FullName, 'rev-list', '--count', '@{u}..HEAD')
+            $ahead = if ($aheadText -match '^\d+$') { [int]$aheadText } else { -1 }
+            if ($ahead -eq 0 -and (Invoke-Program $Git @('-C', $dir.FullName, 'diff', '--quiet', '@{u}', '--') -AllowFailure) -eq 0) {
+                Write-Log "$($dir.Name): the local changes are the new commit's contents already; only the recorded commit is behind, so it is moved forward." Gray
+                if ((Invoke-Program $Git @('-C', $dir.FullName, 'reset', '--hard', '@{u}') -AllowFailure) -ne 0) {
+                    Write-Log "$($dir.Name): $behind new commit(s), but its local changes could not be set aside; skipped." Yellow; continue
+                }
+            } else {
+                Write-Log "$($dir.Name): $behind new commit(s), but it contains local changes; skipped." Yellow; continue
+            }
+        } elseif ($null -eq (Get-ProgramOutput $Git @('-C', $dir.FullName, 'merge', '--ff-only', '@{u}'))) {
             Write-Log "$($dir.Name): $behind new commit(s), but the history has diverged; skipped." Yellow; continue
         }
         $changes.Add((Tr '{0}: {1} new commit(s)' $dir.Name $behind))

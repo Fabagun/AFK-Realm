@@ -84,6 +84,49 @@ namespace CoAInstaller
 
         public static string KeyOf(string name) { return Regex.Replace(name ?? "", "[^A-Za-z0-9]", ""); }
 
+        /// <summary>
+        /// The key of a race row: the name, except when another row of the same client has that name already. Then the
+        /// row's file name keeps them apart (Vulpera and VulperaEsteria). A file name that is itself the name of another
+        /// row (the Murloc's row is called Troglodyte) would collide with that row, so the race number keeps it apart
+        /// instead. reserved holds the name keys of all rows, used or not: an unused row's name must not be taken over.
+        /// </summary>
+        public static string KeyFor(string name, string file, int id, HashSet<string> used, HashSet<string> reserved)
+        {
+            string nameKey = KeyOf(name);
+            if (nameKey.Length == 0) return "";
+            string fileKey = KeyOf(file);
+            string key = nameKey;
+            if (used.Contains(key))
+            {
+                bool safeFile = fileKey.Length > 0 && !fileKey.Equals(nameKey, StringComparison.OrdinalIgnoreCase) &&
+                    !used.Contains(fileKey) && !reserved.Contains(fileKey);
+                key = safeFile ? fileKey : nameKey + id;
+            }
+            string baseKey = key;
+            for (int n = 2; used.Contains(key); n++) key = baseKey + n.ToString();
+            return key;
+        }
+
+        /// <summary>
+        /// The name shown for a row whose name another row of the same client shares (two Vulpera, two Earthen).
+        /// What the file name adds to the name is the best suffix (VulperaEsteria -> Esteria, EarthenHorde -> Horde,
+        /// PandarenA -> A); a one-letter suffix is not worth much, and the side is clearer there. Without one, the
+        /// side, then the race number, keeps the entries apart.
+        /// </summary>
+        public static string DisplayNameFor(string name, string file, int side, int id)
+        {
+            string nameKey = KeyOf(name), fileKey = KeyOf(file);
+            string suffix = "";
+            if (fileKey.Length > nameKey.Length && fileKey.StartsWith(nameKey, StringComparison.OrdinalIgnoreCase))
+                suffix = fileKey.Substring(nameKey.Length);
+            else if (fileKey.Length > nameKey.Length && fileKey.EndsWith(nameKey, StringComparison.OrdinalIgnoreCase))
+                suffix = fileKey.Substring(0, fileKey.Length - nameKey.Length);
+            if (suffix.Length <= 1 && (side == 0 || side == 1)) suffix = side == 0 ? "Alliance" : "Horde";
+            if (suffix.Length == 0 && (side == 0 || side == 1)) suffix = side == 0 ? "Alliance" : "Horde";
+            if (suffix.Length == 0) suffix = id.ToString();
+            return name + " " + suffix;
+        }
+
         /// <summary>The races of the client in the given folder. virtuals: races made from another row (key -> source, name).</summary>
         static readonly Dictionary<string, Scan> scans = new Dictionary<string, Scan>();
 
@@ -194,32 +237,36 @@ namespace CoAInstaller
                     r.MaleOnly = r.FemaleDisplay == r.MaleDisplay || r.FemaleDisplay == 0 || !hasModel(r.FemaleDisplay) || skinsOf(id, 1) == 0;
                     return r;
                 };
+                // The player's client can carry NPC rows too, and a race the module made playable may have any flags;
+                // this list is about the rows a client has, not about which of them the game offers. The other
+                // client's candidates are filtered in RacePacker.Races, where the player rows are chosen.
+                var eligible = new List<int>();
                 foreach (var id in rows.Keys.OrderBy(i => i))
                 {
                     if (Stock.Contains(id)) continue;
-                    string name = Str(races, rows[id], 14).Trim();
+                    var row = rows[id];
+                    string name = Str(races, row, 14).Trim();
                     if (name.Length == 0 || stockNames.Contains(name) || KeyOf(name).Length == 0) continue;     // a copy of a stock race
-                    if (!hasModel(races.Field(rows[id], 4))) continue;                                         // no body
-                    string key = KeyOf(name);
-                    string fileKey = KeyOf(Str(races, rows[id], 11));
-                    bool sameName = scan.Races.Any(r => r.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-                    bool usedKey = scan.Races.Any(r => r.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-                    if (usedKey)
-                    {
-                        if (fileKey.Length > 0 && !fileKey.Equals(key, StringComparison.OrdinalIgnoreCase) &&
-                            !scan.Races.Any(r => r.Key.Equals(fileKey, StringComparison.OrdinalIgnoreCase))) key = fileKey;
-                        else if (sameName) continue;                                // an HD copy of a row already listed
-                        else key += id;
-                    }
-                    if (scan.Races.Any(r => r.Key.Equals(key, StringComparison.OrdinalIgnoreCase))) continue;
-                    string displayName = name;
-                    if (sameName)
-                    {
-                        string suffix = fileKey.StartsWith(KeyOf(name), StringComparison.OrdinalIgnoreCase) ? fileKey.Substring(KeyOf(name).Length) : fileKey;
-                        if (suffix.Length == 0) suffix = id.ToString();
-                        displayName = name + " " + suffix;
-                    }
-                    scan.Races.Add(make(id, key, displayName));
+                    if (!hasModel(races.Field(row, 4))) continue;                                              // no body
+                    eligible.Add(id);
+                }
+                // Every row's name is reserved, also that of an NPC row: the Murloc's file is called Troglodyte,
+                // which is the name of a row of its own, and taking it would mix the two races up.
+                var allNames = new HashSet<string>(rows.Values.Select(r => KeyOf(Str(races, r, 14).Trim())).Where(k => k.Length > 0), StringComparer.OrdinalIgnoreCase);
+                var nameCounts = eligible.GroupBy(id => KeyOf(Str(races, rows[id], 14).Trim()), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+                var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var id in eligible)
+                {
+                    var row = rows[id];
+                    string name = Str(races, row, 14).Trim();
+                    string file = Str(races, row, 11);
+                    string key = KeyFor(name, file, id, used, allNames);
+                    used.Add(key);
+                    int count;
+                    nameCounts.TryGetValue(KeyOf(name), out count);
+                    string shown = count > 1 ? DisplayNameFor(name, file, (int)races.Field(row, 13), id) : name;
+                    scan.Races.Add(make(id, key, shown));
                 }
                 foreach (var v in virtuals ?? new Dictionary<string, KeyValuePair<int, string>>())
                 {

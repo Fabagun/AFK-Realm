@@ -52,6 +52,7 @@ namespace CoAInstaller
                         if (name.Equals("mod-playerbots", StringComparison.OrdinalIgnoreCase)) continue;
                         string branch, revision, repo = GitHubRepoOf(folder);
                         if (repo == null || !ReadHead(folder, out branch, out revision)) continue;
+                        if (!ModuleUpdateApplies(git, folder)) continue;
                         Ask(r, git, name, repo, branch, revision);
                     }
             }
@@ -312,6 +313,20 @@ namespace CoAInstaller
                 foreach (Match m in Regex.Matches(output, @"refs/tags/v(\d+\.\d+(?:\.\d+)?(?:-[\w.]+)?)$", RegexOptions.Multiline))
                     tags.Add(m.Groups[1].Value);
             return tags;
+        }
+
+        /// <summary>Whether Find-Updates can move this module to its upstream. It skips a module whose working tree has
+        /// changes, unless those changes are the upstream commit's contents already (then only the recorded HEAD is
+        /// behind, and moving it loses nothing). Asking this before announcing an update keeps the banner from offering
+        /// something the update would always skip.</summary>
+        static bool ModuleUpdateApplies(string git, string folder)
+        {
+            string changes = RunGit(git, "-C", folder, "status", "--porcelain", "--untracked-files=no");
+            if (changes == null) return false;
+            if (changes.Trim().Length == 0) return true;
+            string ahead = RunGit(git, "-C", folder, "rev-list", "--count", "@{u}..HEAD");
+            if (ahead == null || ahead.Trim() != "0") return false;
+            return RunGit(git, "-C", folder, "diff", "--quiet", "@{u}", "--") != null;
         }
 
         /// <summary>"owner/repo" of the module's origin on GitHub, or null.</summary>

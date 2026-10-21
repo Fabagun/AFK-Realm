@@ -1,6 +1,12 @@
-# AFK Realm 1.0.14
+# AFK Realm 1.0.15
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.15
+
+- **Grummle and other imported races get all their files.** The client archive of a race is now built from the files that are actually in its race folder. A race.info.json written while the pack was still being copied can no longer leave an almost empty archive; Grummle no longer shows a blue cube. Click *Modules → Game client → Install* once to rebuild the archives.
+- **The race list matches packs reliably.** Only player races are offered, races sharing a name (Vulpera Esteria, Earthen Alliance/Horde) are kept apart, existing packs are recognised by source number, file and name, and icons are found under more names. Old compositor-only packs need *Custom races → Create race packs from a client* once more; the fallback now picks a donor on the same model by prefix, name and side.
+- **No more phantom module updates.** The update check no longer offers an update that the engine would always skip because the module has local changes. When the local changes are exactly the upstream commit's contents, it moves only the recorded HEAD forward.
 
 ## New in 1.0.14
 

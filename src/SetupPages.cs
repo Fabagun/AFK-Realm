@@ -864,7 +864,14 @@ namespace CoAInstaller
             if (folder == null || !Directory.Exists(folder)) { folder = null; return; }
             foreach (var p in RaceImport.Read(folder))
             {
-                var same = races.FirstOrDefault(r => r.Pack == null && r.Key.Equals(p.Key, StringComparison.OrdinalIgnoreCase));
+                // The key is the usual match. A pack can also belong to a client race under another key: an older
+                // version keyed by name only, or the client names two rows alike but this pack names one by its file
+                // (VulperaEsteria beside Vulpera). The source row (number and file) says which one it is.
+                var same = races.FirstOrDefault(r => r.Pack == null && (
+                    r.Key.Equals(p.Key, StringComparison.OrdinalIgnoreCase) ||
+                    (p.SourceRace > 0 && r.Source == p.SourceRace) ||
+                    (p.SourceFile.Length > 0 && p.SourceFile.Equals(r.File, StringComparison.OrdinalIgnoreCase) &&
+                        (p.Name.Equals(r.Name, StringComparison.OrdinalIgnoreCase) || p.Name.Equals(r.Key, StringComparison.OrdinalIgnoreCase)))));
                 if (same != null) { same.Alt = p; continue; }
                 races.Add(new ClientRace { Key = p.Key, Name = p.Name, Prefix = p.Prefix, File = p.File, MaleOnly = p.MaleOnly, Pack = p });
             }

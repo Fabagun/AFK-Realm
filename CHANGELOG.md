@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.15
+
+- Custom races: the archive of an imported race is now built from the files that are really in its race folder, not from the cached list in race.info.json. A pack that was still being copied when the setup page first read it no longer leaves the archive with only its stamp (Grummle showed a blue cube). The stamp covers the real files, so a changed race folder rebuilds the archive.
+- Custom races: the race folder importer now offers only player races, keeps races with the same name apart by their file name or side (Vulpera Esteria, Earthen Alliance/Horde), matches existing packs by source number, file and name, and finds their icons under more names. The compositor fallback for Esteria races now runs when the pack is made and chooses a donor on the same model by prefix, name and side; old compositor-only packs need *Create race packs* once more.
+- Modules: the update check no longer announces an update that the engine would always skip because the module has local changes. When the local changes are exactly the upstream commit's contents, only the recorded HEAD is moved forward.
+
 ## 1.0.14
 
 - Custom races: the importer now borrows skin, face and HD layers from a donor race in the target client when a pack has compositor-only sections (old packs or races without a donor in the source client). This makes the import robust even when packs were created before the compositor fallback was added.

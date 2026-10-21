@@ -347,56 +347,69 @@ namespace CoAInstaller
                     int c; skins.TryGetValue(k, out c); skins[k] = c + 1;
                 }
 
-            var yours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var yourRaces = new List<ClientRace>();
             if (yourClient != null)
-                try { foreach (var r in ClientRaces.Read(yourClient, null).Races) yours.Add(r.Key); } catch { }
-            // the pack of a key, and which race of its client it came from: a key that is only the name of a race can
-            // be shared by two rows of the other client (Vulpera 19 and VulperaEsteria 74), so a pack of another race
-            // must not make this one look installed
-            var packedByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in RaceImport.Read(raceFolder))
-                if (!packedByKey.ContainsKey(p.Key)) packedByKey[p.Key] = p.SourceRace;
+                try { yourRaces = ClientRaces.Read(yourClient, null).Races; } catch { }
+            // The packs already in the folder: their keys are kept when the same source race is packed again, and
+            // their source row identifies them even when an older version named the key differently.
+            var packs = RaceImport.Read(raceFolder).ToList();
+            var packByRace = new Dictionary<int, RaceImport.Pack>();
+            foreach (var p in packs)
+                if (p.SourceRace > 0 && !packByRace.ContainsKey(p.SourceRace)) packByRace[p.SourceRace] = p;
 
             var rows = races.Records.GroupBy(r => (int)races.Field(r, 0)).ToDictionary(g => g.Key, g => g.First());
             var stockNames = new HashSet<string>(ClientRaces.Stock.Where(rows.ContainsKey).Select(id => NameOf(races, rows[id])), StringComparer.OrdinalIgnoreCase);
-            var list = new List<Candidate>();
+            // Only player races: the client tables also carry NPC rows under names of their own (Northrend
+            // Skeleton, Leper Troll) and old copies of playable rows (Taunka 41 beside Taunka 17). Flags 4 and 8
+            // are the ones the game's character creation checks.
+            var eligible = new List<byte[]>();
             foreach (var id in rows.Keys.OrderBy(i => i))
             {
                 if (ClientRaces.Stock.Contains(id)) continue;
                 var row = rows[id];
                 string name = NameOf(races, row);
-                string key = ClientRaces.KeyOf(name);
-                if (key.Length == 0 || stockNames.Contains(name)) continue;
+                if (ClientRaces.KeyOf(name).Length == 0 || stockNames.Contains(name)) continue;
+                if ((races.Field(row, 1) & 0xC) != 0xC) continue;
+                if (name.Equals("Test Race", StringComparison.OrdinalIgnoreCase)) continue;
                 if (!hasBody(races.Field(row, 4))) continue;
-                string nameKey = key;
-                // Two rows of the other client can have the same display name (Vulpera 19 and VulperaEsteria 74);
-                // the file name of the row keeps them apart. Without one, the number does.
-                string fileKey = ClientRaces.KeyOf(Str(races, row, 11));
-                bool sameName = list.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-                bool usedKey = list.Any(c => c.Key.Equals(key, StringComparison.OrdinalIgnoreCase)) ||
-                    (packedByKey.ContainsKey(key) && packedByKey[key] != id);
-                if (usedKey)
-                {
-                    if (fileKey.Length > 0 && !fileKey.Equals(key, StringComparison.OrdinalIgnoreCase) &&
-                        !list.Any(c => c.Key.Equals(fileKey, StringComparison.OrdinalIgnoreCase)) &&
-                        (!packedByKey.ContainsKey(fileKey) || packedByKey[fileKey] == id)) key = fileKey;
-                    else if (sameName) continue;                                // an HD copy of a row already listed
-                    else key += id;
-                }
-                if (list.Any(c => c.Key.Equals(key, StringComparison.OrdinalIgnoreCase))) continue;
-                // The client knows a race by its name, and the character selection hands only that name back. Two
-                // rows with the same name (Vulpera 19 and the Esteria Vulpera 74) therefore need distinct names,
-                // or the old race would find the new one: use what its file name adds to the race name.
-                string displayName = name;
-                if (sameName)
-                {
-                    string suffix = fileKey.StartsWith(nameKey, StringComparison.OrdinalIgnoreCase) ? fileKey.Substring(nameKey.Length) : fileKey;
-                    if (suffix.Length == 0) suffix = id.ToString();
-                    displayName = name + " " + suffix;
-                }
-                int female; skins.TryGetValue(id * 2L + 1, out female);
-                list.Add(new Candidate { Id = id, Key = key, Name = displayName, MaleOnly = female == 0 || !hasBody(races.Field(row, 5)),
-                    InYourClient = yours.Contains(key), InRaceFolder = packedByKey.ContainsKey(key) });
+                eligible.Add(row);
+            }
+            // All names, also those of NPC rows, are reserved: the Murloc's file is called Troglodyte, the name of
+            // a row of its own, and taking that as a key would mix the two races up.
+            var allNames = new HashSet<string>(rows.Values.Select(r => ClientRaces.KeyOf(NameOf(races, r))).Where(k => k.Length > 0), StringComparer.OrdinalIgnoreCase);
+            var nameCounts = eligible.GroupBy(r => ClientRaces.KeyOf(NameOf(races, r)), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var list = new List<Candidate>();
+            foreach (var row in eligible.OrderBy(r => (int)races.Field(r, 0)))
+            {
+                int id = (int)races.Field(row, 0);
+                string name = NameOf(races, row);
+                string file = Str(races, row, 11);
+                RaceImport.Pack existing;
+                string key;
+                if (packByRace.TryGetValue(id, out existing) && existing.Key.Length > 0 && !used.Contains(existing.Key))
+                    key = existing.Key;                         // the pack of this very race keeps its key
+                else
+                    key = ClientRaces.KeyFor(name, file, id, used, allNames);
+                used.Add(key);
+                int count; nameCounts.TryGetValue(ClientRaces.KeyOf(name), out count);
+                string displayName = count > 1 ? ClientRaces.DisplayNameFor(name, file, (int)races.Field(row, 13), id) : name;
+                uint male = races.Field(row, 4), female = races.Field(row, 5);
+                // Whether the player's client has this race: the same key, the same row name and file, or the same
+                // two displays. The key alone is not enough (both clients may use "Earthen" for different rows).
+                bool inClient = yourRaces.Any(r => r.Key.Equals(key, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && r.File.Equals(file, StringComparison.OrdinalIgnoreCase)) ||
+                    (r.Source == id && r.File.Equals(file, StringComparison.OrdinalIgnoreCase)) ||
+                    (male != 0 && r.MaleDisplay == male && r.FemaleDisplay == female));
+                bool inFolder = packs.Any(p => p.Key.Equals(key, StringComparison.OrdinalIgnoreCase) ||
+                    (p.SourceRace == id && (p.SourceFile.Length == 0 || p.SourceFile.Equals(file, StringComparison.OrdinalIgnoreCase) ||
+                        p.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || p.Name.Equals(displayName, StringComparison.OrdinalIgnoreCase))) ||
+                    (p.SourceFile.Length > 0 && p.SourceFile.Equals(file, StringComparison.OrdinalIgnoreCase) &&
+                        (p.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || p.Name.Equals(displayName, StringComparison.OrdinalIgnoreCase))));
+                int femaleSkins; skins.TryGetValue(id * 2L + 1, out femaleSkins);
+                list.Add(new Candidate { Id = id, Key = key, Name = displayName, MaleOnly = femaleSkins == 0 || !hasBody(female),
+                    InYourClient = inClient, InRaceFolder = inFolder });
             }
             return list;
         }
@@ -461,10 +474,7 @@ namespace CoAInstaller
             return list;
         }
 
-        /// <summary>Whether a sex of the race has a body texture of its own. Esteria races that are assembled by their
-        /// appearance DLL have CharSections rows with a compositor only: those rows name no skin, and an imported race
-        /// that keeps them would show the model's neutral placeholders. A body texture from another race on the same
-        /// model is the base their compositor was meant to paint over.</summary>
+        /// <summary>Whether a sex of the race has a body texture of its own, not a compositor or the neutral placeholder.</summary>
         static bool HasRealSkin(List<object> rows, int sex)
         {
             foreach (object[] r in rows)
@@ -483,18 +493,39 @@ namespace CoAInstaller
             return false;
         }
 
+        /// <summary>Whether a sex has a compositor as its body texture: the appearance DLL paints it, a client
+        /// without that DLL would show the model's neutral placeholders.</summary>
+        static bool HasCompositorSkin(List<object> rows, int sex)
+        {
+            foreach (object[] r in rows)
+            {
+                if (Convert.ToInt32(r[2]) != sex || Convert.ToInt32(r[3]) != 0) continue;
+                for (int k = 4; k <= 6 && k < r.Length; k++)
+                {
+                    string texture = Convert.ToString(r[k] ?? "").Trim();
+                    if (texture.IndexOf("compositor", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                }
+            }
+            return false;
+        }
+
         static string ModelStem(string path) { return Path.GetFileNameWithoutExtension(M2(path ?? "")).ToLowerInvariant(); }
 
-        /// <summary>Replaces compositor-only skins with the plain and HD section rows of another race that uses the same
-        /// model. Esteria's source rows only paint through its DLL; a client without its race number can still show the
-        /// race's own skin, face and HD layers if another row of the same source client has them (Vulpera 74 and 19).
-        /// The rows keep the donor's textures, so the packer also takes those files.</summary>
-        static void RepairSections(Archives source, DbcTable cr, DbcTable di, DbcTable md, Candidate race,
+        /// <summary>
+        /// Replaces compositor-only skins with the section rows of another race on the same model. The source rows
+        /// only paint through the appearance DLL; a client that does not know the race number still shows the race's
+        /// own skin, face and HD layers if another row of the same client has them (VulperaEsteria 74 and Vulpera 19).
+        /// Neutral placeholders (Haranir 70/71) are left alone: they are the race's own texture, not a layer.
+        /// </summary>
+        static void RepairSections(Archives source, DbcTable cr, DbcTable di, DbcTable md, int raceId,
             Dictionary<string, object> models, List<object> sections, List<object> hdSections)
         {
             var cs = Table(source, "CharSections");
             var hd = Table(source, "HDCharSections");
             if (cs == null) return;
+            var raceRow = cr.Records.First(r => cr.Field(r, 0) == raceId);
+            string racePrefix = Str(cr, raceRow, 6), raceName = NameOf(cr, raceRow);
+            uint raceSide = cr.Field(raceRow, 13);
             var stems = new string[2];
             for (int sex = 0; sex < 2; sex++)
             {
@@ -506,13 +537,15 @@ namespace CoAInstaller
             for (int sex = 0; sex < 2; sex++)
             {
                 if (string.IsNullOrEmpty(stems[sex])) continue;
-                if (HasRealSkin(sections.Where(r => sexOf((object[])r) == sex).ToList(), sex)) continue;
-                byte[] donor = null;
+                var mine = sections.Where(r => sexOf((object[])r) == sex).ToList();
+                if (HasRealSkin(mine, sex) || !HasCompositorSkin(mine, sex)) continue;
+                object donor = null;
                 List<object> donorSections = null, donorHd = null;
+                int best = -1;
                 foreach (var other in cr.Records)
                 {
                     int id = (int)cr.Field(other, 0);
-                    if (id == race.Id || id == 0) continue;
+                    if (id == raceId || id == 0) continue;
                     uint display = cr.Field(other, 4 + sex);
                     var d = di.Records.FirstOrDefault(r => di.Field(r, 0) == display);
                     if (d == null) continue;
@@ -520,17 +553,22 @@ namespace CoAInstaller
                     if (m == null || ModelStem(Str(md, m, 2)) != stems[sex]) continue;
                     var candidate = Rows(cs, 1, id, 4, 5, 6);
                     if (!HasRealSkin(candidate, sex)) continue;
+                    int score = 0;
+                    if (Str(cr, other, 6).Equals(racePrefix, StringComparison.OrdinalIgnoreCase)) score += 4;
+                    if (NameOf(cr, other).Equals(raceName, StringComparison.OrdinalIgnoreCase)) score += 2;
+                    if (cr.Field(other, 13) == raceSide) score += 1;
+                    if (score <= best) continue;
+                    best = score;
                     donor = other;
                     donorSections = candidate;
                     donorHd = Rows(hd, 1, id, 4, 5, 6);
-                    break;
                 }
                 if (donor == null) continue;
                 sections.RemoveAll(r => sexOf((object[])r) == sex);
                 foreach (var row in donorSections.Where(r => sexOf((object[])r) == sex))
                 {
                     var copy = (object[])((object[])row).Clone();
-                    copy[1] = (uint)race.Id;
+                    copy[1] = (uint)raceId;
                     sections.Add(copy);
                 }
                 hdSections.RemoveAll(r => sexOf((object[])r) == sex);
@@ -538,7 +576,7 @@ namespace CoAInstaller
                     foreach (var row in donorHd.Where(r => sexOf((object[])r) == sex))
                     {
                         var copy = (object[])((object[])row).Clone();
-                        copy[1] = (uint)race.Id;
+                        copy[1] = (uint)raceId;
                         hdSections.Add(copy);
                     }
             }
@@ -670,7 +708,7 @@ namespace CoAInstaller
 
             var sections = Rows(Table(source, "CharSections"), 1, race.Id, 4, 5, 6);
             var hdSections = Rows(Table(source, "HDCharSections"), 1, race.Id, 4, 5, 6);
-            RepairSections(source, cr, di, md, race, models, sections, hdSections);
+            RepairSections(source, cr, di, md, race.Id, models, sections, hdSections);
             foreach (object[] r in sections.Concat(hdSections))
                 for (int k = 4; k <= 6; k++) { var t = r[k] as string; if (!string.IsNullOrEmpty(t)) files.Add(t); }
             string icon = "Interface\\Icons\\CoA_Race_" + race.Key;
@@ -679,15 +717,19 @@ namespace CoAInstaller
             // Esteria row can use the icon of its base row (VulperaEsteria: CoA_Race_Vulpera); both are copied under
             // the canonical name so the race keeps its icon wherever the archive order puts it.
             string iconFileKey = ClientRaces.KeyOf(Str(cr, row, 11));
+            string rawNameKey = ClientRaces.KeyOf(NameOf(cr, row));
             var iconNames = new List<string>
             {
                 "CoA_Race_" + race.Key,
                 "CoA_Race_" + ClientRaces.KeyOf(race.Name),
+                "CoA_Race_" + rawNameKey,
                 "CoA_Race_" + iconFileKey,
                 "Race_" + race.Key + "_Male",
                 "Race_" + race.Key + "_Female",
                 "Race_" + ClientRaces.KeyOf(race.Name) + "_Male",
                 "Race_" + ClientRaces.KeyOf(race.Name) + "_Female",
+                "Race_" + rawNameKey + "_Male",
+                "Race_" + rawNameKey + "_Female",
             };
             Archives iconFrom = null;
             string iconFound = null;

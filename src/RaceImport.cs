@@ -76,7 +76,32 @@ namespace CoAInstaller
             public string Icon { get { return Str(Info, "icon"); } }
             /// <summary>The file name of its row in the client it came from (CoA Custom's DrakonidHorde for the Drakonid).</summary>
             public string SourceFile { get { return Str(Info, "sourceFile"); } }
-            public List<string> Files { get { return List(Info, "files").Select(Convert.ToString).ToList(); } }
+            /// <summary>The files of the pack. The race.info.json beside race.json is only a cache for the page; the
+            /// files folder is what the archive is made of. A cache written while the folder was still being copied
+            /// (or an older pack whose list was not rewritten) must not leave the archive half empty.</summary>
+            public List<string> Files
+            {
+                get
+                {
+                    var listed = List(Info, "files").Select(Convert.ToString).Where(f => !string.IsNullOrEmpty(f)).ToList();
+                    var disk = FilesOnDisk();
+                    if (listed.Count == 0) return disk;
+                    var known = new HashSet<string>(listed, StringComparer.OrdinalIgnoreCase);
+                    listed.AddRange(disk.Where(f => !known.Contains(f)));
+                    return listed;
+                }
+            }
+            /// <summary>The files that are really in the pack's files folder, by their path in the client.</summary>
+            public List<string> FilesOnDisk()
+            {
+                var files = new List<string>();
+                string root = Path.Combine(Dir, "files");
+                if (!Directory.Exists(root)) return files;
+                string top = Path.GetFullPath(root).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+                foreach (var path in Directory.GetFiles(top, "*", SearchOption.AllDirectories).OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+                    files.Add(Path.GetFullPath(path).Substring(top.Length).Replace('/', '\\'));
+                return files;
+            }
             public List<object[]> Rows(string name) { return List(Data, name).OfType<object[]>().ToList(); }
             /// <summary>The labels of the hair, facial hair and extra-feature buttons of its ChrRaces row (fields 65-67).</summary>
             public List<string> Labels { get { return List(Data, "labels").Select(Convert.ToString).ToList(); } }
@@ -203,27 +228,6 @@ namespace CoAInstaller
 
         /// <summary>Adds an imported race to the client tables: its race row (the base race's, with its own model, file
         /// name and prefix), models and displays, and its sections, hair and beards with new numbers.</summary>
-        /// <summary>Whether a sex of the race has a body texture of its own, or only compositor rows.</summary>
-        static bool HasRealSkin(List<object[]> rows, int sex)
-        {
-            foreach (var r in rows)
-            {
-                if (Convert.ToInt32(r[2]) != sex || Convert.ToInt32(r[3]) != 0) continue;
-                for (int k = 4; k <= 6 && k < r.Length; k++)
-                {
-                    string texture = Convert.ToString(r[k] ?? "").Trim();
-                    if (texture.Length == 0) continue;
-                    string name = System.IO.Path.GetFileName(texture);
-                    if (name.Equals("neutral.blp", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (name.IndexOf("compositor", StringComparison.OrdinalIgnoreCase) >= 0) continue;
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        static string ModelStem(string path) { return System.IO.Path.GetFileNameWithoutExtension(path ?? "").ToLowerInvariant(); }
-
         public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name, Action<string> note = null, string helmetPrefix = null)
         {
             var cr = DbcTable.Parse(load("DBFilesClient\\ChrRaces.dbc"), "ChrRaces.dbc");
@@ -313,83 +317,6 @@ namespace CoAInstaller
             Func<object[], string> key = r => Num(r[2]) + "/" + Num(r[3]) + "/" + Num(r[8]) + "/" + Num(r[9]);
             var plain = pack.Rows("sections");
             var hdRows = pack.Rows("hd_sections");
-
-            // compositor fallback at import time: an imported race whose pack still has compositor-only
-            // sections (old packs, or races whose source client has no donor) borrows the plain and HD
-            // sections of another race in the target client that uses the same model.
-            string packModelStem = "";
-            if (modelsOfPack != null)
-            {
-                object m;
-                if (modelsOfPack.TryGetValue("male", out m) && m is Dictionary<string, object>)
-                    packModelStem = ModelStem(Convert.ToString(((Dictionary<string, object>)m)["path"]));
-                else if (modelsOfPack.Values.OfType<Dictionary<string, object>>().Any())
-                    packModelStem = ModelStem(Convert.ToString(modelsOfPack.Values.OfType<Dictionary<string, object>>().First()["path"]));
-            }
-            if (plain.Count > 0 && !HasRealSkin(plain, 0) && !HasRealSkin(plain, 1) && packModelStem.Length > 0)
-            {
-                try
-                {
-                    var di2 = DbcTable.Parse(load("DBFilesClient\\CreatureDisplayInfo.dbc"), "CreatureDisplayInfo.dbc");
-                    var md2 = DbcTable.Parse(load("DBFilesClient\\CreatureModelData.dbc"), "CreatureModelData.dbc");
-                    var cs2 = DbcTable.Parse(load("DBFilesClient\\CharSections.dbc"), "CharSections.dbc");
-                    var hd2 = DbcTable.Parse(load("DBFilesClient\\HDCharSections.dbc"), "HDCharSections.dbc");
-                    int donorRace = 0;
-                    foreach (var r in cr.Records)
-                    {
-                        int rid = (int)cr.Field(r, 0);
-                        if (rid == race || rid == baseRace) continue;
-                        for (int sex = 0; sex < 2; sex++)
-                        {
-                            uint disp = cr.Field(r, 4 + sex);
-                            var drow = di2.Records.FirstOrDefault(x => di2.Field(x, 0) == disp);
-                            if (drow == null) continue;
-                            var mrow = md2.Records.FirstOrDefault(x => md2.Field(x, 0) == di2.Field(drow, 1));
-                            if (mrow == null) continue;
-                            string stem = System.IO.Path.GetFileNameWithoutExtension(Str(md2, mrow, 2)).ToLowerInvariant();
-                            if (stem != packModelStem) continue;
-                            var cand = new List<object[]>();
-                            foreach (var c in cs2.Records)
-                                if (cs2.Field(c, 1) == rid)
-                                {
-                                    var candRow = new object[cs2.Fields];
-                                    for (int k = 0; k < cs2.Fields; k++)
-                                        candRow[k] = (k >= 4 && k <= 6) ? (object)Str(cs2, c, k) : cs2.Field(c, k);
-                                    cand.Add(candRow);
-                                }
-                            if (!HasRealSkin(cand, 0) && !HasRealSkin(cand, 1)) continue;
-                            donorRace = rid;
-                            plain.Clear();
-                            foreach (var c in cs2.Records)
-                            {
-                                if (cs2.Field(c, 1) != rid) continue;
-                                var donorRow = new object[cs.Fields];
-                                for (int k = 0; k < cs.Fields; k++)
-                                    donorRow[k] = (k >= 4 && k <= 6) ? (object)Str(cs2, c, k) : cs2.Field(c, k);
-                                donorRow[1] = (uint)race;
-                                plain.Add(donorRow);
-                            }
-                            if (hdRows.Count == 0)
-                            {
-                                foreach (var c in hd2.Records)
-                                {
-                                    if (hd2.Field(c, 1) != rid) continue;
-                                    var donorRow = new object[hd.Fields];
-                                    for (int k = 0; k < hd.Fields; k++)
-                                        donorRow[k] = (k >= 4 && k <= 6) ? (object)Str(hd2, c, k) : hd2.Field(c, k);
-                                    donorRow[1] = (uint)race;
-                                    hdRows.Add(donorRow);
-                                }
-                            }
-                            break;
-                        }
-                        if (donorRace > 0) break;
-                    }
-                    if (donorRace > 0 && note != null) note(L.F("Borrowed skin from race {0}.", donorRace));
-                }
-                catch { /* donor search failed, proceed with original sections */ }
-            }
-
             var idOf = new Dictionary<string, uint>();
             foreach (var r in plain.OrderBy(r => Num(r[2])).ThenBy(r => Num(r[3])).ThenBy(r => Num(r[8])).ThenBy(r => Num(r[9])))
             {
@@ -836,10 +763,9 @@ namespace CoAInstaller
         {
             var sb = new StringBuilder();
             sb.Append("race ").Append(w.Race).Append(' ').Append(w.Pack.Key).Append('\n');
-            foreach (var f in w.Pack.Files.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+            foreach (var f in w.Pack.FilesOnDisk())
             {
                 var p = Path.Combine(w.Pack.Dir, "files", f.Replace('\\', Path.DirectorySeparatorChar));
-                if (!File.Exists(p)) continue;
                 var fi = new FileInfo(p);
                 sb.Append(f).Append(' ').Append(fi.Length).Append(' ').Append(fi.LastWriteTimeUtc.Ticks).Append('\n');
             }
@@ -880,7 +806,7 @@ namespace CoAInstaller
                 if (InstalledStamp(path) == stamp) continue;
                 if (InstalledStamp(path) == "") throw new InvalidOperationException(L.F("Data\\{0} in the game folder was not made by {1}. Rename or remove it, then install again.", ArchiveName(w.Race), Product.Name));
                 var files = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var f in w.Pack.Files)
+                foreach (var f in w.Pack.FilesOnDisk())
                 {
                     var p = Path.Combine(w.Pack.Dir, "files", f.Replace('\\', Path.DirectorySeparatorChar));
                     if (File.Exists(p)) files[f] = p;
@@ -913,7 +839,7 @@ namespace CoAInstaller
         public static string BuildTemp(Wanted w)
         {
             var files = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var f in w.Pack.Files)
+            foreach (var f in w.Pack.FilesOnDisk())
             {
                 var p = Path.Combine(w.Pack.Dir, "files", f.Replace('\\', Path.DirectorySeparatorChar));
                 if (File.Exists(p)) files[f] = p;
