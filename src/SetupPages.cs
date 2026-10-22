@@ -425,6 +425,14 @@ namespace CoAInstaller
     /// </summary>
     class RacesSetup : SetupDialog
     {
+        /// <summary>The patched game exe of a CoA Custom pack: Ascension.exe in 1.8.3 and later, Ascension-b.exe in some others.</summary>
+        static bool IsGameExe(string path)
+        {
+            string name = Path.GetFileName(path);
+            return name.Equals("Ascension.exe", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("Ascension-b.exe", StringComparison.OrdinalIgnoreCase);
+        }
+
         class Known { public string Base, Looks, About, Rating, Note; }
 
         readonly Dictionary<string, Known> known = new Dictionary<string, Known>(StringComparer.OrdinalIgnoreCase);
@@ -703,11 +711,11 @@ namespace CoAInstaller
                     var all = Directory.GetFiles(f, "*", SearchOption.AllDirectories);
                     long bytes = all.Sum(x => new FileInfo(x).Length);
                     rootNote.Text = L.F("{0} files ({1} MB) from {2}", all.Length, Math.Round(bytes / 1048576.0), f);
-                    bool hasExe = all.Any(x => Path.GetFileName(x).Equals("Ascension-b.exe", StringComparison.OrdinalIgnoreCase));
+                    bool hasExe = all.Any(x => IsGameExe(x));
                     if (exe.Length > 0)
-                        rootNote.Text += "  ·  " + L.F("Ascension-b.exe: {0}", Path.GetFileName(exe));
+                        rootNote.Text += "  ·  " + L.F("Game exe: {0}", Path.GetFileName(exe));
                     else if (!hasExe)
-                        rootNote.Text += "  ·  " + L.T("Ascension-b.exe is not in this folder. Choose it separately if the game should start with it.");
+                        rootNote.Text += "  ·  " + L.T("Ascension.exe or Ascension-b.exe is not in this folder. Choose it separately if the game should start with it.");
                 }
                 catch (Exception ex) { rootNote.Text = f + "  ·  " + ex.Message; }
             };
@@ -731,15 +739,15 @@ namespace CoAInstaller
                 }
             };
             clearRoot.Click += (s, e) => { Set("CustomRaces.ClientRootFolder", ""); showRoot(); };
-            var pickExe = Ui.Secondary(L.T("Choose Ascension-b.exe …"));
+            var pickExe = Ui.Secondary(L.T("Choose Ascension.exe or Ascension-b.exe …"));
             pickExe.Click += (s, e) =>
             {
-                using (var d = new OpenFileDialog { Filter = "Ascension-b.exe|Ascension-b.exe|Programs (*.exe)|*.exe", Title = L.T("The patched game exe to put next to the game (Ascension-b.exe)") })
+                using (var d = new OpenFileDialog { Filter = "Ascension.exe or Ascension-b.exe|Ascension.exe;Ascension-b.exe|Programs (*.exe)|*.exe", Title = L.T("The patched game exe to put next to the game (Ascension.exe or Ascension-b.exe)") })
                 {
                     if (d.ShowDialog(this) != DialogResult.OK) return;
-                    if (!Path.GetFileName(d.FileName).Equals("Ascension-b.exe", StringComparison.OrdinalIgnoreCase))
+                    if (!IsGameExe(d.FileName))
                     {
-                        Ui.Error(this, L.T("Choose Ascension-b.exe itself, not another exe."));
+                        Ui.Error(this, L.T("Choose Ascension.exe or Ascension-b.exe itself, not another exe."));
                         return;
                     }
                     Set("CustomRaces.ClientExe", d.FileName);

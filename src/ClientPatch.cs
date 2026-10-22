@@ -28,7 +28,7 @@ namespace CoAInstaller
 
         /// <summary>A file next to the game's exe (a DLL the game loads), taken from a file of the user's own (a module
         /// never ships one).</summary>
-        internal class RootFile { public string Module, From, To; public bool Zip = true; }
+        internal class RootFile { public string Module, From, To; public bool Zip = true, GameExe; }
 
         internal class FileSpec { public string Module, From, To; public List<Dictionary<string, object>> Fills; }
         internal class EditSpec { public string Module, File, InsertAfter, Line; public Dictionary<string, object> DropRows, AddRows, CloneRows, FillRows, SetRows, CopyRows, ImportRace, SectionRules, AddFile; public long? IdShift; }
@@ -83,9 +83,14 @@ namespace CoAInstaller
                 foreach (var f in List(patch, "rootFiles"))
                 {
                     if (!When(inst, f)) continue;
+                    string from = Convert.ToString(f.TryGetValue("from", out v) ? Settings(inst, v) : "");
                     string to = Text(f, "to");
-                    if (!Regex.IsMatch(to, @"^[A-Za-z0-9_.-]+\.dll$")) continue;          // a DLL by its name, next to the exe only
-                    plan.RootFiles.Add(new RootFile { Module = module, To = to, From = Convert.ToString(f.TryGetValue("from", out v) ? Settings(inst, v) : "") });
+                    // A module may name a file of its own instead of a fixed name (the patched game exe of a
+                    // client pack is Ascension.exe in some versions and Ascension-b.exe in others).
+                    if (to.Length == 0) to = Path.GetFileName(from);
+                    bool gameExe = f.TryGetValue("gameExe", out v) && v is bool && (bool)v;
+                    if (!Regex.IsMatch(to, @"^[A-Za-z0-9_.-]+\.(dll|exe)$") || !SafeRootPath(to, gameExe)) continue;
+                    plan.RootFiles.Add(new RootFile { Module = module, To = to, From = from, GameExe = gameExe });
                 }
                 // a folder of the user's own whose files all go next to the exe (CoA Custom's files\client_root)
                 foreach (var f in List(patch, "rootFolders"))
@@ -99,7 +104,12 @@ namespace CoAInstaller
                     foreach (var one in Directory.GetFiles(top, "*", SearchOption.AllDirectories).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
                     {
                         string to = one.Substring(top.Length).Replace('/', '\\');
-                        // the folder is the user's own choice: it may bring the game's exe too (CoA Custom 1.8 ships its Ascension.exe)
+                        // The folder is the user's own choice: it may bring the game's exe too (CoA Custom 1.8 ships its Ascension.exe).
+                        // When the setup page chose the exe separately, only that one goes next to the game.
+                        if (plan.RootFiles.Any(r => r.GameExe) &&
+                            (Path.GetFileName(to).Equals("Ascension.exe", StringComparison.OrdinalIgnoreCase) ||
+                             Path.GetFileName(to).Equals("Ascension-b.exe", StringComparison.OrdinalIgnoreCase)))
+                            continue;
                         if (!SafeRootPath(to, true) || plan.RootFiles.Any(r => r.To.Equals(to, StringComparison.OrdinalIgnoreCase))) continue;
                         plan.RootFiles.Add(new RootFile { Module = module, From = one, To = to, Zip = zip });
                     }

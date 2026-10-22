@@ -1557,6 +1557,11 @@
     "Ascension-b.exe is not in this folder. Choose it separately if the game should start with it.": "",
     "Choose Ascension-b.exe …": "",
     "The patched game exe to put next to the game (Ascension-b.exe)": "",
-    "Choose Ascension-b.exe itself, not another exe.": ""
+    "Choose Ascension-b.exe itself, not another exe.": "",
+    "Game exe: {0}": "",
+    "Ascension.exe or Ascension-b.exe is not in this folder. Choose it separately if the game should start with it.": "",
+    "Choose Ascension.exe or Ascension-b.exe …": "",
+    "The patched game exe to put next to the game (Ascension.exe or Ascension-b.exe)": "",
+    "Choose Ascension.exe or Ascension-b.exe itself, not another exe.": ""
   }
 }

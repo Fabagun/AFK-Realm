@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.20
+
+- Custom races: CoA Custom 1.8.3 renamed its patched game exe back to `Ascension.exe`. The separate exe picker now accepts both `Ascension.exe` and `Ascension-b.exe`, and the client patch copies the chosen file under its own name. The races setup page warns when the client-root folder has neither, and the 64-race `dinput8.dll` is still taken from `files\client` of the same pack.
+
 ## 1.0.19
 
 - Custom races: the client-root folder can lack `Ascension-b.exe` (for example when it holds only the Esteria files). The setup page now warns about it and offers a separate picker for `Ascension-b.exe` (`CustomRaces.ClientExe`). The client patch copies that exe next to the game even when the root folder does not contain it.
