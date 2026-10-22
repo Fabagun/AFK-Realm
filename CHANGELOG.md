@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.22
+
+- Custom races: the separate exe and `dinput8.dll` pickers are gone. Choose the CoA Custom folder once (or let AFK Realm find the usual `Downloads\CoA-Custom\CoA-Custom`), and it takes the exe and the 64-race DLL of that pack automatically. Only the module switch remains.
+
 ## 1.0.21
 
 - Custom races: choosing the client_root now finds `Ascension.exe` or `Ascension-b.exe` and the 64-race `dinput8.dll` of the same CoA Custom pack by itself. The separate pickers stay as a fallback for unusual folder layouts; normal users no longer have to choose three files by hand.

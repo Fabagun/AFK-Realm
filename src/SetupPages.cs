@@ -614,18 +614,6 @@ namespace CoAInstaller
             moreToggle.Wrap(more.Inner - 40);
             more.Add(moreToggle);
             more.Add(dllNote);
-            var pickDll = Ui.Secondary(L.T("Choose the patch (dinput8.dll) …"));
-            pickDll.Click += (s, e) =>
-            {
-                using (var d = new OpenFileDialog { Filter = L.T("64-race patch") + " (dinput8.dll)|dinput8.dll|" + L.T("DLL files") + " (*.dll)|*.dll", Title = L.T("The 64-race patch of the game client") })
-                {
-                    if (d.ShowDialog(this) != DialogResult.OK) return;
-                    if (!RacePacker.IsRacePatch(d.FileName)) { Ui.Error(this, L.T("This DLL is not a 64-race patch of the game client.")); return; }
-                    Set("CustomRaces.MoreRacesFile", d.FileName);
-                    showDll();
-                }
-            };
-            more.Add(pickDll);
             // CoA Custom's own exe knows the races it adds under their own numbers, up to 103
             var highToggle = new Toggle(L.T("Races of CoA Custom's game keep their own numbers (up to 127)")) { BackColor = Ui.Surface, Margin = new Padding(0, 10, 0, 0) };
             highToggle.Wrap(more.Inner - 40);
@@ -750,30 +738,14 @@ namespace CoAInstaller
                     // The exe and the 64-race patch of the same pack, while none is chosen: choosing the
                     // client_root is enough, no second and third file dialog.
                     string exe = ClientPatch.GameExeOf(found);
-                    if (exe != null && Raw("CustomRaces.ClientExe", "").Length == 0) Set("CustomRaces.ClientExe", exe);
+                    if (exe != null) Set("CustomRaces.ClientExe", exe);
                     string patch = ClientPatch.CoAPatchOf(found);
-                    if (patch != null && Raw("CustomRaces.MoreRacesFile", "").Length == 0 && RacePacker.IsRacePatch(patch)) { Set("CustomRaces.MoreRacesFile", patch); showDll(); }
+                    if (patch != null && RacePacker.IsRacePatch(patch)) { Set("CustomRaces.MoreRacesFile", patch); showDll(); }
                     showRoot();
                 }
             };
             clearRoot.Click += (s, e) => { Set("CustomRaces.ClientRootFolder", ""); showRoot(); };
-            var pickExe = Ui.Secondary(L.T("Choose Ascension.exe or Ascension-b.exe …"));
-            pickExe.Click += (s, e) =>
-            {
-                using (var d = new OpenFileDialog { Filter = "Ascension.exe or Ascension-b.exe|Ascension.exe;Ascension-b.exe|Programs (*.exe)|*.exe", Title = L.T("The patched game exe to put next to the game (Ascension.exe or Ascension-b.exe)") })
-                {
-                    if (d.ShowDialog(this) != DialogResult.OK) return;
-                    if (!IsGameExe(d.FileName))
-                    {
-                        Ui.Error(this, L.T("Choose Ascension.exe or Ascension-b.exe itself, not another exe."));
-                        return;
-                    }
-                    Set("CustomRaces.ClientExe", d.FileName);
-                    showRoot();
-                }
-            };
             rootButtons.Controls.Add(pickRoot);
-            rootButtons.Controls.Add(pickExe);
             rootButtons.Controls.Add(clearRoot);
             rootCard.Add(rootButtons);
             AddLoader(showRoot);
@@ -801,23 +773,63 @@ namespace CoAInstaller
             Shown += (s, e) => Refresh();
         }
 
-        /// <summary>Fills the exe and the 64-race patch from the chosen client_root when they are empty.</summary>
+        /// <summary>Fills the exe and the 64-race patch from the chosen client_root. A path that points
+        /// outside that pack is stale and is replaced, so choosing the pack is the only step.</summary>
         void AutoDetect()
         {
             string root = ConfigOption.Unquote(Raw("CustomRaces.ClientRootFolder", ""));
-            if (root.Length == 0) return;
             bool changed = false;
-            if (Raw("CustomRaces.ClientExe", "").Length == 0)
+            if (root.Length == 0)
             {
-                string exe = ClientPatch.GameExeOf(root);
-                if (exe != null) { Set("CustomRaces.ClientExe", exe); changed = true; }
+                string found = DefaultClientRoot();
+                if (found != null) { Set("CustomRaces.ClientRootFolder", found); root = found; changed = true; }
             }
-            if (Raw("CustomRaces.MoreRacesFile", "").Length == 0)
+            if (root.Length == 0) return;
+            string currentExe = ConfigOption.Unquote(Raw("CustomRaces.ClientExe", ""));
+            string exe = ClientPatch.GameExeOf(root);
+            if (exe != null && !SamePath(currentExe, exe) && (currentExe.Length == 0 || !IsInside(currentExe, root)))
             {
-                string patch = ClientPatch.CoAPatchOf(root);
-                if (patch != null && RacePacker.IsRacePatch(patch)) { Set("CustomRaces.MoreRacesFile", patch); changed = true; }
+                Set("CustomRaces.ClientExe", exe); changed = true;
+            }
+            string currentPatch = ConfigOption.Unquote(Raw("CustomRaces.MoreRacesFile", ""));
+            string patch = ClientPatch.CoAPatchOf(root);
+            string files = Path.GetDirectoryName(root.TrimEnd('\\', '/'));
+            if (patch != null && RacePacker.IsRacePatch(patch) && !SamePath(currentPatch, patch) &&
+                (currentPatch.Length == 0 || files == null || !IsInside(currentPatch, files)))
+            {
+                Set("CustomRaces.MoreRacesFile", patch); changed = true;
             }
             if (changed) Reload();
+        }
+
+        /// <summary>The usual place of the CoA Custom pack, so a fresh server needs no folder dialog.</summary>
+        static string DefaultClientRoot()
+        {
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            foreach (string pack in new[] { Path.Combine(home, "Downloads", "CoA-Custom", "CoA-Custom"), Path.Combine(home, "Downloads", "CoA-Custom") })
+            {
+                string root = ClientPatch.ClientRootOf(pack);
+                if (root != null) return root;
+            }
+            return null;
+        }
+
+        static bool SamePath(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            try { return Path.GetFullPath(a).Equals(Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+            catch { return false; }
+        }
+
+        static bool IsInside(string file, string folder)
+        {
+            if (string.IsNullOrEmpty(file) || string.IsNullOrEmpty(folder)) return false;
+            try
+            {
+                string f = Path.GetFullPath(folder).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+                return Path.GetFullPath(file).StartsWith(f, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
         }
 
         /// <summary>Whether a folder looks like the server data of a server pack: its races or its database files.</summary>
