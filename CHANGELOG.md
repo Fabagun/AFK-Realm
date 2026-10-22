@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.19
+
+- Custom races: the client-root folder can lack `Ascension-b.exe` (for example when it holds only the Esteria files). The setup page now warns about it and offers a separate picker for `Ascension-b.exe` (`CustomRaces.ClientExe`). The client patch copies that exe next to the game even when the root folder does not contain it.
+
 ## 1.0.18
 
 - Module manager: the "Modules by AFK Realm" section no longer squeezes the AzerothCore module catalog out of the window. It now has a resizable split area with its own scrollbar; the catalog always keeps room.

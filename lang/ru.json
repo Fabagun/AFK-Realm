@@ -1567,6 +1567,11 @@
     "Mounts with a flying effect may fly in Eastern Kingdoms and Kalimdor. Outland, Northrend, battlegrounds and instances keep their normal rules.": "Средства передвижения с эффектом полёта могут летать в Восточных королевствах и Калимдоре. Запределье, Нордскол, поля боя и подземелья сохраняют обычные правила.",
     "No-fly areas": "Зоны без полётов",
     "Area or zone ids separated by commas. Entering one of them while flying dismounts the player. Empty: no no-fly list.": "ID зон или областей через запятую. Вход в такую зону в полёте сбрасывает игрока с транспорта. Пусто: списка нет.",
-    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "Старый Азерот не создавался для полётов: возможны проваливание сквозь декорации, застревания, сокращение путей заданий и преимущества в PvP. Используйте на свой риск."
+    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "Старый Азерот не создавался для полётов: возможны проваливание сквозь декорации, застревания, сокращение путей заданий и преимущества в PvP. Используйте на свой риск.",
+    "Ascension-b.exe: {0}": "Ascension-b.exe: {0}",
+    "Ascension-b.exe is not in this folder. Choose it separately if the game should start with it.": "Ascension-b.exe отсутствует в этой папке. Выберите его отдельно, если игра должна запускаться с ним.",
+    "Choose Ascension-b.exe …": "Выбрать Ascension-b.exe …",
+    "The patched game exe to put next to the game (Ascension-b.exe)": "Пропатченный exe игры, который кладётся рядом с игрой (Ascension-b.exe)",
+    "Choose Ascension-b.exe itself, not another exe.": "Выберите сам Ascension-b.exe, а не другой exe."
   }
 }

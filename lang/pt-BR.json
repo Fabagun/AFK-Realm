@@ -1567,6 +1567,11 @@
     "Mounts with a flying effect may fly in Eastern Kingdoms and Kalimdor. Outland, Northrend, battlegrounds and instances keep their normal rules.": "Montarias com efeito de voo podem voar nos Reinos do Leste e Kalimdor. Outland, Nortúndria, campos de batalha e instâncias mantêm as regras normais.",
     "No-fly areas": "Zonas sem voo",
     "Area or zone ids separated by commas. Entering one of them while flying dismounts the player. Empty: no no-fly list.": "IDs de área ou zona separados por vírgulas. Entrar em uma delas voando desmonta o jogador. Vazio: sem lista.",
-    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "A velha Azeroth não foi feita para voar: espere atravessar cenários, ficar preso, pular caminhos de missões e obter vantagens em JxJ. Use por sua conta e risco."
+    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "A velha Azeroth não foi feita para voar: espere atravessar cenários, ficar preso, pular caminhos de missões e obter vantagens em JxJ. Use por sua conta e risco.",
+    "Ascension-b.exe: {0}": "Ascension-b.exe: {0}",
+    "Ascension-b.exe is not in this folder. Choose it separately if the game should start with it.": "Ascension-b.exe não está nesta pasta. Escolha-o separadamente se o jogo deve iniciar com ele.",
+    "Choose Ascension-b.exe …": "Escolher Ascension-b.exe …",
+    "The patched game exe to put next to the game (Ascension-b.exe)": "O exe modificado do jogo que fica ao lado do jogo (Ascension-b.exe)",
+    "Choose Ascension-b.exe itself, not another exe.": "Escolha o próprio Ascension-b.exe, não outro exe."
   }
 }

@@ -1,6 +1,10 @@
-# AFK Realm 1.0.18
+# AFK Realm 1.0.19
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.19
+
+- **Ascension-b.exe is no longer lost when the client-root folder has only the Esteria files.** The races setup page warns when the chosen folder does not contain `Ascension-b.exe` and offers a separate picker for it (`CustomRaces.ClientExe`). The client patch copies that exe as `Ascension-b.exe` next to the game, and the ZIP for the players gets it too.
 
 ## New in 1.0.18
 
