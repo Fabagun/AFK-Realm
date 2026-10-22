@@ -610,6 +610,10 @@ namespace CoAInstaller
             // A row the table holds twice takes a place in the client's list for nothing: the second one goes.
             table.Records.RemoveAll(r => !have.Add(Convert.ToBase64String(r)));
             var combo = new uint[lists.Count];
+            // The first-field values this edit really appends a row for. A table may already hold more rows for a stock
+            // value than the module is allowed to add (the CoA client has 31 class rows for Troll 8); those rows are the
+            // client's own and are not the module's to judge.
+            var addedFirst = new HashSet<uint>();
             Action<int> walk = null;
             walk = i =>
             {
@@ -618,7 +622,11 @@ namespace CoAInstaller
                     var rec = new byte[table.RecordSize];
                     for (int f = 0; f < combo.Length; f++)
                         for (int b = 0; b < width; b++) rec[f * width + b] = (byte)(combo[f] >> (8 * b));
-                    if (have.Add(Convert.ToBase64String(rec))) table.Records.Add(rec);
+                    if (have.Add(Convert.ToBase64String(rec)))
+                    {
+                        table.Records.Add(rec);
+                        addedFirst.Add(combo[0]);
+                    }
                     return;
                 }
                 foreach (var value in lists[i]) { combo[i] = value; walk(i + 1); }
@@ -632,7 +640,8 @@ namespace CoAInstaller
                 throw new InvalidOperationException(L.F("{0} would have {1} rows, more than the {2} the game takes (module {3}). Another module may have added rows to it too.",
                     file, table.Records.Count, most, edit.Module));
             int perFirst = edit.AddRows.TryGetValue("maxPerRace", out v) ? Convert.ToInt32(v) : int.MaxValue;
-            var crowded = table.Records.GroupBy(r => table.Field(r, 0)).FirstOrDefault(g => g.Count() > perFirst);
+            var crowded = table.Records.Where(r => addedFirst.Contains(table.Field(r, 0)))
+                .GroupBy(r => table.Field(r, 0)).FirstOrDefault(g => g.Count() > perFirst);
             if (crowded != null)
                 throw new InvalidOperationException(L.F("{0} would have {1} rows for {2}, more than the {3} the game takes (module {4}). Another module may have added rows to it too.",
                     file, crowded.Count(), crowded.Key, perFirst, edit.Module));

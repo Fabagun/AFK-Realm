@@ -1,5 +1,7 @@
 # build output
 AFK-Realm.exe
+out/
+tools/__pycache__/
 
 # editors
 .vs/

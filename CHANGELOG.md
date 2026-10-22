@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.16
+
+- Client patch: the row limit of a module now counts only the rows the module really adds. The CoA client carries 31 class rows for Troll 8; *Modules → Game client → Install* no longer stops with "DBFilesClient\CharBaseInfo.dbc would have 31 rows for 8, more than the 30 the game takes". The stock rows stay as they are.
+- Installation and server consoles: long lines wrap instead of running off the right edge. The detail log of an install/update and the two server consoles now wrap their text, so the horizontal scrollbar is gone.
+
 ## 1.0.15
 
 - Custom races: the archive of an imported race is now built from the files that are really in its race folder, not from the cached list in race.info.json. A pack that was still being copied when the setup page first read it no longer leaves the archive with only its stamp (Grummle showed a blue cube). The stamp covers the real files, so a changed race folder rebuilds the archive.

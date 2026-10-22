@@ -15,7 +15,7 @@ namespace CoAInstaller
     class LogView : UserControl
     {
         readonly TextBox box = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Font = Ui.Mono,
-            BackColor = Color.FromArgb(24, 22, 32), ForeColor = Color.FromArgb(215, 215, 225), WordWrap = false, BorderStyle = BorderStyle.None };
+            BackColor = Color.FromArgb(24, 22, 32), ForeColor = Color.FromArgb(215, 215, 225), WordWrap = true, BorderStyle = BorderStyle.None };
         readonly Timer timer = new Timer { Interval = 1000 };
         string file;
         long position;

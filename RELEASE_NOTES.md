@@ -1,6 +1,11 @@
-# AFK Realm 1.0.15
+# AFK Realm 1.0.16
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.16
+
+- **The client patch installs again with the CoA client.** The game client carries 31 class rows for Troll 8, while a module may add at most 30 rows per race. AFK Realm now applies that limit only to the rows the module really adds, so the stock Troll rows stay and *Modules → Game client → Install* no longer stops with "CharBaseInfo.dbc would have 31 rows for 8".
+- **Readable logs.** Long lines in the installation/update details and in the two server consoles now wrap instead of running off the right edge. The horizontal scrollbar is gone.
 
 ## New in 1.0.15
 

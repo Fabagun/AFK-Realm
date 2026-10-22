@@ -207,7 +207,7 @@ namespace CoAInstaller
         readonly ProgressBar sub = new FlatBar { Width = 640, Height = 8, Maximum = 1000, Margin = new Padding(0, 2, 0, 2) };
         readonly Label action = Ui.Hint(L.T("Starting …"));
         readonly Label elapsed = Ui.Hint("");
-        readonly TextBox log = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Font = Ui.Mono, Width = 640, Height = 170, BackColor = Color.FromArgb(24, 22, 32), ForeColor = Color.FromArgb(215, 215, 225), Visible = false, WordWrap = false };
+        readonly TextBox log = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Font = Ui.Mono, Width = 640, Height = 170, BackColor = Color.FromArgb(24, 22, 32), ForeColor = Color.FromArgb(215, 215, 225), Visible = false, WordWrap = true };
         readonly LinkLabel toggleLog = new LinkLabel { Text = L.T("Show details"), AutoSize = true, Font = Ui.Small, Margin = new Padding(0, 6, 0, 2) };
         readonly System.Windows.Forms.Timer clock = new System.Windows.Forms.Timer { Interval = 1000 };
         readonly DateTime started = DateTime.Now;
