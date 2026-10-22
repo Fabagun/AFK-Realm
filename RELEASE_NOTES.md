@@ -1,6 +1,10 @@
-# AFK Realm 1.0.20
+# AFK Realm 1.0.21
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.21
+
+- **One folder is enough.** Choosing the client_root of CoA Custom now detects `Ascension.exe` or `Ascension-b.exe` and the 64-race `dinput8.dll` from the same pack automatically. The separate file pickers remain only as a fallback for unusual layouts.
 
 ## New in 1.0.20
 

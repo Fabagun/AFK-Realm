@@ -698,6 +698,21 @@ namespace CoAInstaller
                 if (ConfigOption.IsQuoted(f)) f = ConfigOption.Unquote(f);
                 string exe = Raw("CustomRaces.ClientExe", "");
                 if (ConfigOption.IsQuoted(exe)) exe = ConfigOption.Unquote(exe);
+                // Choosing the client_root is enough: take the exe and the 64-race patch of the same pack
+                // when they are not chosen yet. The separate buttons stay for unusual folder layouts.
+                if (f.Length > 0)
+                {
+                    if (exe.Length == 0)
+                    {
+                        string foundExe = ClientPatch.GameExeOf(f);
+                        if (foundExe != null) { Set("CustomRaces.ClientExe", foundExe); exe = foundExe; }
+                    }
+                    if (Raw("CustomRaces.MoreRacesFile", "").Length == 0)
+                    {
+                        string foundPatch = ClientPatch.CoAPatchOf(f);
+                        if (foundPatch != null && RacePacker.IsRacePatch(foundPatch)) Set("CustomRaces.MoreRacesFile", foundPatch);
+                    }
+                }
                 if (f.Length == 0)
                 {
                     rootNote.Text = exe.Length > 0
@@ -732,7 +747,10 @@ namespace CoAInstaller
                     string found = ClientPatch.ClientRootOf(d.SelectedPath);
                     if (found == null) { Ui.Error(this, L.T("This folder holds no files\\client_root of CoA Custom.")); return; }
                     Set("CustomRaces.ClientRootFolder", found);
-                    // the 64-race patch of the same pack, while none is chosen
+                    // The exe and the 64-race patch of the same pack, while none is chosen: choosing the
+                    // client_root is enough, no second and third file dialog.
+                    string exe = ClientPatch.GameExeOf(found);
+                    if (exe != null && Raw("CustomRaces.ClientExe", "").Length == 0) Set("CustomRaces.ClientExe", exe);
                     string patch = ClientPatch.CoAPatchOf(found);
                     if (patch != null && Raw("CustomRaces.MoreRacesFile", "").Length == 0 && RacePacker.IsRacePatch(patch)) { Set("CustomRaces.MoreRacesFile", patch); showDll(); }
                     showRoot();
@@ -779,7 +797,27 @@ namespace CoAInstaller
             var after = Card(L.T("After a change"), null, "client");
             after.Add(Small(L.F("The race choice of the game shows the races of the client patch. After a change, open Modules › Game client and choose Install: {0} builds the patch anew. The other players need the new ZIP. A race switched off keeps its characters as their base race until it is on again; changing the base race of a race with characters may move them to the other faction. When the game client changes with an update, open this page again: it reads the races anew.", Product.Name), after.Inner));
             Start();
+            AutoDetect();
             Shown += (s, e) => Refresh();
+        }
+
+        /// <summary>Fills the exe and the 64-race patch from the chosen client_root when they are empty.</summary>
+        void AutoDetect()
+        {
+            string root = ConfigOption.Unquote(Raw("CustomRaces.ClientRootFolder", ""));
+            if (root.Length == 0) return;
+            bool changed = false;
+            if (Raw("CustomRaces.ClientExe", "").Length == 0)
+            {
+                string exe = ClientPatch.GameExeOf(root);
+                if (exe != null) { Set("CustomRaces.ClientExe", exe); changed = true; }
+            }
+            if (Raw("CustomRaces.MoreRacesFile", "").Length == 0)
+            {
+                string patch = ClientPatch.CoAPatchOf(root);
+                if (patch != null && RacePacker.IsRacePatch(patch)) { Set("CustomRaces.MoreRacesFile", patch); changed = true; }
+            }
+            if (changed) Reload();
         }
 
         /// <summary>Whether a folder looks like the server data of a server pack: its races or its database files.</summary>

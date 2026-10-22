@@ -950,6 +950,29 @@ namespace CoAInstaller
             return gameExe || !new[] { "Ascension.exe", "Wow.exe", "Launcher.exe" }.Any(n => n.Equals(to, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>The patched game exe of the same CoA Custom pack (Ascension.exe in 1.8.3, Ascension-b.exe in
+        /// older ones), from the client_root, its files folder or the pack; null when there is none.</summary>
+        public static string GameExeOf(string clientRoot)
+        {
+            if (string.IsNullOrEmpty(clientRoot)) return null;
+            var dirs = new List<string> { clientRoot.TrimEnd('\\', '/') };
+            string files = Path.GetDirectoryName(clientRoot.TrimEnd('\\', '/'));
+            if (!string.IsNullOrEmpty(files))
+            {
+                dirs.Add(files);
+                dirs.Add(Path.Combine(files, "client"));
+                string pack = Path.GetDirectoryName(files);
+                if (!string.IsNullOrEmpty(pack)) dirs.Add(pack);
+            }
+            foreach (string name in new[] { "Ascension.exe", "Ascension-b.exe" })
+                foreach (string dir in dirs)
+                {
+                    string file = Path.Combine(dir, name);
+                    if (File.Exists(file)) return file;
+                }
+            return null;
+        }
+
         /// <summary>CoA Custom's files for next to the exe (files\client_root), from the folder of the pack, its files folder,
         /// or that folder itself; null when there is none.</summary>
         public static string ClientRootOf(string picked)
