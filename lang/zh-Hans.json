@@ -1555,6 +1555,7 @@
     "The server could not be built with {0}. The module was taken out again and your server is unchanged. {1} ({2})": "无法使用 {0} 编译服务器。该模块已被重新移出，你的服务器没有改变。{1}（{2}）",
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "没有被移除的模块就无法编译服务器，因此已将其放回，你的服务器没有改变。（{0}）",
     "Setting up the database": "正在设置数据库",
-    "Importing the CoA world data": "正在导入 CoA 世界数据"
+    "Importing the CoA world data": "正在导入 CoA 世界数据",
+    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "东部王国和卡利姆多的飞行坐骑——旧艾泽拉斯的可选实验性设置"
   }
 }

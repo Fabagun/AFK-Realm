@@ -1555,6 +1555,7 @@
     "The server could not be built with {0}. The module was taken out again and your server is unchanged. {1} ({2})": "Не удалось собрать сервер с {0}. Модуль снова убран, ваш сервер не изменён. {1} ({2})",
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "Не удалось собрать сервер без удалённого модуля, поэтому он возвращён, ваш сервер не изменён. ({0})",
     "Setting up the database": "Настройка базы данных",
-    "Importing the CoA world data": "Импорт данных мира CoA"
+    "Importing the CoA world data": "Импорт данных мира CoA",
+    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Летающие средства передвижения в Восточных королевствах и Калимдоре — дополнительная экспериментальная настройка для старого Азерота"
   }
 }

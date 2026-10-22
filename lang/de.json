@@ -1555,6 +1555,7 @@
     "The server could not be built with {0}. The module was taken out again and your server is unchanged. {1} ({2})": "Der Server konnte mit {0} nicht gebaut werden. Das Modul wurde wieder herausgenommen, dein Server ist unverändert. {1} ({2})",
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "Der Server konnte ohne das entfernte Modul nicht gebaut werden, daher wurde es zurückgelegt; dein Server ist unverändert. ({0})",
     "Setting up the database": "Datenbank wird eingerichtet",
-    "Importing the CoA world data": "CoA-Weltdaten werden importiert"
+    "Importing the CoA world data": "CoA-Weltdaten werden importiert",
+    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Fliegende Reittiere in Eastern Kingdoms und Kalimdor – eine optionale, experimentelle Einstellung für das alte Azeroth"
   }
 }

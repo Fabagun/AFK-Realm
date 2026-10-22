@@ -67,6 +67,9 @@ namespace CoAInstaller
                 new ModuleEntry { Name = "mod-custom-races", FullName = "aspollon/mod-custom-races", Branch = "main", Own = true,
                     Url = "https://github.com/aspollon/mod-custom-races", CloneUrl = "https://github.com/aspollon/mod-custom-races.git",
                     Description = L.N("The races the game client carries - Goblin, Worgen, Pandaren, Vrykul and more - playable for players and bots") },
+                new ModuleEntry { Name = "mod-azeroth-flying", FullName = "aspollon/mod-azeroth-flying", Branch = "main", Own = true,
+                    Url = "https://github.com/aspollon/mod-azeroth-flying", CloneUrl = "https://github.com/aspollon/mod-azeroth-flying.git",
+                    Description = L.N("Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth") },
             };
         }
         static readonly Dictionary<string, ModuleAnalysis> analyses = new Dictionary<string, ModuleAnalysis>(StringComparer.OrdinalIgnoreCase);

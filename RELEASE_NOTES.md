@@ -1,6 +1,11 @@
-# AFK Realm 1.0.16
+# AFK Realm 1.0.17
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.17
+
+- **Optional flying in old Azeroth.** *Modules by AFK Realm* now lists **mod-azeroth-flying**. It lets mounts with a flying effect fly in Eastern Kingdoms and Kalimdor when `AzerothFlying.Enable` is on. Off by default. The old-world capitals and Teldrassil are a configurable no-fly list; flying into one dismounts the player. Outland, Northrend, battlegrounds and instances keep their normal rules.
+- **Use it at your own risk.** Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. The module's README and config say so.
 
 ## New in 1.0.16
 

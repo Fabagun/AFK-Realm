@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.17
+
+- Modules by AFK Realm: **mod-azeroth-flying** is listed. It lets mounts with a flying effect fly in Eastern Kingdoms and Kalimdor when `AzerothFlying.Enable` is on (off by default). The old-world capitals and Teldrassil are a configurable no-fly list; flying into one dismounts the player. The module warns that old Azeroth was not built for flying.
+
 ## 1.0.16
 
 - Client patch: the row limit of a module now counts only the rows the module really adds. The CoA client carries 31 class rows for Troll 8; *Modules → Game client → Install* no longer stops with "DBFilesClient\CharBaseInfo.dbc would have 31 rows for 8, more than the 30 the game takes". The stock rows stay as they are.
