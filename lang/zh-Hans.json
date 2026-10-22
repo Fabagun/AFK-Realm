@@ -1556,6 +1556,17 @@
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "没有被移除的模块就无法编译服务器，因此已将其放回，你的服务器没有改变。（{0}）",
     "Setting up the database": "正在设置数据库",
     "Importing the CoA world data": "正在导入 CoA 世界数据",
-    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "东部王国和卡利姆多的飞行坐骑——旧艾泽拉斯的可选实验性设置"
+    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "东部王国和卡利姆多的飞行坐骑——旧艾泽拉斯的可选实验性设置",
+    "Azeroth flying": "艾泽拉斯飞行",
+    "Optional flying mounts in Eastern Kingdoms and Kalimdor: off by default, with a configurable no-fly list for the old capitals. Old Azeroth was not built for flying; use it at your own risk.": "东部王国和卡利姆多的可选飞行坐骑：默认关闭，旧主城有可配置的禁飞区列表。旧艾泽拉斯并非为飞行设计；使用风险自负。",
+    "Set up Azeroth flying …": "设置艾泽拉斯飞行 …",
+    "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf": "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf",
+    "Flying in old Azeroth on": "旧艾泽拉斯飞行已开启",
+    "Old Azeroth": "旧艾泽拉斯",
+    "Flying mounts": "飞行坐骑",
+    "Mounts with a flying effect may fly in Eastern Kingdoms and Kalimdor. Outland, Northrend, battlegrounds and instances keep their normal rules.": "带有飞行效果的坐骑可以在东部王国和卡利姆多飞行。外域、诺森德、战场和副本保持原有规则。",
+    "No-fly areas": "禁飞区",
+    "Area or zone ids separated by commas. Entering one of them while flying dismounts the player. Empty: no no-fly list.": "用逗号分隔的区域或地区 ID。飞行中进入这些区域会下马。留空：没有禁飞列表。",
+    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "旧艾泽拉斯并非为飞行设计：可能出现穿模、卡住、跳过任务路线以及 PvP 优势。使用风险自负。"
   }
 }

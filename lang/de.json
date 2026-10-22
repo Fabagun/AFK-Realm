@@ -1556,6 +1556,17 @@
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "Der Server konnte ohne das entfernte Modul nicht gebaut werden, daher wurde es zurückgelegt; dein Server ist unverändert. ({0})",
     "Setting up the database": "Datenbank wird eingerichtet",
     "Importing the CoA world data": "CoA-Weltdaten werden importiert",
-    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Fliegende Reittiere in Eastern Kingdoms und Kalimdor – eine optionale, experimentelle Einstellung für das alte Azeroth"
+    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Fliegende Reittiere in Eastern Kingdoms und Kalimdor – eine optionale, experimentelle Einstellung für das alte Azeroth",
+    "Azeroth flying": "Fliegen in Azeroth",
+    "Optional flying mounts in Eastern Kingdoms and Kalimdor: off by default, with a configurable no-fly list for the old capitals. Old Azeroth was not built for flying; use it at your own risk.": "Optionale fliegende Reittiere in Eastern Kingdoms und Kalimdor: standardmäßig aus, mit einer einstellbaren No-Fly-Liste für die alten Hauptstädte. Das alte Azeroth wurde nicht fürs Fliegen gebaut; Nutzung auf eigenes Risiko.",
+    "Set up Azeroth flying …": "Azeroth-Fliegen einrichten …",
+    "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf": "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf",
+    "Flying in old Azeroth on": "Fliegen im alten Azeroth an",
+    "Old Azeroth": "Altes Azeroth",
+    "Flying mounts": "Fliegende Reittiere",
+    "Mounts with a flying effect may fly in Eastern Kingdoms and Kalimdor. Outland, Northrend, battlegrounds and instances keep their normal rules.": "Reittiere mit Flugeffekt dürfen in Eastern Kingdoms und Kalimdor fliegen. Outland, Northrend, Schlachtfelder und Instanzen behalten ihre normalen Regeln.",
+    "No-fly areas": "No-Fly-Zonen",
+    "Area or zone ids separated by commas. Entering one of them while flying dismounts the player. Empty: no no-fly list.": "Area- oder Zone-IDs durch Kommas getrennt. Wer im Flug eine davon betritt, wird abgesattelt. Leer: keine No-Fly-Liste.",
+    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "Azeroth wurde nicht fürs Fliegen gebaut: Mit Clipping, Hängenbleiben, abgekürzten Questwegen, ungewollten Abkürzungen und PvP-Vorteilen ist zu rechnen. Nutzung auf eigenes Risiko."
   }
 }

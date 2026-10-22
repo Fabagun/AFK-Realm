@@ -371,6 +371,11 @@ namespace CoAInstaller
                 OfferBotsForRaces(before);
             };
 
+            flyingCard = Section("modules", L.T("Azeroth flying"), L.T("Optional flying mounts in Eastern Kingdoms and Kalimdor: off by default, with a configurable no-fly list for the old capitals. Old Azeroth was not built for flying; use it at your own risk."), "journey");
+            flyingCard.Stripe = Ui.Accent;
+            var flyingBtn = flyingCard.Add(Ui.Primary(L.T("Set up Azeroth flying …")));
+            flyingBtn.Click += (s, e) => OpenSetup(new AzerothFlyingSetup(inst));
+
             var clientCard = Section("modules", L.T("Game client"), L.F("Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). {0} puts them into your game and clears its cache when a module asks for it; for other players it packs them into a ZIP.", Product.Name), "client");
             clientCard.Add(clientState);
             var clientBtn = clientCard.Add(Ui.Secondary(L.T("Game client …")));
@@ -458,7 +463,7 @@ namespace CoAInstaller
             poll.Tick += (s, e) => RefreshStatus();
         }
 
-        Card journeyCard, auctionCard, classicCard, racesCard;
+        Card journeyCard, auctionCard, classicCard, racesCard, flyingCard;
         ServerPicker serverPick;
 
         /// <summary>The servers AFK Realm knows, to switch between them, and the ways to add one.</summary>
@@ -524,6 +529,7 @@ namespace CoAInstaller
             auctionCard.Tag = Directory.Exists(Path.Combine(dir, "mod-playerbots-auctions")) ? null : "hidden";
             classicCard.Tag = Directory.Exists(Path.Combine(dir, "mod-classic-classes")) ? null : "hidden";
             racesCard.Tag = Directory.Exists(Path.Combine(dir, "mod-custom-races")) ? null : "hidden";
+            flyingCard.Tag = Directory.Exists(Path.Combine(dir, "mod-azeroth-flying")) ? null : "hidden";
             if (current == "modules") Show("modules");
         }
 

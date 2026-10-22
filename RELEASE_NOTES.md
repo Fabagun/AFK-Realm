@@ -1,6 +1,11 @@
-# AFK Realm 1.0.17
+# AFK Realm 1.0.18
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.18
+
+- **The module catalog stays visible.** The "Modules by AFK Realm" section now grows in its own resizable, scrollable area. With five or six modules of our own, the AzerothCore catalog below no longer shrinks to nothing.
+- **Azeroth flying has a setup page.** The master switch, the configurable no-fly area list and the warning that old Azeroth was not built for flying are now on one page under *Modules*.
 
 ## New in 1.0.17
 

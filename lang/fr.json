@@ -1556,6 +1556,17 @@
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "Le serveur n’a pas pu être compilé sans le module retiré, il a donc été remis et votre serveur est inchangé. ({0})",
     "Setting up the database": "Mise en place de la base de données",
     "Importing the CoA world data": "Importation des données du monde de CoA",
-    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Montures volantes dans les Royaumes de l'Est et Kalimdor – une option expérimentale pour l'ancien Azeroth"
+    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Montures volantes dans les Royaumes de l'Est et Kalimdor – une option expérimentale pour l'ancien Azeroth",
+    "Azeroth flying": "Vol dans Azeroth",
+    "Optional flying mounts in Eastern Kingdoms and Kalimdor: off by default, with a configurable no-fly list for the old capitals. Old Azeroth was not built for flying; use it at your own risk.": "Montures volantes optionnelles dans les Royaumes de l'Est et Kalimdor : désactivé par défaut, avec une liste de zones sans vol configurable pour les anciennes capitales. L'ancien Azeroth n'a pas été conçu pour le vol ; à utiliser à vos risques.",
+    "Set up Azeroth flying …": "Configurer le vol dans Azeroth …",
+    "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf": "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf",
+    "Flying in old Azeroth on": "Vol dans l'ancien Azeroth activé",
+    "Old Azeroth": "Ancien Azeroth",
+    "Flying mounts": "Montures volantes",
+    "Mounts with a flying effect may fly in Eastern Kingdoms and Kalimdor. Outland, Northrend, battlegrounds and instances keep their normal rules.": "Les montures dotées d'un effet de vol peuvent voler dans les Royaumes de l'Est et Kalimdor. Outreterre, Norfendre, champs de bataille et instances gardent leurs règles normales.",
+    "No-fly areas": "Zones sans vol",
+    "Area or zone ids separated by commas. Entering one of them while flying dismounts the player. Empty: no no-fly list.": "IDs de zone ou de sous-zone séparés par des virgules. Entrer dans l'une d'elles en vol fait descendre le joueur. Vide : aucune liste.",
+    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "L'ancien Azeroth n'a pas été conçu pour le vol : attendez-vous à des passages à travers le décor, des blocages, des raccourcis de quêtes non prévus et des avantages en JcJ. À utiliser à vos risques."
   }
 }

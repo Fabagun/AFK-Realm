@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.18
+
+- Module manager: the "Modules by AFK Realm" section no longer squeezes the AzerothCore module catalog out of the window. It now has a resizable split area with its own scrollbar; the catalog always keeps room.
+- Azeroth flying: a setup page for mod-azeroth-flying with the master switch, the no-fly area list and the warning that old Azeroth was not built for flying.
+
 ## 1.0.17
 
 - Modules by AFK Realm: **mod-azeroth-flying** is listed. It lets mounts with a flying effect fly in Eastern Kingdoms and Kalimdor when `AzerothFlying.Enable` is on (off by default). The old-world capitals and Teldrassil are a configurable no-fly list; flying into one dismounts the player. The module warns that old Azeroth was not built for flying.

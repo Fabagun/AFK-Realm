@@ -36,11 +36,15 @@ namespace CoAInstaller
 
         // The modules made for AFK Realm stand above the catalog, in a section of their own.
         readonly FlowLayoutPanel ownPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 0, 0, 2) };
+        // The own section grows with its rows, but the catalog below always keeps room. With five or six
+        // modules of our own the fixed-height version pushed the catalog out of the window.
+        readonly SplitContainer ownSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 6, Panel1MinSize = 70, Panel2MinSize = 120 };
+        readonly Label catalogTitle = new Label { Text = L.T("AzerothCore module catalog"), Dock = DockStyle.Top, AutoSize = true, Font = Ui.H2, ForeColor = Ui.Text, Padding = new Padding(0, 4, 0, 2) };
         readonly Dictionary<ModuleEntry, Label> ownStatus = new Dictionary<ModuleEntry, Label>();
         ModuleEntry ownSelected;
         List<ModuleEntry> all = new List<ModuleEntry>();
         readonly HashSet<ModuleEntry> ticked = new HashSet<ModuleEntry>();
-        bool filling;
+        bool filling, fitting;
 
         public ModulesDialog(Install i)
         {
@@ -65,8 +69,12 @@ namespace CoAInstaller
             list.Columns.Add(L.T("Last change"), 90);
             list.Columns.Add(L.T("Status"), 115);
             var listPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16, 4, 8, 4) };
-            listPanel.Controls.Add(list);
-            listPanel.Controls.Add(ownPanel);
+            ownSplit.Panel1.AutoScroll = true;
+            ownSplit.Panel1.Controls.Add(ownPanel);
+            ownSplit.Panel2.Controls.Add(list);
+            ownSplit.Panel2.Controls.Add(catalogTitle);
+            ownSplit.SizeChanged += (s, e) => FitOwn();
+            listPanel.Controls.Add(ownSplit);
 
             var details = Ui.Column(); details.Padding = new Padding(4, 4, 8, 4);
             details.Controls.Add(detailName); details.Controls.Add(detailText); details.Controls.Add(detailLink);
@@ -171,9 +179,29 @@ namespace CoAInstaller
                     row.Controls.Add(tick); row.Controls.Add(text); row.Controls.Add(state);
                     ownPanel.Controls.Add(row);
                 }
-                ownPanel.Controls.Add(new Label { Text = L.T("AzerothCore module catalog"), AutoSize = true, Font = Ui.H2, ForeColor = Ui.Text, Margin = new Padding(0, 8, 0, 2) });
             }
             ownPanel.ResumeLayout();
+            ownSplit.Panel1Collapsed = mine.Count == 0;
+            ownPanel.PerformLayout();
+            FitOwn();
+        }
+
+        /// <summary>Gives the own-module section its content height, but never more than half the list area.</summary>
+        void FitOwn()
+        {
+            if (fitting || ownSplit.Height <= 0 || ownSplit.Panel1Collapsed)
+                return;
+
+            fitting = true;
+            try
+            {
+                int wanted = Math.Max(ownSplit.Panel1MinSize, ownPanel.PreferredSize.Height + 4);
+                int room = ownSplit.Height - ownSplit.Panel2MinSize - ownSplit.SplitterWidth;
+                int max = Math.Max(ownSplit.Panel1MinSize, Math.Min(room, ownSplit.Height / 2));
+                ownSplit.SplitterDistance = Math.Min(wanted, max);
+            }
+            catch (InvalidOperationException) { /* the window is still too small for the splitter; the next layout fixes it */ }
+            finally { fitting = false; }
         }
 
         void Pick(ModuleEntry m)

@@ -1556,6 +1556,17 @@
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "Не удалось собрать сервер без удалённого модуля, поэтому он возвращён, ваш сервер не изменён. ({0})",
     "Setting up the database": "Настройка базы данных",
     "Importing the CoA world data": "Импорт данных мира CoA",
-    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Летающие средства передвижения в Восточных королевствах и Калимдоре — дополнительная экспериментальная настройка для старого Азерота"
+    "Flying mounts in Eastern Kingdoms and Kalimdor - an optional, experimental setting for old Azeroth": "Летающие средства передвижения в Восточных королевствах и Калимдоре — дополнительная экспериментальная настройка для старого Азерота",
+    "Azeroth flying": "Полёты в Азероте",
+    "Optional flying mounts in Eastern Kingdoms and Kalimdor: off by default, with a configurable no-fly list for the old capitals. Old Azeroth was not built for flying; use it at your own risk.": "Необязательные летающие средства передвижения в Восточных королевствах и Калимдоре: по умолчанию выключено, с настраиваемым списком зон без полётов для старых столиц. Старый Азерот не создавался для полётов; используйте на свой риск.",
+    "Set up Azeroth flying …": "Настроить полёты в Азероте …",
+    "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf": "mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf",
+    "Flying in old Azeroth on": "Полёты в старом Азероте включены",
+    "Old Azeroth": "Старый Азерот",
+    "Flying mounts": "Летающие средства передвижения",
+    "Mounts with a flying effect may fly in Eastern Kingdoms and Kalimdor. Outland, Northrend, battlegrounds and instances keep their normal rules.": "Средства передвижения с эффектом полёта могут летать в Восточных королевствах и Калимдоре. Запределье, Нордскол, поля боя и подземелья сохраняют обычные правила.",
+    "No-fly areas": "Зоны без полётов",
+    "Area or zone ids separated by commas. Entering one of them while flying dismounts the player. Empty: no no-fly list.": "ID зон или областей через запятую. Вход в такую зону в полёте сбрасывает игрока с транспорта. Пусто: списка нет.",
+    "Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk.": "Старый Азерот не создавался для полётов: возможны проваливание сквозь декорации, застревания, сокращение путей заданий и преимущества в PvP. Используйте на свой риск."
   }
 }

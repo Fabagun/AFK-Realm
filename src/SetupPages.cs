@@ -1734,6 +1734,23 @@ namespace CoAInstaller
         }
     }
 
+    // ==================================================================================== Azeroth flying
+
+    class AzerothFlyingSetup : SetupDialog
+    {
+        public AzerothFlyingSetup(Install i) : base(i, "mod_azeroth_flying.conf", L.T("Azeroth flying"),
+            L.T("mod-azeroth-flying  ·  modules\\mod_azeroth_flying.conf"), "journey", "AzerothFlying.Enable", L.T("Flying in old Azeroth on"))
+        {
+            Tab(L.T("Old Azeroth"));
+            var fly = Card(L.T("Flying mounts"),
+                L.T("Mounts with a flying effect may fly in Eastern Kingdoms and Kalimdor. Outland, Northrend, battlegrounds and instances keep their normal rules."), "journey");
+            AddText(fly, "AzerothFlying.NoFlyAreas", L.T("No-fly areas"),
+                L.T("Area or zone ids separated by commas. Entering one of them while flying dismounts the player. Empty: no no-fly list."));
+            Note(L.T("Azeroth was not built for flying: expect clipping, stuck spots, skipped quest paths, unintended shortcuts and PvP advantages. Use it at your own risk."));
+            Start();
+        }
+    }
+
     // ==================================================================================== Auction house bots
 
     class AuctionSetup : SetupDialog
