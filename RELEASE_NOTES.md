@@ -5,6 +5,7 @@ Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with 
 ## New in 1.0.28
 
 - **Azeroth flying builds again.** The current CoA core rejected the module with `IsNoFlyArea` not found. The core header now declares the no-fly check, so the build finishes and flying can be tested in Kalimdor and the Eastern Kingdoms.
+- **Store and achievement mounts fly too.** Mount spells marked "flying areas only" were refused in the old world before the module ever saw them. The core's location check now accepts Eastern Kingdoms and Kalimdor while `AzerothFlying.Enable` is on.
 - **Immersion Life installs every quest hub.** The database button now also applies `world_city_life_quest_zones.sql`, which older installations need before the optional locations.
 - **Immersion Life is out of testing.** The module card says what users get: PvP Life and Fishing Life off by default, legendary residents on.
 

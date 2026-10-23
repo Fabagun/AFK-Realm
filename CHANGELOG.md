@@ -3,6 +3,7 @@
 ## 1.0.28
 
 - Azeroth flying: the module now builds on the current CoA core again. `AscensionMountSpeed.h` declares `IsNoFlyArea`, so `AzerothFlying.cpp` no longer stops with C2039/C3861 during a server build.
+- Azeroth flying: mounts whose spell is marked "flying areas only" (most store, achievement and holiday mounts) can now be summoned in Eastern Kingdoms and Kalimdor as well; the core's location check treats the old world as flyable while `AzerothFlying.Enable` is on.
 - Immersion Life: the database installer also applies `world_city_life_quest_zones.sql`, so the quest hubs are complete on existing installations as well.
 - Immersion Life: the module card no longer calls the module a local test. It names the defaults correctly: PvP Life and Fishing Life off, legendary residents on.
 
