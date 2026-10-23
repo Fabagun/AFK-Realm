@@ -1,6 +1,10 @@
-# AFK Realm 1.0.22
+# AFK Realm 1.0.23
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.23
+
+- **One less folder to choose.** The separate “Server data” card is gone from Custom races. CoA Custom and imported race packs bring their racial rows without another folder; the setup page now only asks for the CoA Custom pack and the module switch.
 
 ## New in 1.0.22
 

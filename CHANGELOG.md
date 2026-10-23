@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.23
+
+- Custom races: the separate “Server data” card is gone. CoA Custom and imported race packs bring their racial rows without choosing another server folder; the setup page now only has the pack folder and the module switch.
+
 ## 1.0.22
 
 - Custom races: the separate exe and `dinput8.dll` pickers are gone. Choose the CoA Custom folder once (or let AFK Realm find the usual `Downloads\CoA-Custom\CoA-Custom`), and it takes the exe and the 64-race DLL of that pack automatically. Only the module switch remains.

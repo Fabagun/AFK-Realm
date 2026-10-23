@@ -560,7 +560,7 @@ namespace CoAInstaller
                 string target = folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "AFK-Rassen");
                 string mine = ClientAddons.ClientFolder;
                 if (mine != null && !ClientAddons.IsClientFolder(mine)) mine = null;
-                using (var d = new RacePackDialog(target, mine, Raw("CustomRaces.ServerDataFolder", "")))
+                using (var d = new RacePackDialog(target, mine, ""))
                 {
                     d.ShowDialog(this);
                     if (d.Made == 0) return;
@@ -569,29 +569,6 @@ namespace CoAInstaller
                 }
             };
             fold.Add(make);
-
-            // the server side: the rows of a race as the server data of the pack brings them
-            var serverData = Card(L.T("Server data (optional)"), L.T("Leave this empty for CoA Custom: its races bring their racial abilities without it. Choose a folder only for another server pack that keeps the racial abilities of its races in a server folder of its own (with races\\*.json, a database folder or RACES.md). Its rows then come first; the module puts them into the game database at the server's start and takes them out again when a race goes off."), "server");
-            var serverWhere = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, BackColor = Ui.Surface, MaximumSize = new Size(serverData.Inner - 20, 0), Margin = new Padding(0, 4, 0, 8) };
-            serverData.Add(serverWhere);
-            Action showServer = () =>
-            {
-                string f = Raw("CustomRaces.ServerDataFolder", "");
-                serverWhere.Text = f.Length == 0 ? L.T("No folder chosen. Not needed for CoA Custom.") : f;
-            };
-            var pickServer = Ui.Secondary(L.T("Choose the server data folder …"));
-            pickServer.Click += (s, e) =>
-            {
-                using (var d = new FolderBrowserDialog { Description = L.T("The server data folder: the pack with the races and the database files"), SelectedPath = Raw("CustomRaces.ServerDataFolder", "") })
-                {
-                    if (d.ShowDialog(this) != DialogResult.OK) return;
-                    if (!LooksLikeServerData(d.SelectedPath)) { Ui.Error(this, L.T("This folder holds no server data (no races and no database folder).")); return; }
-                    Set("CustomRaces.ServerDataFolder", "\"" + d.SelectedPath + "\"");
-                    serverWhere.Text = d.SelectedPath + "  ·  " + L.T("save to take it over");
-                }
-            };
-            serverData.Add(pickServer);
-            AddLoader(showServer);
 
             // more than 31 races: the 64-race patch of the game client (a DLL of the user's own, from CoA Custom)
             var more = Card(L.T("More than 31 races"), L.F("The game client knows race numbers up to 31. With a 64-race patch (dinput8.dll next to Ascension.exe, as CoA Custom ships it) it knows numbers up to 63. Your client's own race table already fills {0} of the 32 numbers from 32 to 63 (its own races and the HD copies of the standard races); the {1} that stay free are the room the patch opens for races without a number of their own. {2} puts the patch next to your game when you install the client patch, and into the ZIP for the other players; switched off, it takes it away again. A race above 32 does what its base race may do (it has no bit of its own in the race masks of quests and items). The server needs its core rebuilt for this once.", 32 - moreSlots.Count, moreSlots.Count, Product.Name), "client");
@@ -832,14 +809,6 @@ namespace CoAInstaller
             catch { return false; }
         }
 
-        /// <summary>Whether a folder looks like the server data of a server pack: its races or its database files.</summary>
-        static bool LooksLikeServerData(string folder)
-        {
-            return Directory.Exists(Path.Combine(folder, "races"))
-                || Directory.Exists(Path.Combine(folder, "database"))
-                || File.Exists(Path.Combine(folder, "RACES.md"));
-        }
-
         /// <summary>Reads, before the page opens and in the background, what it shows: the races of the game client and
         /// those of the race folder (both kept for the page, which then opens at once).</summary>
         public static void Preload(Install inst)
@@ -1046,7 +1015,7 @@ namespace CoAInstaller
                         }
                     on.Add(wanted);
                 }
-                ServerRacials.Sync(Raw("CustomRaces.ServerDataFolder", ""), RacialsFolder, ClientAddons.ClientFolder, on);
+                ServerRacials.Sync("", RacialsFolder, ClientAddons.ClientFolder, on);
             }
             catch (Exception ex) { Ui.Error(this, L.T("The racial rows could not be written:") + "\n" + ex.Message); }
         }
@@ -1156,7 +1125,7 @@ namespace CoAInstaller
                 putText("HelmetPrefix", "");
             put("Appearance", ExtraLooksOf(r, id).ToString());
             // its racials: the set the server pack gives it (its rows travel to the server data folder as well)
-            var racials = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), pack != null ? pack.Name : r.Name, CoaRaceOf(r));
+            var racials = ServerRacials.Spells("", pack != null ? pack.Name : r.Name, CoaRaceOf(r));
             if (racials.Length > 0) putText("Racials", string.Join(" ", racials));
             // its icon: from its folder, or from the icons of the race folder (_Icons)
             string icon = null;
@@ -1214,7 +1183,7 @@ namespace CoAInstaller
                     (r.Pack.Missing > 0 ? " " + L.F("{0} of its files are missing; the choices that need them are left out.", r.Pack.Missing) : "")
                 : k != null && k.About.Length > 0 ? L.Outside(k.About) : r.Virtual ? L.T("A race of your game client.") : L.F("A race of your game client (row {0} of its race table).", r.Source);
             if (k != null && k.Note.Length > 0) about += " " + L.Outside(k.Note);
-            var racialSpells = ServerRacials.Spells(Raw("CustomRaces.ServerDataFolder", ""), r.Pack != null ? r.Pack.Name : r.Name, CoaRaceOf(r));
+            var racialSpells = ServerRacials.Spells("", r.Pack != null ? r.Pack.Name : r.Name, CoaRaceOf(r));
             var needCode = ServerRacials.NeedCode(racialSpells);
             if (needCode.Length > 0)
                 about += " " + L.F("{0} of its {1} racial abilities need code of CoA Custom's server and do nothing here yet.", needCode.Length, racialSpells.Length);
