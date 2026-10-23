@@ -1,9 +1,5 @@
 # Changelog
 
-## 1.0.26
-
-- Custom races: CoA Custom's Gnoll patches have no listfile, so their textures cannot be named. AFK Realm now installs a clean `Data\patch-ZZZZ.MPQ` with the known Gnoll model, skin, textures and icon when `CustomRaces.HighRaces` is on. It loads after `ZZW`/`ZZZ` and never changes Il's original MPQs.
-
 ## 1.0.25
 
 - Game client: the long-path warning now names the real cause. `Ascension.exe` is not long-path aware, so custom textures can be missing anywhere, not only for Haranir and Esteria Vulpera. A short client path such as `C:\CoA` is the reliable fix.

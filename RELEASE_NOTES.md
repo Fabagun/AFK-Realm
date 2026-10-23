@@ -1,10 +1,6 @@
-# AFK Realm 1.0.26
+# AFK Realm 1.0.25
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
-
-## New in 1.0.26
-
-- **Gnoll textures for CoA Custom's listfile-less patches.** AFK Realm builds a clean `Data\patch-ZZZZ.MPQ` from the known Gnoll model, skin, textures and icon and installs it with the custom races client patch. It loads after `ZZW`/`ZZZ`, so Il's original MPQs stay untouched and can be fixed later without a new workaround.
 
 ## New in 1.0.25
 

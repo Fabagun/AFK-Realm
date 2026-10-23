@@ -85,21 +85,11 @@ namespace CoAInstaller
                     if (!When(inst, f)) continue;
                     string from = Convert.ToString(f.TryGetValue("from", out v) ? Settings(inst, v) : "");
                     string to = Text(f, "to");
-                    // A module may name a file of its own that is not next to the tool. A path that is not
-                    // absolute is looked up in the module folder.
-                    if (from.Length > 0 && !Path.IsPathRooted(from) && !File.Exists(from))
-                    {
-                        string local = Path.Combine(dir, from.Replace('/', '\\'));
-                        if (File.Exists(local)) from = local;
-                    }
                     // A module may name a file of its own instead of a fixed name (the patched game exe of a
                     // client pack is Ascension.exe in some versions and Ascension-b.exe in others).
                     if (to.Length == 0) to = Path.GetFileName(from);
                     bool gameExe = f.TryGetValue("gameExe", out v) && v is bool && (bool)v;
-                    // Root files are normally next to the exe. A clean client patch MPQ may go to Data\
-                    // (the Gnoll repair of CoA Custom's listfile-less patches does).
-                    bool dataMpq = Regex.IsMatch(to, @"^Data\\[A-Za-z0-9_.-]+\.mpq$", RegexOptions.IgnoreCase);
-                    if (!(Regex.IsMatch(to, @"^[A-Za-z0-9_.-]+\.(dll|exe)$") || dataMpq) || !SafeRootPath(to, gameExe)) continue;
+                    if (!Regex.IsMatch(to, @"^[A-Za-z0-9_.-]+\.(dll|exe)$") || !SafeRootPath(to, gameExe)) continue;
                     plan.RootFiles.Add(new RootFile { Module = module, To = to, From = from, GameExe = gameExe });
                 }
                 // a folder of the user's own whose files all go next to the exe (CoA Custom's files\client_root)
@@ -954,9 +944,7 @@ namespace CoAInstaller
             if (to.Length == 0 || Path.IsPathRooted(to) || to.IndexOf(':') >= 0 || to.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return false;
             var parts = to.Split('\\');
             if (parts.Any(p => p.Length == 0 || p == "." || p == "..")) return false;
-            bool dataMpq = parts.Length == 2 && parts[0].Equals("Data", StringComparison.OrdinalIgnoreCase) &&
-                parts[1].EndsWith(".mpq", StringComparison.OrdinalIgnoreCase);
-            if (!dataMpq && new[] { "Data", "WTF", "Cache", "Interface", "Logs", "Errors", "AFK-Realm" }.Any(d => d.Equals(parts[0], StringComparison.OrdinalIgnoreCase)) && parts.Length > 1) return false;
+            if (new[] { "Data", "WTF", "Cache", "Interface", "Logs", "Errors", "AFK-Realm" }.Any(d => d.Equals(parts[0], StringComparison.OrdinalIgnoreCase)) && parts.Length > 1) return false;
             if (to.Equals("realmlist.wtf", StringComparison.OrdinalIgnoreCase)) return false;
             // the game itself only from a folder the user chose (its old exe is kept as .afk-backup and comes back)
             return gameExe || !new[] { "Ascension.exe", "Wow.exe", "Launcher.exe" }.Any(n => n.Equals(to, StringComparison.OrdinalIgnoreCase));
