@@ -141,6 +141,7 @@ namespace CoAInstaller
             };
 
             if (!exists("acore_world", "city_life_hub")) run("acore_world", "world_city_life.sql");
+            run("acore_world", "world_city_life_quest_zones.sql");
             run("acore_world", "world_city_life_locations.sql");
             run("acore_world", "world_city_life_custom.sql");
             run("acore_world", "world_city_life_fishing.sql");

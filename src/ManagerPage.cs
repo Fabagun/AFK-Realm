@@ -376,7 +376,7 @@ namespace CoAInstaller
             var flyingBtn = flyingCard.Add(Ui.Primary(L.T("Set up Azeroth flying …")));
             flyingBtn.Click += (s, e) => OpenSetup(new AzerothFlyingSetup(inst));
 
-            immersionCard = Section("modules", L.T("Immersion Life"), L.T("The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. Off by default; this is a local test setup until it is released."), "accounts");
+            immersionCard = Section("modules", L.T("Immersion Life"), L.T("The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. PvP Life and Fishing Life are off by default; the legendary residents are on."), "accounts");
             immersionCard.Stripe = Ui.Accent;
             var immersionBtn = immersionCard.Add(Ui.Primary(L.T("Set up Immersion Life ...")));
             immersionBtn.Click += (s, e) => OpenSetup(new ImmersionSetup(inst));

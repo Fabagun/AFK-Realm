@@ -1620,7 +1620,7 @@
     "The database tables are ready.": "数据库表已准备好。",
     "The database tables could not be installed:": "无法安装数据库表：",
     "The module's database files were not found.": "找不到模块的数据库文件。",
-    "The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. Off by default; this is a local test setup until it is released.": "为 mod-playerbots-immersion 配置城市和城镇人口、任务、传奇居民、PvP Life 和 Fishing Life。默认关闭；发布前仅用于本地测试。",
+    "The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. PvP Life and Fishing Life are off by default; the legendary residents are on.": "? mod-playerbots-immersion ??????????????????PvP Life ? Fishing Life?PvP Life ? Fishing Life ??????????????",
     "Set up Immersion Life ...": "设置 Immersion Life ...",
     "City Life as AFK Realm continues it: city population, questing, PvP Life, Fishing Life and legendary residents for playerbots": "AFK Realm 延续的 City Life：城市人口、任务、PvP Life、Fishing Life 和机器人传奇居民"
   }

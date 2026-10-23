@@ -1620,7 +1620,7 @@
     "The database tables are ready.": "Las tablas de la base de datos están listas.",
     "The database tables could not be installed:": "No se pudieron instalar las tablas de la base de datos:",
     "The module's database files were not found.": "No se encontraron los archivos de base de datos del módulo.",
-    "The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. Off by default; this is a local test setup until it is released.": "La población de ciudades y pueblos, misiones, habitantes legendarios, PvP Life y Fishing Life para mod-playerbots-immersion. Desactivado por defecto; configuración de prueba local hasta su publicación.",
+    "The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. PvP Life and Fishing Life are off by default; the legendary residents are on.": "La poblaci?n de ciudades y pueblos, misiones, habitantes legendarios, PvP Life y Fishing Life para mod-playerbots-immersion. PvP Life y Fishing Life est?n desactivados por defecto; los habitantes legendarios est?n activados.",
     "Set up Immersion Life ...": "Configurar Immersion Life ...",
     "City Life as AFK Realm continues it: city population, questing, PvP Life, Fishing Life and legendary residents for playerbots": "City Life tal como AFK Realm lo continúa: población de ciudades, misiones, PvP Life, Fishing Life y habitantes legendarios para playerbots"
   }

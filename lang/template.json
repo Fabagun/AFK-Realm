@@ -774,7 +774,7 @@
     "Azeroth flying": "",
     "Optional flying mounts in Eastern Kingdoms and Kalimdor: off by default, with a configurable no-fly list for the old capitals. Old Azeroth was not built for flying; use it at your own risk.": "",
     "Set up Azeroth flying …": "",
-    "The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. Off by default; this is a local test setup until it is released.": "",
+    "The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. PvP Life and Fishing Life are off by default; the legendary residents are on.": "",
     "Set up Immersion Life ...": "",
     "Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). {0} puts them into your game and clears its cache when a module asks for it; for other players it packs them into a ZIP.": "",
     "Game client …": "",
