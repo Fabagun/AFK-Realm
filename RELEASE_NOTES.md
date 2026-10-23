@@ -1,6 +1,10 @@
-# AFK Realm 1.0.28
+# AFK Realm 1.0.29
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.29
+
+- **Immersion Life installs its tables with the server stopped.** The database button starts the portable database itself, applies the WORLD and CHARACTERS files and leaves the database running. A status message says when it is starting; no manual start is needed.
 
 ## New in 1.0.28
 

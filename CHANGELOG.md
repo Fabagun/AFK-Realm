@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.29
+
+- Immersion Life: the database button now starts the portable database when it is stopped, applies the module's WORLD and CHARACTERS files and leaves the database running. No manual start is needed before the first installation.
+
 ## 1.0.28
 
 - Azeroth flying: the module now builds on the current CoA core again. `AscensionMountSpeed.h` declares `IsNoFlyArea`, so `AzerothFlying.cpp` no longer stops with C2039/C3861 during a server build.

@@ -104,9 +104,21 @@ namespace CoAInstaller
             button.Enabled = false;
             status.Text = L.T("Installing the database tables ...");
             string done = null, error = null;
+            var control = new ServerControl(inst);
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
-                try { ApplyDatabase(); done = L.T("The database tables are ready."); }
+                try
+                {
+                    // The module's tables can also be installed while the server is stopped.
+                    // Start the portable database for it and leave it running for the next start.
+                    if (control.Db == null && !Net.PortOpen(control.DbPort))
+                    {
+                        try { BeginInvoke((Action)(() => status.Text = L.T("Starting the database ..."))); } catch { }
+                        control.StartDatabase(s => { });
+                    }
+                    ApplyDatabase();
+                    done = L.T("The database tables are ready.");
+                }
                 catch (Exception ex) { error = ex.Message; }
                 try
                 {
