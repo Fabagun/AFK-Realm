@@ -1722,14 +1722,26 @@ function Invoke-ModulePatches([string]$Git, [switch]$Quiet) {
             }
             $file = Join-Path $manifest.Folder $relative.Replace('/', '\')
             if (-not (Test-Path $file) -or -not (Test-Path (Join-Path $target '.git'))) { Write-Log "$label - the patch file or its target is missing; ignored." Yellow; continue }
-            $apply = @('-C', $target, 'apply', '--ignore-whitespace', '--whitespace=nowarn')
-            if ((Invoke-Program $Git ($apply + @('--check', $file)) -AllowFailure) -eq 0 -and (Invoke-Program $Git ($apply + @($file)) -AllowFailure) -eq 0) {
-                Write-Log "$label - applied to $targetName." Green
-            } elseif ((Invoke-Program $Git ($apply + @('--reverse', '--check', $file)) -AllowFailure) -eq 0) {
-                Write-Log "$label - already part of $targetName, not needed any more."
-            } else {
-                Write-Log "$label - does not fit the current $targetName any more; the server is built without it." Yellow
-                if (-not $Quiet) { Send-Event 'NOTE' $(if ($why) { Tr '{0} could not be applied: the code it changes has changed. The server is built without it. ({1})' (Tr $label) (Tr $why) } else { Tr '{0} could not be applied: the code it changes has changed. The server is built without it.' (Tr $label) }) }
+            $tempPatch = $null
+            try {
+                # A Git checkout with core.autocrlf can turn a patch into CRLF, which git apply
+                # reads as a corrupt patch. Apply a normalized copy, whatever the checkout did.
+                $text = [IO.File]::ReadAllText($file)
+                if ($text.Length -gt 0 -and [int]$text[0] -eq 0xFEFF) { $text = $text.Substring(1) }
+                $text = $text.Replace("`r`n", "`n").Replace("`r", "`n")
+                $tempPatch = Join-Path ([IO.Path]::GetTempPath()) ('afk-patch-' + [guid]::NewGuid().ToString('N') + '.patch')
+                [IO.File]::WriteAllText($tempPatch, $text, (New-Object Text.UTF8Encoding($false)))
+                $apply = @('-C', $target, 'apply', '--ignore-whitespace', '--whitespace=nowarn')
+                if ((Invoke-Program $Git ($apply + @('--check', $tempPatch)) -AllowFailure) -eq 0 -and (Invoke-Program $Git ($apply + @($tempPatch)) -AllowFailure) -eq 0) {
+                    Write-Log "$label - applied to $targetName." Green
+                } elseif ((Invoke-Program $Git ($apply + @('--reverse', '--check', $tempPatch)) -AllowFailure) -eq 0) {
+                    Write-Log "$label - already part of $targetName, not needed any more."
+                } else {
+                    Write-Log "$label - does not fit the current $targetName any more; the server is built without it." Yellow
+                    if (-not $Quiet) { Send-Event 'NOTE' $(if ($why) { Tr '{0} could not be applied: the code it changes has changed. The server is built without it. ({1})' (Tr $label) (Tr $why) } else { Tr '{0} could not be applied: the code it changes has changed. The server is built without it.' (Tr $label) }) }
+                }
+            } finally {
+                if ($tempPatch) { Remove-Item $tempPatch -Force -ErrorAction SilentlyContinue }
             }
         }
     }

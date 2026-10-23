@@ -1,6 +1,11 @@
-# AFK Realm 1.0.29
+# AFK Realm 1.0.30
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.30
+
+- **Module patches with Windows line endings no longer break the build.** AFK Realm normalizes every module patch to LF before `git apply`, in the build and in the update check. The former "corrupt patch" at the flying module is gone even on a fresh checkout.
+- **Azeroth flying's patch stays LF in Git.** The module now marks `.patch` files with `eol=lf`, so updates do not turn the file into CRLF again.
 
 ## New in 1.0.29
 

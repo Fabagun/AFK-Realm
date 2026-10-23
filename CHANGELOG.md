@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.30
+
+- Server build: module patches are applied as normalized LF text, so a Git checkout that turns a `.patch` file into CRLF no longer stops the build with "corrupt patch". The update check tests the same normalized text.
+- Azeroth flying: the module's patch file is kept at LF in Git (`.gitattributes`), so a fresh checkout no longer breaks the build before the patch is applied.
+
 ## 1.0.29
 
 - Immersion Life: the database button now starts the portable database when it is stopped, applies the module's WORLD and CHARACTERS files and leaves the database running. No manual start is needed before the first installation.

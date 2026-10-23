@@ -206,6 +206,9 @@ namespace CoAInstaller
         /// changes as the fetched head has them.</summary>
         static string Fits(string git, string folder, string patch)
         {
+            // A checkout with core.autocrlf can turn a patch into CRLF, which git apply
+            // reads as a corrupt patch. Try the same normalized text the build applies.
+            patch = patch.Replace("\r\n", "\n").Replace("\r", "\n").TrimStart('\uFEFF');
             string temp = Path.Combine(Path.GetTempPath(), "afk-patch-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(temp);
             try
