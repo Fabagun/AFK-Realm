@@ -1,10 +1,6 @@
-# AFK Realm 1.0.26
+# AFK Realm 1.0.25
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
-
-## New in 1.0.26
-
-- **Immersion Life** is now in *Modules by AFK Realm*: the AFK Realm continuation of City Life (`mod-playerbots-immersion`). It fills cities, quest hubs, PvP locations and fishing spots with resident bots. Its options appear in the server settings; apply its `data/sql/manual` files once before the first start.
 
 ## New in 1.0.25
 
