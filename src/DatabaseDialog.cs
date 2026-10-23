@@ -26,18 +26,18 @@ namespace CoAInstaller
 
         readonly Install inst;
         readonly ServerControl ctl;
-        readonly TextBox tableFilter = new TextBox { Dock = DockStyle.Top, Font = Ui.Base };
-        readonly TreeView tree = new TreeView { Dock = DockStyle.Fill, Font = Ui.Base, HideSelection = false, BorderStyle = BorderStyle.FixedSingle, ShowLines = false, FullRowSelect = true };
+        readonly TextBox tableFilter = new TextBox { Dock = DockStyle.Top, Font = Ui.Base, BackColor = Ui.Surface, ForeColor = Ui.Text, BorderStyle = BorderStyle.FixedSingle };
+        readonly TreeView tree = new TreeView { Dock = DockStyle.Fill, Font = Ui.Base, HideSelection = false, BorderStyle = BorderStyle.None, ShowLines = false, FullRowSelect = true, BackColor = Ui.Surface, ForeColor = Ui.Text };
         readonly CheckBox allow = new CheckBox { Text = L.T("Allow changes"), AutoSize = true, Font = Ui.Bold, Margin = new Padding(0, 6, 14, 0) };
         readonly Label tableName = new Label { AutoSize = true, Font = Ui.Bold, Margin = new Padding(0, 7, 10, 0), Text = L.T("Choose a table on the left.") };
-        readonly TextBox where = new TextBox { Font = Ui.Mono, Width = 330, Margin = new Padding(0, 5, 6, 0) };
+        readonly TextBox where = new TextBox { Font = Ui.Mono, Width = 330, Margin = new Padding(0, 5, 6, 0), BackColor = Ui.Surface, ForeColor = Ui.Text, BorderStyle = BorderStyle.FixedSingle };
         readonly Label pageInfo = new Label { AutoSize = true, Font = Ui.Small, ForeColor = Ui.Muted, Margin = new Padding(8, 8, 8, 0) };
         readonly Label tableHint = new Label { Dock = DockStyle.Bottom, Height = 22, Font = Ui.Small, ForeColor = Ui.Muted };
         readonly DataGridView grid = NewGrid();
         readonly DataGridView result = NewGrid();
-        readonly TextBox sql = new TextBox { Multiline = true, AcceptsReturn = true, AcceptsTab = true, ScrollBars = ScrollBars.Vertical, Font = Ui.Mono, Dock = DockStyle.Top, Height = 150, WordWrap = true };
+        readonly TextBox sql = new TextBox { Multiline = true, AcceptsReturn = true, AcceptsTab = true, ScrollBars = ScrollBars.Vertical, Font = Ui.Mono, Dock = DockStyle.Top, Height = 150, WordWrap = true, BackColor = Ui.Surface, ForeColor = Ui.Text, BorderStyle = BorderStyle.FixedSingle };
         readonly Label sqlHint = new Label { Dock = DockStyle.Bottom, Height = 22, Font = Ui.Small, ForeColor = Ui.Muted };
-        readonly ComboBox resultPick = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 560, Font = Ui.Small, Margin = new Padding(10, 6, 0, 0), Visible = false };
+        readonly ComboBox resultPick = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 560, Font = Ui.Small, Margin = new Padding(10, 6, 0, 0), Visible = false, BackColor = Ui.Surface, ForeColor = Ui.Text };
         readonly Button save = Ui.Primary(L.T("Save changes")), discard = Ui.Secondary(L.T("Discard")), addRow = Ui.Secondary(L.T("Add row")), delRow = Ui.Secondary(L.T("Delete row")),
             prev = Ui.Secondary(L.T("< Previous")), next = Ui.Secondary(L.T("Next >")), apply = Ui.Secondary(L.T("Filter")), run = Ui.Primary(L.T("Run (F5)"));
 
@@ -102,18 +102,18 @@ namespace CoAInstaller
             bar.Controls.Add(where); bar.Controls.Add(apply);
             bar.SetFlowBreak(apply, true);
             bar.Controls.Add(prev); bar.Controls.Add(next); bar.Controls.Add(addRow); bar.Controls.Add(delRow); bar.Controls.Add(save); bar.Controls.Add(discard); bar.Controls.Add(pageInfo);
-            var tableTab = new TabPage(L.T("Table")) { BackColor = Ui.Surface, Padding = new Padding(10) };
+            var tableTab = new TabPage(L.T("Table")) { BackColor = Ui.Surface, UseVisualStyleBackColor = false, Padding = new Padding(10) };
             tableTab.Controls.Add(grid); tableTab.Controls.Add(tableHint); tableTab.Controls.Add(bar);
 
             // ---- free SQL
             var sqlBar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(0, 6, 0, 6) };
             run.Font = Ui.Small; run.Padding = new Padding(10, 3, 10, 3);
             sqlBar.Controls.Add(run); sqlBar.Controls.Add(resultPick);
-            var sqlTab = new TabPage("SQL") { BackColor = Ui.Surface, Padding = new Padding(10) };
+            var sqlTab = new TabPage("SQL") { BackColor = Ui.Surface, UseVisualStyleBackColor = false, Padding = new Padding(10) };
             sqlTab.Controls.Add(result); sqlTab.Controls.Add(sqlHint); sqlTab.Controls.Add(sqlBar); sqlTab.Controls.Add(sql);
             sqlHint.Text = L.T("Type any SQL; several statements are separated by ';'. Name the database with the table: acore_world.creature_template.");
 
-            var tabs = new TabControl { Dock = DockStyle.Fill, Font = Ui.Base };
+            var tabs = new TabControl { Dock = DockStyle.Fill, Font = Ui.Base, BackColor = Ui.Canvas, ForeColor = Ui.Text };
             tabs.TabPages.Add(tableTab); tabs.TabPages.Add(sqlTab);
             var note = new Label
             {

@@ -376,6 +376,11 @@ namespace CoAInstaller
             var flyingBtn = flyingCard.Add(Ui.Primary(L.T("Set up Azeroth flying …")));
             flyingBtn.Click += (s, e) => OpenSetup(new AzerothFlyingSetup(inst));
 
+            immersionCard = Section("modules", L.T("Immersion Life"), L.T("The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. Off by default; this is a local test setup until it is released."), "accounts");
+            immersionCard.Stripe = Ui.Accent;
+            var immersionBtn = immersionCard.Add(Ui.Primary(L.T("Set up Immersion Life ...")));
+            immersionBtn.Click += (s, e) => OpenSetup(new ImmersionSetup(inst));
+
             var clientCard = Section("modules", L.T("Game client"), L.F("Some modules bring an add-on or a patch for the game client (for example World Journey's map levels and tooltips, or the class choice of the classic classes). {0} puts them into your game and clears its cache when a module asks for it; for other players it packs them into a ZIP.", Product.Name), "client");
             clientCard.Add(clientState);
             var clientBtn = clientCard.Add(Ui.Secondary(L.T("Game client …")));
@@ -463,7 +468,7 @@ namespace CoAInstaller
             poll.Tick += (s, e) => RefreshStatus();
         }
 
-        Card journeyCard, auctionCard, classicCard, racesCard, flyingCard;
+        Card journeyCard, auctionCard, classicCard, racesCard, flyingCard, immersionCard;
         ServerPicker serverPick;
 
         /// <summary>The servers AFK Realm knows, to switch between them, and the ways to add one.</summary>
@@ -530,6 +535,7 @@ namespace CoAInstaller
             classicCard.Tag = Directory.Exists(Path.Combine(dir, "mod-classic-classes")) ? null : "hidden";
             racesCard.Tag = Directory.Exists(Path.Combine(dir, "mod-custom-races")) ? null : "hidden";
             flyingCard.Tag = Directory.Exists(Path.Combine(dir, "mod-azeroth-flying")) ? null : "hidden";
+            immersionCard.Tag = Directory.Exists(Path.Combine(dir, "mod-playerbots-immersion")) ? null : "hidden";
             if (current == "modules") Show("modules");
         }
 

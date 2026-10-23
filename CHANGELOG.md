@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.27
+
+- Database editor: dark mode now themes the tab strip, tree, input fields, table headers, row headers and scrollbars too; no white controls with unreadable text are left.
+- Immersion Life: the module is now part of AFK Realm's own modules. It brings cities and towns, questing, PvP Life, Fishing Life and legendary residents for playerbots. PvP Life and Fishing Life are off by default; the legendary residents stay on.
+- Immersion Life setup page: the shared city budget, the main cities, questing, legendary residents, PvP Life and Fishing Life, plus a one-time installer for the module's database tables.
+- Azeroth flying: the module now fits the CoA core with `CoA.LegacyMountFlight`. Leave that option at `0`; the module keeps the core's normal mount rules and adds Eastern Kingdoms and Kalimdor only.
+- Auction house bots: a compatibility patch for the Zyth45 Playerbots 2.7 branch and the current CoA core, so Warcraft Reborn bots keep their Mystic Enchants and the server compiles.
+
 ## 1.0.25
 
 - Game client: the long-path warning now names the real cause. `Ascension.exe` is not long-path aware, so custom textures can be missing anywhere, not only for Haranir and Esteria Vulpera. A short client path such as `C:\CoA` is the reliable fix.

@@ -805,33 +805,11 @@ namespace CoAInstaller
                 }
             }
             var grid = root as DataGridView;
-            if (grid != null)
-            {
-                grid.EnableHeadersVisualStyles = false;
-                grid.BorderStyle = BorderStyle.None;
-                grid.BackgroundColor = Ui.Surface;
-                grid.GridColor = Ui.Line;
-                grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
-                grid.ColumnHeadersDefaultCellStyle.BackColor = Ui.Canvas;
-                grid.ColumnHeadersDefaultCellStyle.ForeColor = Ui.Muted;
-                grid.ColumnHeadersDefaultCellStyle.Font = Ui.Bold;
-                grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = Ui.Canvas;
-                grid.DefaultCellStyle.BackColor = Ui.Surface;
-                grid.DefaultCellStyle.ForeColor = Ui.Text;
-                grid.DefaultCellStyle.SelectionBackColor = Ui.AccentSoft;
-                grid.DefaultCellStyle.SelectionForeColor = Ui.Text;
-                grid.RowHeadersDefaultCellStyle.BackColor = Ui.Canvas;
-                grid.RowHeadersDefaultCellStyle.ForeColor = Ui.Muted;
-                grid.RowHeadersDefaultCellStyle.SelectionBackColor = Ui.AccentSoft;
-                grid.RowHeadersDefaultCellStyle.SelectionForeColor = Ui.Text;
-            }
+            if (grid != null) Theme.StyleGrid(grid);
+            var tree = root as TreeView;
+            if (tree != null) Theme.StyleTree(tree);
             var box = root as TextBoxBase;
-            if (box != null)
-            {
-                var text = box as TextBox;
-                if (text != null && text.BorderStyle == BorderStyle.Fixed3D) text.BorderStyle = BorderStyle.FixedSingle;
-                if (box.BackColor == SystemColors.Window || box.BackColor == Color.White) { box.BackColor = Ui.Surface; box.ForeColor = Ui.Text; }
-            }
+            if (box != null) Theme.StyleInput(box);
             var combo = root as ComboBox;
             if (combo != null && (combo.BackColor == SystemColors.Window || combo.BackColor == Color.White)) { combo.BackColor = Ui.Surface; combo.ForeColor = Ui.Text; }
             // A drop-down list in the Windows style stays white whatever its colour: in the dark look it is drawn flat.
@@ -839,17 +817,21 @@ namespace CoAInstaller
             var listBox = root as ListBox;
             if (listBox != null && (listBox.BackColor == SystemColors.Window || listBox.BackColor == Color.White)) { listBox.BackColor = Ui.Surface; listBox.ForeColor = Ui.Text; }
             var tabs = root as TabControl;
-            if (tabs != null && tabs.DrawMode != TabDrawMode.OwnerDrawFixed)
+            if (tabs != null)
             {
-                tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
-                tabs.DrawItem += (s, e) =>
+                Theme.StyleTabs(tabs);
+                if (tabs.DrawMode != TabDrawMode.OwnerDrawFixed)
                 {
-                    var g = e.Graphics; Draw.Smooth(g);
-                    bool selected = e.Index == tabs.SelectedIndex;
-                    using (var b = new SolidBrush(selected ? Ui.Surface : Ui.Canvas)) g.FillRectangle(b, e.Bounds);
-                    TextRenderer.DrawText(g, tabs.TabPages[e.Index].Text, selected ? Ui.Bold : Ui.Base, e.Bounds,
-                        selected ? Ui.Text : Ui.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-                };
+                    tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+                    tabs.DrawItem += (s, e) =>
+                    {
+                        var g = e.Graphics; Draw.Smooth(g);
+                        bool selected = e.Index == tabs.SelectedIndex;
+                        using (var b = new SolidBrush(selected ? Ui.Surface : Ui.Canvas)) g.FillRectangle(b, e.Bounds);
+                        TextRenderer.DrawText(g, tabs.TabPages[e.Index].Text, selected ? Ui.Bold : Ui.Base, e.Bounds,
+                            selected ? Ui.Text : Ui.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    };
+                }
             }
         }
     }

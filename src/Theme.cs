@@ -174,6 +174,15 @@ namespace CoAInstaller
             if (combo != null) StyleCombo(combo);
             if (list != null) StyleList(list);
 
+            var tree = c as TreeView;
+            if (tree != null) StyleTree(tree);
+            var grid = c as DataGridView;
+            if (grid != null) StyleGrid(grid);
+            var tabs = c as TabControl;
+            if (tabs != null) StyleTabs(tabs);
+            var input = c as TextBoxBase;
+            if (input != null) StyleInput(input);
+
             var pill = c as StatusPill;
             if (pill != null)
             {
@@ -220,6 +229,112 @@ namespace CoAInstaller
         {
             var want = ReferenceEquals(Current, DarkLook) ? FlatStyle.Flat : FlatStyle.Standard;
             if (combo.FlatStyle != want) { try { combo.FlatStyle = want; } catch { } }
+            if (combo.BackColor == SystemColors.Window || combo.BackColor == Color.White)
+            {
+                try { combo.BackColor = Ui.Surface; combo.ForeColor = Ui.Text; } catch { }
+            }
+        }
+
+        /// <summary>A tree in the colours of the look; its scrollbar and border are drawn by Windows, so they get the dark style too.</summary>
+        public static void StyleTree(TreeView tree)
+        {
+            if (tree == null) return;
+            try
+            {
+                tree.BackColor = Ui.Surface;
+                tree.ForeColor = Ui.Text;
+                tree.LineColor = Ui.Line;
+                tree.BorderStyle = BorderStyle.None;
+            }
+            catch { }
+            StyleNative(tree, "DarkMode_Explorer", null);
+        }
+
+        /// <summary>A tab strip and its pages in the colours of the look. Windows paints the strip around the tabs itself.</summary>
+        public static void StyleTabs(TabControl tabs)
+        {
+            if (tabs == null) return;
+            try
+            {
+                tabs.BackColor = Ui.Canvas;
+                tabs.ForeColor = Ui.Text;
+                foreach (TabPage page in tabs.TabPages)
+                {
+                    page.UseVisualStyleBackColor = false;
+                    page.BackColor = Ui.Surface;
+                    page.ForeColor = Ui.Text;
+                }
+            }
+            catch { }
+            StyleNative(tabs, "DarkMode_Explorer", null);
+        }
+
+        /// <summary>A text input that had only the Windows colours; it follows the look, including its scrollbar.</summary>
+        public static void StyleInput(Control input)
+        {
+            var box = input as TextBoxBase;
+            if (box == null) return;
+            try
+            {
+                if (box.BackColor == SystemColors.Window || box.BackColor == Color.White || box.BackColor == Ui.Surface)
+                {
+                    box.BackColor = Ui.Surface;
+                    box.ForeColor = Ui.Text;
+                }
+                var text = box as TextBox;
+                if (text != null && text.BorderStyle == BorderStyle.Fixed3D) text.BorderStyle = BorderStyle.FixedSingle;
+            }
+            catch { }
+            StyleNative(box, "DarkMode_Explorer", null);
+        }
+
+        /// <summary>The table's own colours. Its header, row header and scrollbars are separate native parts and need this too.</summary>
+        public static void StyleGrid(DataGridView grid)
+        {
+            if (grid == null) return;
+            try
+            {
+                grid.EnableHeadersVisualStyles = false;
+                grid.BorderStyle = BorderStyle.None;
+                grid.BackgroundColor = Ui.Surface;
+                grid.GridColor = Ui.Line;
+                grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+                grid.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+                grid.DefaultCellStyle.BackColor = Ui.Surface;
+                grid.DefaultCellStyle.ForeColor = Ui.Text;
+                grid.DefaultCellStyle.SelectionBackColor = Ui.AccentSoft;
+                grid.DefaultCellStyle.SelectionForeColor = Ui.Text;
+                grid.ColumnHeadersDefaultCellStyle.BackColor = Ui.Canvas;
+                grid.ColumnHeadersDefaultCellStyle.ForeColor = Ui.Muted;
+                grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = Ui.Canvas;
+                grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = Ui.Muted;
+                grid.RowHeadersDefaultCellStyle.BackColor = Ui.Canvas;
+                grid.RowHeadersDefaultCellStyle.ForeColor = Ui.Muted;
+                grid.RowHeadersDefaultCellStyle.SelectionBackColor = Ui.AccentSoft;
+                grid.RowHeadersDefaultCellStyle.SelectionForeColor = Ui.Text;
+                grid.TopLeftHeaderCell.Style.BackColor = Ui.Canvas;
+                grid.TopLeftHeaderCell.Style.ForeColor = Ui.Muted;
+            }
+            catch { }
+            // The scrollbars are children of the grid and do not inherit its colours.
+            StyleNative(grid, "DarkMode_Explorer", null);
+            foreach (Control child in grid.Controls) StyleNative(child, "DarkMode_Explorer", null);
+        }
+
+        static void StyleNative(Control c, string darkStyle, string lightStyle)
+        {
+            if (c == null) return;
+            Action apply = () =>
+            {
+                if (c.IsDisposed) return;
+                try { SetWindowTheme(c.Handle, ReferenceEquals(Current, DarkLook) ? darkStyle : lightStyle, null); } catch { }
+            };
+            try
+            {
+                if (c.IsHandleCreated) apply();
+                else c.HandleCreated += (s, e) => apply();
+            }
+            catch { }
         }
 
         static Color MapBack(Palette from, Palette to, Color c)

@@ -1,6 +1,14 @@
-# AFK Realm 1.0.25
+# AFK Realm 1.0.27
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.27
+
+- **The database editor is dark in dark mode.** The tab strip, the tree of databases, the input fields, the table and row headers and the scrollbars now follow the look; no white controls with unreadable text are left.
+- **Immersion Life is here.** AFK Realm's continuation of City Life is now one of its own modules: city population, questing, PvP Life, Fishing Life and legendary residents for playerbots. PvP Life and Fishing Life are off by default; the legendary residents stay on.
+- **A setup page for Immersion Life.** The shared city budget, the main cities, questing, legendary residents, PvP Life and Fishing Life are on one page, with a one-time installer for the module's database tables.
+- **Azeroth flying fits the new core.** The module uses the core's normal mount rules and adds Eastern Kingdoms and Kalimdor only. Leave `CoA.LegacyMountFlight = 0`; then the no-fly list and the dismount still work.
+- **CoA 2.7 builds again.** A compatibility patch in the auction house bots keeps the Warcraft Reborn Mystic Enchants and lets the Zyth45 Playerbots 2.7 branch compile with the current CoA core.
 
 ## New in 1.0.25
 
