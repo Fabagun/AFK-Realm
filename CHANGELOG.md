@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.24
+
+- Custom races: an imported race can no longer take a race number that belongs to another race of the client. A Gnoll saved under 63 is moved to a free number, and the client patch refuses to overwrite Nightborne with it; CoA Custom's Gnoll stays 83 (its Esteria look-up number remains 63 internally).
+- Game client: warns when the game folder path is long. Haranir and Esteria Vulpera load many files below the client and need a short path such as `C:\CoA`.
+
 ## 1.0.23
 
 - Custom races: the separate “Server data” card is gone. CoA Custom and imported race packs bring their racial rows without choosing another server folder; the setup page now only has the pack folder and the module switch.

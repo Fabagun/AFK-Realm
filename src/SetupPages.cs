@@ -528,6 +528,7 @@ namespace CoAInstaller
             ReadKnown();
             string problem = ReadClient();
             ReadFolder();
+            HealNumbers();
 
             Tab(L.T("Races"));
             int own = races.Count(r => r.OwnNumber);
@@ -999,6 +1000,7 @@ namespace CoAInstaller
         {
             try
             {
+                HealNumbers();
                 var on = new List<ServerRacials.Wanted>();
                 foreach (var key in Chosen())
                 {
@@ -1039,10 +1041,64 @@ namespace CoAInstaller
             return r.OwnNumber ? r.Source : 0;
         }
 
-        int FreeSlot()
+        /// <summary>Whether a race number already belongs to a different race of this client. An imported Gnoll
+        /// must not take 63: in CoA Custom's table that is Nightborne, and EsteriaAppearance.dll would give the
+        /// Gnoll Nightborne's appearance.</summary>
+        bool NumberTakenByOther(ClientRace r, int id)
         {
-            var used = new HashSet<int>(races.Where(r => !r.OwnNumber).Select(IdOf));
-            foreach (int s in Slots) if (!used.Contains(s)) return s;
+            if (id <= 0) return false;
+            if (ClientRaces.Stock.Contains(id)) return true;
+            foreach (var o in races)
+            {
+                if (ReferenceEquals(o, r) || IdOf(o) != id || SameRace(r, o)) continue;
+                return true;
+            }
+            return false;
+        }
+
+        static bool SameRace(ClientRace a, ClientRace b)
+        {
+            string af = a.Pack != null ? a.Pack.SourceFile : a.File;
+            string bf = b.Pack != null ? b.Pack.SourceFile : b.File;
+            string an = a.Pack != null ? a.Pack.Name : a.Name;
+            string bn = b.Pack != null ? b.Pack.Name : b.Name;
+            return (af.Length > 0 && af.Equals(bf, StringComparison.OrdinalIgnoreCase)) ||
+                (an.Length > 0 && an.Equals(bn, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Gives a race whose saved number belongs to another race a free number, before the page or the
+        /// server uses it. The common case is an older Gnoll import that was saved under 63 (Nightborne).</summary>
+        void HealNumbers()
+        {
+            var moved = new List<ClientRace>();
+            foreach (var r in races)
+            {
+                if (r.OwnNumber) continue;
+                int id = IdOf(r);
+                if (!NumberTakenByOther(r, id)) continue;
+                Set("CustomRaces." + r.Key + ".Id", "0");
+                moved.Add(r);
+            }
+            foreach (var r in moved)
+            {
+                int id = CoaNumberOf(r);
+                if (id == 0) id = FreeSlot(r);
+                if (id > 0) Set("CustomRaces." + r.Key + ".Id", id.ToString());
+            }
+        }
+
+        int FreeSlot(ClientRace r)
+        {
+            var used = new HashSet<int>(races.Where(x => !x.OwnNumber).Select(IdOf));
+            // A race imported from CoA Custom already has a number of its own there: Gnoll 83,
+            // Nightborne 63, Sethrak 82, Saberon 97. If its own number is taken here, it must not
+            // fall back to another CoA number: 63 is Nightborne, and EsteriaAppearance.dll would
+            // load Nightborne's looks for a Gnoll under it.
+            HashSet<int> coa = High && r != null && r.Pack != null &&
+                r.Pack.Source.Equals("CoA Custom", StringComparison.OrdinalIgnoreCase)
+                ? new HashSet<int>(CoaRaceFiles().Keys) : null;
+            foreach (int s in Slots)
+                if (!used.Contains(s) && (coa == null || !coa.Contains(s))) return s;
             return 0;
         }
 
@@ -1238,7 +1294,7 @@ namespace CoAInstaller
                     if (id == 0) id = CoaNumberOf(r);
                     if (id == 0)
                     {
-                        id = FreeSlot();
+                        id = FreeSlot(r);
                         if (id == 0)
                         {
                             Ui.Error(this, L.F("All {0} free race numbers are taken{1}. Free the number of a race you do not want any more (switch it off, then \"Free its number\") to make room for the {2}.", Slots.Count, More ? "" : " " + L.T("(switch on the 64-race patch for more)"), L.Outside(r.Name)));

@@ -454,7 +454,13 @@ namespace CoAInstaller
             else if (client == null) state.Text = L.T("This is not a game folder: it needs a \"Data\" folder with the game's .MPQ archives.") + " " + L.T("You can also choose the \"Data\" folder itself.");
             else if (patchProblem != null) state.Text = L.T("The client patch cannot be built:") + " " + patchProblem;
             else state.Text = due ? L.T("Not everything is in your game yet. Close the game and its launcher, then choose \"Install\".") : L.T("Your game has everything the installed modules bring.");
-            state.ForeColor = client != null && due ? Ui.Warn : Ui.Muted;
+            // Haranir and Esteria Vulpera load many files from paths below the client; Windows' 260-character
+            // limit starts to bite when the game folder itself is deep. A short path is the reliable fix.
+            string longPath = client != null && client.Length > 100
+                ? L.F("This game folder path is long ({0} characters). Haranir and Esteria Vulpera may fail to load; move the client to a short path such as C:\\CoA.", client.Length)
+                : null;
+            if (longPath != null) state.Text = longPath + " " + state.Text;
+            state.ForeColor = client != null && (due || longPath != null) ? Ui.Warn : Ui.Muted;
         }
 
         void Install_()

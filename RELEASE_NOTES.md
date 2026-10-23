@@ -1,6 +1,11 @@
-# AFK Realm 1.0.23
+# AFK Realm 1.0.24
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.24
+
+- **Race numbers stay with their race.** An imported Gnoll can no longer take 63: in CoA Custom's table that is Nightborne, while Gnoll is 83. An old Gnoll setting saved under 63 is moved to a free number, and the client patch refuses to overwrite Nightborne.
+- **Long client paths warn.** Haranir and Esteria Vulpera load many files below the game folder. AFK Realm now warns when the game folder path is longer than 100 characters and recommends a short path such as `C:\CoA`.
 
 ## New in 1.0.23
 

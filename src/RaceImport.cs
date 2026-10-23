@@ -228,9 +228,25 @@ namespace CoAInstaller
 
         /// <summary>Adds an imported race to the client tables: its race row (the base race's, with its own model, file
         /// name and prefix), models and displays, and its sections, hair and beards with new numbers.</summary>
+        /// <summary>Whether an existing client row is the same race as the pack: by the file name of its row, or its
+        /// name. A pack may replace the row of the race it was taken from (CoA Custom's Gnoll at 83), but never the
+        /// row of another race: 63 is Nightborne in CoA Custom, not Gnoll.</summary>
+        static bool SameRace(Pack pack, DbcTable cr, byte[] row)
+        {
+            string file = Str(cr, row, 11);
+            string name = Str(cr, row, 14).Split('|')[0].Trim();
+            return (pack.SourceFile.Length > 0 && file.Equals(pack.SourceFile, StringComparison.OrdinalIgnoreCase)) ||
+                (pack.File.Length > 0 && file.Equals(pack.File, StringComparison.OrdinalIgnoreCase)) ||
+                (pack.Name.Length > 0 && name.Equals(pack.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
         public static void AddRace(Func<string, byte[]> load, Action<string, byte[]> save, Pack pack, int race, int baseRace, string name, Action<string> note = null, string helmetPrefix = null)
         {
             var cr = DbcTable.Parse(load("DBFilesClient\\ChrRaces.dbc"), "ChrRaces.dbc");
+            var occupied = cr.Records.FirstOrDefault(r => cr.Field(r, 0) == race);
+            if (occupied != null && !SameRace(pack, cr, occupied))
+                throw new InvalidOperationException(L.F("Race number {0} is already {1} in this client; the {2} needs another number.",
+                    race, Str(cr, occupied, 14).Split('|')[0].Trim(), name));
             var di = DbcTable.Parse(load("DBFilesClient\\CreatureDisplayInfo.dbc"), "CreatureDisplayInfo.dbc");
             var md = DbcTable.Parse(load("DBFilesClient\\CreatureModelData.dbc"), "CreatureModelData.dbc");
             var baseRow = cr.Records.FirstOrDefault(r => cr.Field(r, 0) == baseRace);
