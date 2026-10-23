@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.26
+
+- Modules by AFK Realm: **Immersion Life** (`mod-playerbots-immersion`), the AFK Realm continuation of City Life. It fills cities, quest hubs, PvP locations and fishing spots with resident bots; its 625 options appear in the server settings after installation. Its SQL files under `data/sql/manual` still have to be applied once.
+
 ## 1.0.25
 
 - Game client: the long-path warning now names the real cause. `Ascension.exe` is not long-path aware, so custom textures can be missing anywhere, not only for Haranir and Esteria Vulpera. A short client path such as `C:\CoA` is the reliable fix.
