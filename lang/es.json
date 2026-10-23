@@ -1622,6 +1622,18 @@
     "The module's database files were not found.": "No se encontraron los archivos de base de datos del módulo.",
     "The population of cities and towns, questing, legendary residents, PvP Life and Fishing Life for mod-playerbots-immersion. PvP Life and Fishing Life are off by default; the legendary residents are on.": "La poblaci?n de ciudades y pueblos, misiones, habitantes legendarios, PvP Life y Fishing Life para mod-playerbots-immersion. PvP Life y Fishing Life est?n desactivados por defecto; los habitantes legendarios est?n activados.",
     "Set up Immersion Life ...": "Configurar Immersion Life ...",
-    "City Life as AFK Realm continues it: city population, questing, PvP Life, Fishing Life and legendary residents for playerbots": "City Life tal como AFK Realm lo continúa: población de ciudades, misiones, PvP Life, Fishing Life y habitantes legendarios para playerbots"
+    "City Life as AFK Realm continues it: city population, questing, PvP Life, Fishing Life and legendary residents for playerbots": "City Life tal como AFK Realm lo continúa: población de ciudades, misiones, PvP Life, Fishing Life y habitantes legendarios para playerbots",
+    "Loot filter": "Filtro de bot?n",
+    "What bots pick up": "Qu? recogen los bots",
+    "Random bots leave behind what they do not need, so their bags stay free for the auction house. Quest items, items of a quest the bot is doing and the always-loot list are never filtered. Bots of real players are left alone.": "Los bots aleatorios dejan lo que no necesitan para mantener sus bolsas libres para la casa de subastas. Los objetos de misi?n, los de una misi?n en curso y la lista de recogida obligatoria nunca se filtran. Los bots de jugadores reales no se tocan.",
+    "Filter what random bots pick up": "Filtrar lo que recogen los bots aleatorios",
+    "Bots pick up from": "Los bots recogen desde",
+    "Anything below this quality stays on the corpse.": "Todo lo que est? por debajo de esta calidad se queda en el cad?ver.",
+    "Leave food and drink on the corpse": "Dejar comida y bebida en el cad?ver",
+    "The bot gets its own food and drink from Playerbots when it needs them.": "El bot recibe su propia comida y bebida de Playerbots cuando la necesita.",
+    "Leave potions, elixirs, flasks, scrolls and bandages": "Dejar pociones, elixires, frascos, pergaminos y vendas",
+    "Food and drink are covered by the switch above.": "La comida y la bebida las cubre el interruptor de arriba.",
+    "Never picked up": "Nunca se recoge",
+    "Parts of names separated by commas; upper and lower case do not matter.": "Partes de nombres separadas por comas; no importan las may?sculas."
   }
 }

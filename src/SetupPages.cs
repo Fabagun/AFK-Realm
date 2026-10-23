@@ -1916,6 +1916,22 @@ namespace CoAInstaller
             AddText(never, P + "Sell.ExcludedItemIDs", L.T("Item ids"), L.T("Separated by commas."));
             AddText(never, P + "Sell.ExcludedNameParts", L.T("Names containing"), L.T("Parts of names separated by commas; keeps test and technical items out."));
 
+            // ---- loot filter
+            Tab(L.T("Loot filter"));
+            var filter = Card(L.T("What bots pick up"),
+                L.T("Random bots leave behind what they do not need, so their bags stay free for the auction house. Quest items, items of a quest the bot is doing and the always-loot list are never filtered. Bots of real players are left alone."), "maintenance");
+            AddToggle(filter, P + "LootFilter.Enable", L.T("Filter what random bots pick up"));
+            AddChoice(filter, P + "LootFilter.MinQuality", L.T("Bots pick up from"), new[] { "0", "1", "2", "3", "4", "5" }, Qualities,
+                L.T("Anything below this quality stays on the corpse."));
+            AddToggle(filter, P + "LootFilter.SkipFood", L.T("Leave food and drink on the corpse"),
+                L.T("The bot gets its own food and drink from Playerbots when it needs them."));
+            AddToggle(filter, P + "LootFilter.SkipOtherConsumables", L.T("Leave potions, elixirs, flasks, scrolls and bandages"),
+                L.T("Food and drink are covered by the switch above."));
+            var neverLoot = Card(L.T("Never picked up"), null, "maintenance");
+            AddText(neverLoot, P + "LootFilter.SkipItemIDs", L.T("Item ids"), L.T("Separated by commas."));
+            AddText(neverLoot, P + "LootFilter.SkipNameParts", L.T("Names containing"),
+                L.T("Parts of names separated by commas; upper and lower case do not matter."));
+
             // ---- prices
             Tab(L.T("Prices"));
             var factors = Card(L.T("Starting prices"), L.T("The vendor value of an item times the factor of its quality. What auctions really sell for moves this usual price over time."), "auction");

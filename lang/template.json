@@ -1622,6 +1622,18 @@
     "The server could not be built with {0}. The module was taken out again and your server is unchanged. {1} ({2})": "",
     "The server could not be built without the removed module, so it was put back and your server is unchanged. ({0})": "",
     "Setting up the database": "",
-    "Importing the CoA world data": ""
+    "Importing the CoA world data": "",
+    "Loot filter": "",
+    "What bots pick up": "",
+    "Random bots leave behind what they do not need, so their bags stay free for the auction house. Quest items, items of a quest the bot is doing and the always-loot list are never filtered. Bots of real players are left alone.": "",
+    "Filter what random bots pick up": "",
+    "Bots pick up from": "",
+    "Anything below this quality stays on the corpse.": "",
+    "Leave food and drink on the corpse": "",
+    "The bot gets its own food and drink from Playerbots when it needs them.": "",
+    "Leave potions, elixirs, flasks, scrolls and bandages": "",
+    "Food and drink are covered by the switch above.": "",
+    "Never picked up": "",
+    "Parts of names separated by commas; upper and lower case do not matter.": ""
   }
 }

@@ -1,6 +1,11 @@
-# AFK Realm 1.0.30
+# AFK Realm 1.0.31
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.31
+
+- **The auction bots' loot filter is on their setup page.** A new *Loot filter* tab has the switch, the lowest quality, food and drink, other consumables, excluded item ids and excluded name parts.
+- **The legendary residents' guild is called "AFK Realm".** New installations get that name; existing configurations that still say "The GOATS" are moved over, and an existing owned "The GOATS" guild is renamed rather than duplicated.
 
 ## New in 1.0.30
 

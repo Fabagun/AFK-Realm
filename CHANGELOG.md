@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.31
+
+- Auction house bots: the setup page has a Loot filter tab with the module's built-in filter: on/off, lowest quality, food and drink, other consumables, excluded item ids and excluded name parts.
+- Immersion Life: the shared guild of the legendary residents is now "AFK Realm". Existing configurations that still say "The GOATS" are moved to the new name, and an owned "The GOATS" guild is renamed instead of leaving it behind.
+
 ## 1.0.30
 
 - Server build: module patches are applied as normalized LF text, so a Git checkout that turns a `.patch` file into CRLF no longer stops the build with "corrupt patch". The update check tests the same normalized text.
