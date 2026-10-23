@@ -233,7 +233,7 @@
     "The client patch cannot be built:": "Не удаётся собрать клиентский патч:",
     "Not everything is in your game yet. Close the game and its launcher, then choose \"Install\".": "В вашей игре ещё не всё. Закройте игру и её лаунчер, затем выберите «Установить».",
     "Your game has everything the installed modules bring.": "В вашей игре есть всё, что приносят установленные модули.",
-    "This game folder path is long ({0} characters). Haranir and Esteria Vulpera may fail to load; move the client to a short path such as C:\\CoA.": "Путь к папке игры слишком длинный ({0} символов). Haranir и Esteria Vulpera могут не загрузиться; переместите клиент в короткий путь, например C:\\CoA.",
+    "This game folder path is long ({0} characters). Ascension.exe is not long-path aware, so custom textures may be missing; move the client to a short path such as C:\\CoA.": "Путь к папке игры слишком длинный ({0} символов). Ascension.exe не поддерживает длинные пути; пользовательские текстуры могут отсутствовать. Переместите клиент в короткий путь, например C:\\CoA.",
     "The game or its launcher is running from this folder. Please close it first: add-ons are only loaded at the start, and a running game writes its old cache back when it closes.": "Игра или её лаунчер запущены из этой папки. Сначала закройте их: аддоны загружаются только при запуске, а запущенная игра при закрытии записывает обратно свой старый кэш.",
     "Installing into your game …": "Установка в вашу игру …",
     "Copying the add-ons …": "Копирование аддонов …",

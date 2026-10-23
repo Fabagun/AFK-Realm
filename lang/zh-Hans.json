@@ -233,7 +233,7 @@
     "The client patch cannot be built:": "无法生成客户端补丁：",
     "Not everything is in your game yet. Close the game and its launcher, then choose \"Install\".": "你的游戏还缺少部分内容。请关闭游戏及其启动器，然后选择“安装”。",
     "Your game has everything the installed modules bring.": "你的游戏已拥有已安装模块带来的全部内容。",
-    "This game folder path is long ({0} characters). Haranir and Esteria Vulpera may fail to load; move the client to a short path such as C:\\CoA.": "游戏文件夹路径较长（{0} 个字符）。Haranir 和 Esteria 狐人可能无法加载；请将客户端移到较短路径，例如 C:\\CoA。",
+    "This game folder path is long ({0} characters). Ascension.exe is not long-path aware, so custom textures may be missing; move the client to a short path such as C:\\CoA.": "游戏文件夹路径较长（{0} 个字符）。Ascension.exe 不支持长路径，自定义纹理可能缺失。请将客户端移到较短路径，例如 C:\\CoA。",
     "The game or its launcher is running from this folder. Please close it first: add-ons are only loaded at the start, and a running game writes its old cache back when it closes.": "游戏或其启动器正从此文件夹运行。请先关闭：插件只在启动时加载，而运行中的游戏关闭时会把旧缓存写回去。",
     "Installing into your game …": "正在安装到你的游戏 …",
     "Copying the add-ons …": "正在复制插件 …",

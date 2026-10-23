@@ -1,6 +1,10 @@
-# AFK Realm 1.0.24
+# AFK Realm 1.0.25
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.25
+
+- **Long client paths: the real cause is named.** `Ascension.exe` is not long-path aware, so custom textures can go missing even when every patch is installed correctly. Move the client to a short path such as `C:\CoA`; AFK Realm warns when the game folder path is longer than 100 characters.
 
 ## New in 1.0.24
 

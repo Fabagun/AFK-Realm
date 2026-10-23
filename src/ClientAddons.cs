@@ -457,7 +457,7 @@ namespace CoAInstaller
             // Haranir and Esteria Vulpera load many files from paths below the client; Windows' 260-character
             // limit starts to bite when the game folder itself is deep. A short path is the reliable fix.
             string longPath = client != null && client.Length > 100
-                ? L.F("This game folder path is long ({0} characters). Haranir and Esteria Vulpera may fail to load; move the client to a short path such as C:\\CoA.", client.Length)
+                ? L.F("This game folder path is long ({0} characters). Ascension.exe is not long-path aware, so custom textures may be missing; move the client to a short path such as C:\\CoA.", client.Length)
                 : null;
             if (longPath != null) state.Text = longPath + " " + state.Text;
             state.ForeColor = client != null && (due || longPath != null) ? Ui.Warn : Ui.Muted;

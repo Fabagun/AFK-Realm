@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.25
+
+- Game client: the long-path warning now names the real cause. `Ascension.exe` is not long-path aware, so custom textures can be missing anywhere, not only for Haranir and Esteria Vulpera. A short client path such as `C:\CoA` is the reliable fix.
+
 ## 1.0.24
 
 - Custom races: an imported race can no longer take a race number that belongs to another race of the client. A Gnoll saved under 63 is moved to a free number, and the client patch refuses to overwrite Nightborne with it; CoA Custom's Gnoll stays 83 (its Esteria look-up number remains 63 internally).

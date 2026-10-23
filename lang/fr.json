@@ -233,7 +233,7 @@
     "The client patch cannot be built:": "Le patch client ne peut pas être construit :",
     "Not everything is in your game yet. Close the game and its launcher, then choose \"Install\".": "Tout n’est pas encore dans votre jeu. Fermez le jeu et son launcher, puis choisissez « Installer ».",
     "Your game has everything the installed modules bring.": "Votre jeu a tout ce qu’apportent les modules installés.",
-    "This game folder path is long ({0} characters). Haranir and Esteria Vulpera may fail to load; move the client to a short path such as C:\\CoA.": "Le chemin de ce dossier de jeu est long ({0} caractères). Haranir et les Vulpera Esteria risquent de ne pas charger ; déplacez le client vers un chemin court comme C:\\CoA.",
+    "This game folder path is long ({0} characters). Ascension.exe is not long-path aware, so custom textures may be missing; move the client to a short path such as C:\\CoA.": "Le chemin de ce dossier de jeu est long ({0} caractères). Ascension.exe ne gère pas les chemins longs ; des textures personnalisées peuvent manquer. Déplacez le client vers un chemin court comme C:\\CoA.",
     "The game or its launcher is running from this folder. Please close it first: add-ons are only loaded at the start, and a running game writes its old cache back when it closes.": "Le jeu ou son launcher tourne depuis ce dossier. Fermez-le d’abord : les add-ons ne sont chargés qu’au démarrage, et un jeu en cours réécrit son ancien cache en se fermant.",
     "Installing into your game …": "Installation dans votre jeu …",
     "Copying the add-ons …": "Copie des add-ons …",
