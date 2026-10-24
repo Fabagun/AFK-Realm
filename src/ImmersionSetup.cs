@@ -1,5 +1,7 @@
 using System;
+using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace CoAInstaller
@@ -89,6 +91,49 @@ namespace CoAInstaller
             install.Click += (s, e) => InstallDatabase(install, status);
             Note(L.T("Stop the worldserver before installing the tables. The changes show after the next start."));
 
+            // ---- every option of the module, generated from its config template
+            Tab(L.T("All settings"));
+            var all = Card(L.T("All settings"), null, "settings");
+            var filter = Ui.Row();
+            filter.Controls.Add(new Label { Text = L.T("Show"), AutoSize = true, Font = Ui.Base, Margin = new Padding(0, 6, 6, 0) });
+            var groups = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220, Font = Ui.Base };
+            groups.Items.Add(L.T("All settings"));
+            foreach (var name in conf.Options.Select(o => GroupOf(o.Key)).Distinct().OrderBy(x => x))
+                groups.Items.Add(name);
+            groups.SelectedIndex = groups.Items.Count > 1 ? 1 : 0;
+            filter.Controls.Add(groups);
+            filter.Controls.Add(new Label { Text = L.T("Search"), AutoSize = true, Font = Ui.Base, Margin = new Padding(18, 6, 6, 0) });
+            var search = new TextBox { Font = Ui.Base, Width = 260 };
+            filter.Controls.Add(search);
+            all.Add(filter);
+            var optionList = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, BackColor = Ui.Surface, Margin = new Padding(0) };
+            all.Add(optionList);
+            Action rebuild = () =>
+            {
+                optionList.SuspendLayout();
+                optionList.Controls.Clear();
+                string q = search.Text.Trim();
+                string group = groups.SelectedIndex <= 0 ? "" : Convert.ToString(groups.SelectedItem);
+                foreach (var o in conf.Options)
+                {
+                    if (group.Length > 0 && !GroupOf(o.Key).Equals(group, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (q.Length > 0 && o.Key.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0 &&
+                        o.ShownDescription.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    var row = Ui.Row();
+                    row.Width = all.Inner - 24;
+                    row.Controls.Add(new Label { Text = o.Key, Font = Ui.Base, ForeColor = Ui.Text, Width = 300, Height = 30, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0, 0, 8, 0) });
+                    row.Controls.Add(SettingEditor(o, all.Inner - 340));
+                    optionList.Controls.Add(row);
+                    if (!string.IsNullOrEmpty(o.ShownDescription))
+                        optionList.Controls.Add(Small(o.ShownDescription, all.Inner - 30));
+                }
+                optionList.ResumeLayout();
+            };
+            groups.SelectedIndexChanged += (s, e) => rebuild();
+            search.TextChanged += (s, e) => rebuild();
+            AddLoader(rebuild);
+            Note(L.T("Changes take effect after restarting the worldserver."));
+
             Start();
         }
 
@@ -96,6 +141,42 @@ namespace CoAInstaller
         {
             // One step: the small towns use values such as 5 or 8, not only multiples of five.
             AddSlider(card, key, name, 0, max, 1);
+        }
+
+        static string GroupOf(string key)
+        {
+            var parts = key.Split('.');
+            return parts.Length >= 2 ? parts[0] + "." + parts[1] : parts[0];
+        }
+
+        /// <summary>One editor for an option of the generated settings list: switch, choice or value field.</summary>
+        Control SettingEditor(ConfigOption o, int width)
+        {
+            width = Math.Max(180, width);
+            if (o.Kind == OptionKind.Bool)
+            {
+                var t = new Toggle("") { BackColor = Ui.Surface };
+                t.Checked = Raw(o.Key, "0") == "1";
+                t.CheckedChanged += (s, e) => Set(o.Key, t.Checked ? "1" : "0");
+                return t;
+            }
+            if (o.Kind == OptionKind.Choice && o.Choices.Count > 0)
+            {
+                var box = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = width, Font = Ui.Base };
+                foreach (var c in o.Choices) box.Items.Add(c.Key + "  -  " + L.Outside(c.Value));
+                string current = Raw(o.Key, o.DefaultRaw == null ? "" : ConfigOption.Unquote(o.DefaultRaw));
+                int index = o.Choices.FindIndex(c => c.Key.Equals(current, StringComparison.OrdinalIgnoreCase));
+                box.SelectedIndex = index < 0 ? 0 : index;
+                box.SelectedIndexChanged += (s, e) => { if (box.SelectedIndex >= 0) Set(o.Key, o.Choices[box.SelectedIndex].Key); };
+                return box;
+            }
+            var text = new TextBox { Font = Ui.Base, Width = width, Text = Raw(o.Key, "") };
+            text.TextChanged += (s, e) =>
+            {
+                try { Set(o.Key, o.ToRaw(text.Text)); text.ForeColor = Ui.Text; }
+                catch { text.ForeColor = Ui.Bad; }
+            };
+            return text;
         }
 
         void InstallDatabase(Button button, Label status)

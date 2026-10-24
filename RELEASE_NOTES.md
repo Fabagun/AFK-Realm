@@ -1,6 +1,11 @@
-# AFK Realm 1.0.33
+# AFK Realm 1.0.34
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.34
+
+- **Every Immersion setting is on the module page.** A new *All settings* tab reads the module's own config template: grouped by area, searchable, each option with its description and the right switch, choice or value field.
+- **Defaults stay default.** The page does not rewrite values by itself; use it to build the population, routines and chat behaviour you want.
 
 ## New in 1.0.33
 

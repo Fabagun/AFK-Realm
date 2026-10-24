@@ -33,7 +33,7 @@ namespace CoAInstaller
         ConfigOption current;
         bool loading;
 
-        public SettingsDialog(Install i, bool serverRunning)
+        public SettingsDialog(Install i, bool serverRunning, string startFile = null)
         {
             inst = i; worldRunning = serverRunning;
             set = ConfigSet.Load(inst);
@@ -106,7 +106,15 @@ namespace CoAInstaller
             list.SelectedIndexChanged += (s, e) => { if (list.SelectedItems.Count > 0) ShowOption((ConfigOption)list.SelectedItems[0].Tag); };
             FormClosing += OnClosing;
 
-            fileBox.SelectedIndex = 0;
+            int startIndex = 0;
+            if (!string.IsNullOrEmpty(startFile))
+                for (int index = 1; index < fileBox.Items.Count; ++index)
+                    if (string.Equals(Convert.ToString(fileBox.Items[index]), startFile, StringComparison.OrdinalIgnoreCase))
+                    {
+                        startIndex = index;
+                        break;
+                    }
+            fileBox.SelectedIndex = startIndex;
             UpdatePending();
         }
 

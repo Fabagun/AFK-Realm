@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.34
+
+- Immersion Life: the setup page now has an All settings tab. Every option of the module is generated from its config template, grouped by area, searchable, with its description and the right control for switches, choices and values.
+- No module defaults are changed by the page; every default stays as the module ships.
+
 ## 1.0.33
 
 - Chatter quality: the automatic variants are gone. The auction bots again use only the 17,721 hand-written lines, and the generated 6,000 Immersion lines and 800 conversations were removed.
