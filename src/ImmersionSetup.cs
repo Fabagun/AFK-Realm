@@ -156,8 +156,6 @@ namespace CoAInstaller
             run("acore_world", "world_city_life_quest_zones.sql");
             run("acore_world", "world_city_life_locations.sql");
             run("acore_world", "world_city_life_custom.sql");
-            run("acore_world", "world_city_life_chat_catalog.sql");
-            run("acore_world", "world_city_life_dialogues.sql");
             run("acore_world", "world_city_life_fishing.sql");
             run("acore_world", "world_city_life_fishing_spacing.sql");
             run("acore_world", "world_city_life_legendary_stormwind.sql");

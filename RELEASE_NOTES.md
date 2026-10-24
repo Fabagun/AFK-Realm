@@ -1,6 +1,12 @@
-# AFK Realm 1.0.32
+# AFK Realm 1.0.33
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.33
+
+- **Only hand-written chatter.** The generated line variants and conversations are removed. The auction bots use the 17,721 hand-written lines again; Immersion keeps its hand-written conversations and level 60 buyer lines.
+- **Clean databases.** The generated chat rows are deleted from the world and characters databases.
+- **No experimental content in the installer.** The installer only applies the hand-written module data again.
 
 ## New in 1.0.32
 

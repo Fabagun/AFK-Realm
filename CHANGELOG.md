@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.33
+
+- Chatter quality: the automatic variants are gone. The auction bots again use only the 17,721 hand-written lines, and the generated 6,000 Immersion lines and 800 conversations were removed.
+- The auction/Immersion databases are cleaned of the generated rows. The hand-written conversations and the level 60 buyer lines stay.
+- The installer no longer applies the generated chat catalogs.
+
 ## 1.0.32
 
 - Auction house bots: the spoken catalog grows to 40,000 lines and gains 1,000 short conversations between two or three nearby bots (auction life, prices, loot, deaths, guilds and city gossip).
