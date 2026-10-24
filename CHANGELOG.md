@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.35
+
+- Immersion Life: the setup page now shows only the settings worth changing, in six tabs: city population and time of day, movement and life, every city and town, custom city characters, fishing and PvP.
+- Cities and towns: every hub has its own switch and population; quest hubs also have questing and their level range.
+- Custom characters: legendary residents, beggars, buyers and training scenes can be switched on, and their population is set per city.
+- Fishing: every fishing city has its own switch and population. PvP: every zone has its own switch and population range.
+- The raw *All settings* tab is gone. Uncommon internals stay in the config file. No module defaults are changed by the page.
+- All new labels are available in the six languages.
+
 ## 1.0.34
 
 - Immersion Life: the setup page now has an All settings tab. Every option of the module is generated from its config template, grouped by area, searchable, with its description and the right control for switches, choices and values.

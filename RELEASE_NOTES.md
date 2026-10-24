@@ -1,6 +1,14 @@
-# AFK Realm 1.0.34
+# AFK Realm 1.0.35
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.35
+
+- **The Immersion Life page is now a proper settings page.** Six clear tabs: city population and time of day, movement and life, every city and town, custom city characters, fishing and PvP.
+- **Every city and town has its own controls.** The switch and population per hub; quest hubs also get their questing switch and level range.
+- **Custom residents, fishers and PvP zones are per place.** Legendary residents, beggars, buyers and training scenes per city; every fishing city and PvP zone with its own switch and population.
+- **No raw settings list.** The *All settings* tab is gone; uncommon internals stay in the config file. All module defaults are unchanged.
+- **Six languages.** Every new label is translated.
 
 ## New in 1.0.34
 
