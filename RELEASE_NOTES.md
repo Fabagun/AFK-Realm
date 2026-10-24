@@ -1,6 +1,15 @@
-# AFK Realm 1.0.35
+# AFK Realm 1.0.36
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.36
+
+- **Chatter is on the City population tab.** Chat range, conversations between residents, reactions to players and the chat timings of legendary residents, beggars and buyers are together in one place.
+- **Fishing and PvP chatter** have their own cards on the fishing and PvP tabs.
+- **No quest hubs on the page.** The quest system and its hubs are out of the page; the normal playerbots do the questing. The module's own questing stays off.
+- **Custom characters keep every location** the module ships with, per role.
+- **Fixed the legendary yell chance.** Its config line was broken and is a proper option again.
+- **Defaults stay default.** The page does not change any module setting by itself.
 
 ## New in 1.0.35
 

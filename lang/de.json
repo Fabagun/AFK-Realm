@@ -1582,7 +1582,6 @@
     "Dalaran": "Dalaran",
     "Goldshire": "Goldhain",
     "Questing": "Quests",
-    "Questing on": "Quests an",
     "Custom city characters": "Eigene Stadtcharaktere",
     "Custom city characters on": "Eigene Stadtcharaktere an",
     "Legendary residents": "Legendäre Bewohner",
@@ -1642,6 +1641,21 @@
     "Training scenes": "Trainingsszenen",
     "Duel zones": "Duellzonen",
     "World PvP": "Welt-PvP",
-    "Population": "Bev?lkerung"
+    "Population": "Bev?lkerung",
+    "Chat range": "Plauderreichweite",
+    "Conversations between residents": "Gespr?che zwischen Bewohnern",
+    "Time between two conversations": "Zeit zwischen zwei Gespr?chen",
+    "Conversation range": "Reichweite der Gespr?che",
+    "Distance between speakers": "Abstand der Gespr?chspartner",
+    "Reply after": "Antwort nach",
+    "React to players": "Auf Spieler reagieren",
+    "Chance for a reaction": "Chance auf eine Reaktion",
+    "Reaction cooldown": "Abklingzeit der Reaktion",
+    "Reaction range": "Reaktionsreichweite",
+    "Time between two lines": "Zeit zwischen zwei S?tzen",
+    "Yell chance": "Schreien-Chance",
+    "Fishing chatter": "Angel-Gequatsche",
+    "PvP chatter": "PvP-Gequatsche",
+    "World chat chance": "Weltchat-Chance"
   }
 }

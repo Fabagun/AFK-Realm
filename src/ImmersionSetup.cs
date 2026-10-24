@@ -44,10 +44,9 @@ namespace CoAInstaller
             AddSlider(life, "CityLife.Behaviour.EmoteChancePct", L.T("Chance for an emote"), 0, 100, 5, Percent);
             AddPair(life, "CityLife.Behaviour.EmoteMinSeconds", "CityLife.Behaviour.EmoteMaxSeconds",
                 L.T("Time between two emotes"), 30, 3600, 30, Seconds);
+            AddChatter();
 
             Tab(L.T("Cities and towns"));
-            var questing = Card(L.T("Questing"), null, "journey");
-            AddToggle(questing, "CityLife.Questing.Enable", L.T("Questing on"));
             AddHubGroups();
 
             Tab(L.T("Custom city characters"));
@@ -68,6 +67,7 @@ namespace CoAInstaller
             AddToggle(fishing, "FishingLife.CreateMissing.Enable", L.T("Create missing bots"));
             AddSlider(fishing, "FishingLife.CreateMissing.MaxBots", L.T("Fishers at most"), 0, 120, 1);
             AddFishingGroups();
+            AddFishingChat();
 
             Tab(L.T("PvP"));
             var pvp = Card(L.T("PvP Life"), L.T("PvP Life brings duels, world PvP and faction campaigns. It is off by default for Conquest of Azeroth and uses its own budget."), "gamemaster");
@@ -78,6 +78,7 @@ namespace CoAInstaller
             AddToggle(pvp, "PvPLife.ForTheHorde.Enable", L.T("Horde"));
             AddToggle(pvp, "PvPLife.ForTheAlliance.Enable", L.T("Alliance"));
             AddPvpGroups();
+            AddPvpChat();
 
             Tab(L.T("Database tables"));
             var database = Card(L.T("Database tables"),
@@ -99,6 +100,7 @@ namespace CoAInstaller
         }
 
         static string Percent(double v) { return (int)v + " %"; }
+        static string Yards(double v) { return L.F("{0} yd", (int)v); }
 
         /// <summary>ThunderBluffQuesting -> "Donnerfels – Quests"; names without a translation stay as they are.</summary>
         static string PlaceName(string key)
@@ -131,14 +133,13 @@ namespace CoAInstaller
             foreach (var group in conf.Options.Where(o => o.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                          .GroupBy(o => o.Key.Substring(prefix.Length).Split('.')[0]))
             {
-                var card = Card(PlaceName(group.Key), null, "globe");
                 string root = prefix + group.Key + ".";
+                // Quest hubs belong to the module's quest system. The setup page leaves it off:
+                // the normal playerbots do the questing.
+                if (conf.ByKey.ContainsKey(root + "Questing")) continue;
+                var card = Card(PlaceName(group.Key), null, "globe");
                 AddToggle(card, root + "Enable", L.T("On"));
                 AddSlider(card, root + "Population", L.T("Population"), 0, 100, 1);
-                if (conf.ByKey.ContainsKey(root + "Questing"))
-                    AddToggle(card, root + "Questing", L.T("Questing"));
-                if (conf.ByKey.ContainsKey(root + "MinLevel") && conf.ByKey.ContainsKey(root + "MaxLevel"))
-                    AddPair(card, root + "MinLevel", root + "MaxLevel", L.T("Levels"), 1, 80, 1);
             }
         }
 
@@ -188,6 +189,53 @@ namespace CoAInstaller
                 AddToggle(card, root + "Enable", L.T("On"));
                 AddPair(card, root + "MinPopulation", root + "MaxPopulation", L.T("Population"), 0, 100, 1);
             }
+        }
+
+        void AddChatter()
+        {
+            var chatter = Card(L.T("Chatter"), null, "accounts");
+            AddSlider(chatter, "CityLife.Custom.Chat.Range", L.T("Chat range"), 5, 100, 5, Yards);
+            AddToggle(chatter, "CityLife.Custom.Conversations.Enable", L.T("Conversations between residents"));
+            AddPair(chatter, "CityLife.Custom.Conversations.MinSeconds", "CityLife.Custom.Conversations.MaxSeconds",
+                L.T("Time between two conversations"), 30, 3600, 30, Seconds);
+            AddSlider(chatter, "CityLife.Custom.Conversations.MaxConcurrent", L.T("At most at once"), 1, 10, 1);
+            AddSlider(chatter, "CityLife.Custom.Conversations.Range", L.T("Conversation range"), 1, 40, 1, Yards);
+            AddSlider(chatter, "CityLife.Custom.Conversations.PartnerRange", L.T("Distance between speakers"), 1, 25, 1, Yards);
+            AddPair(chatter, "CityLife.Custom.Conversations.ReplyMinSeconds", "CityLife.Custom.Conversations.ReplyMaxSeconds",
+                L.T("Reply after"), 1, 30, 1, Seconds);
+            AddToggle(chatter, "CityLife.Custom.PlayerReactions.Enable", L.T("React to players"));
+            AddSlider(chatter, "CityLife.Custom.PlayerReactions.ChancePct", L.T("Chance for a reaction"), 0, 100, 5, Percent);
+            AddSlider(chatter, "CityLife.Custom.PlayerReactions.CooldownSeconds", L.T("Reaction cooldown"), 0, 600, 5, Seconds);
+            AddSlider(chatter, "CityLife.Custom.PlayerReactions.Range", L.T("Reaction range"), 1, 40, 1, Yards);
+
+            AddRoleChat("CityLife.Custom.Legendary", L.T("Legendary residents"));
+            AddRoleChat("CityLife.Custom.Beggar", L.T("Beggars"));
+            AddRoleChat("CityLife.Custom.Buyer", L.T("Buyers"));
+        }
+
+        void AddRoleChat(string prefix, string title)
+        {
+            var card = Card(title, null, "accounts");
+            AddPair(card, prefix + ".ChatMinSeconds", prefix + ".ChatMaxSeconds",
+                L.T("Time between two lines"), 30, 3600, 30, Seconds);
+            AddSlider(card, prefix + ".YellChancePct", L.T("Yell chance"), 0, 100, 5, Percent);
+        }
+
+        void AddFishingChat()
+        {
+            var card = Card(L.T("Fishing chatter"), null, "journey");
+            AddSlider(card, "FishingLife.Chat.Range", L.T("Chat range"), 5, 100, 5, Yards);
+            AddPair(card, "FishingLife.ChatMinSeconds", "FishingLife.ChatMaxSeconds",
+                L.T("Time between two lines"), 30, 3600, 30, Seconds);
+            AddSlider(card, "FishingLife.YellChancePct", L.T("Yell chance"), 0, 100, 5, Percent);
+        }
+
+        void AddPvpChat()
+        {
+            var card = Card(L.T("PvP chatter"), null, "gamemaster");
+            AddToggle(card, "PvPLife.BotChat.Enable", L.T("Chatter"));
+            AddSlider(card, "PvPLife.BotChat.WorldChance", L.T("World chat chance"), 0, 100, 5, Percent);
+            AddSlider(card, "PvPLife.BotChat.YellChance", L.T("Yell chance"), 0, 100, 5, Percent);
         }
 
         void InstallDatabase(Button button, Label status)

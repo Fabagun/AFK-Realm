@@ -664,7 +664,6 @@
     "Questing": "",
     "Bots take and complete quests": "",
     "Questers accept, do and turn in real quests. They are off by default and share the city limit.": "",
-    "Questing on": "",
     "Questing needs the quest hubs and their data from the module's database files. Install them once on the Database tables tab.": "",
     "Legendary bots": "",
     "Custom city characters": "",
@@ -1659,6 +1658,21 @@
     "Day": "",
     "Evening": "",
     "Night": "",
-    "Distance from their place": ""
+    "Distance from their place": "",
+    "Chat range": "",
+    "Conversations between residents": "",
+    "Time between two conversations": "",
+    "Conversation range": "",
+    "Distance between speakers": "",
+    "Reply after": "",
+    "React to players": "",
+    "Chance for a reaction": "",
+    "Reaction cooldown": "",
+    "Reaction range": "",
+    "Time between two lines": "",
+    "Yell chance": "",
+    "Fishing chatter": "",
+    "PvP chatter": "",
+    "World chat chance": ""
   }
 }

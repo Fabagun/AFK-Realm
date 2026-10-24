@@ -1582,7 +1582,6 @@
     "Dalaran": "Dalaran",
     "Goldshire": "Villadorada",
     "Questing": "Misiones",
-    "Questing on": "Misiones activadas",
     "Custom city characters": "Personajes de ciudad personalizados",
     "Custom city characters on": "Personajes de ciudad personalizados activados",
     "Legendary residents": "Habitantes legendarios",
@@ -1642,6 +1641,21 @@
     "Training scenes": "Escenas de entrenamiento",
     "Duel zones": "Zonas de duelo",
     "World PvP": "JcJ mundial",
-    "Population": "Poblaci?n"
+    "Population": "Poblaci?n",
+    "Chat range": "Alcance de las conversaciones",
+    "Conversations between residents": "Conversaciones entre habitantes",
+    "Time between two conversations": "Tiempo entre dos conversaciones",
+    "Conversation range": "Alcance de la conversaci?n",
+    "Distance between speakers": "Distancia entre los interlocutores",
+    "Reply after": "Respuesta despu?s de",
+    "React to players": "Reaccionar a los jugadores",
+    "Chance for a reaction": "Probabilidad de reacci?n",
+    "Reaction cooldown": "Enfriamiento de la reacci?n",
+    "Reaction range": "Alcance de la reacci?n",
+    "Time between two lines": "Tiempo entre dos frases",
+    "Yell chance": "Probabilidad de gritar",
+    "Fishing chatter": "Charlas de pesca",
+    "PvP chatter": "Charlas de JcJ",
+    "World chat chance": "Probabilidad de chat mundial"
   }
 }

@@ -1582,7 +1582,6 @@
     "Dalaran": "Dalaran",
     "Goldshire": "Vila d'Ouro",
     "Questing": "Missões",
-    "Questing on": "Missões ativadas",
     "Custom city characters": "Personagens de cidade personalizados",
     "Custom city characters on": "Personagens de cidade personalizados ativados",
     "Legendary residents": "Moradores lendários",
@@ -1642,6 +1641,21 @@
     "Training scenes": "Cenas de treino",
     "Duel zones": "Zonas de duelo",
     "World PvP": "JxJ mundial",
-    "Population": "Popula??o"
+    "Population": "Popula??o",
+    "Chat range": "Alcance da conversa",
+    "Conversations between residents": "Conversas entre moradores",
+    "Time between two conversations": "Tempo entre duas conversas",
+    "Conversation range": "Alcance das conversas",
+    "Distance between speakers": "Dist?ncia entre os interlocutores",
+    "Reply after": "Resposta ap?s",
+    "React to players": "Reagir aos jogadores",
+    "Chance for a reaction": "Chance de rea??o",
+    "Reaction cooldown": "Recarga da rea??o",
+    "Reaction range": "Alcance da rea??o",
+    "Time between two lines": "Tempo entre duas falas",
+    "Yell chance": "Chance de gritar",
+    "Fishing chatter": "Conversa dos pescadores",
+    "PvP chatter": "Conversa de JxJ",
+    "World chat chance": "Chance de chat mundial"
   }
 }

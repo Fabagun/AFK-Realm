@@ -1582,7 +1582,6 @@
     "Dalaran": "Dalaran",
     "Goldshire": "Comt?-de-l'Or",
     "Questing": "Quêtes",
-    "Questing on": "Quêtes activées",
     "Custom city characters": "Personnages de ville personnalisés",
     "Custom city characters on": "Personnages de ville personnalisés activés",
     "Legendary residents": "Habitants légendaires",
@@ -1642,6 +1641,21 @@
     "Training scenes": "Sc?nes d'entra?nement",
     "Duel zones": "Zones de duel",
     "World PvP": "JcJ mondial",
-    "Population": "Population"
+    "Population": "Population",
+    "Chat range": "Port?e des discussions",
+    "Conversations between residents": "Conversations entre les habitants",
+    "Time between two conversations": "Temps entre deux conversations",
+    "Conversation range": "Port?e des conversations",
+    "Distance between speakers": "Distance entre les interlocuteurs",
+    "Reply after": "R?ponse apr?s",
+    "React to players": "R?agir aux joueurs",
+    "Chance for a reaction": "Chance d'une r?action",
+    "Reaction cooldown": "D?lai de r?action",
+    "Reaction range": "Port?e de la r?action",
+    "Time between two lines": "Temps entre deux r?pliques",
+    "Yell chance": "Chance de crier",
+    "Fishing chatter": "Bavardages des p?cheurs",
+    "PvP chatter": "Bavardages JcJ",
+    "World chat chance": "Chance de chat mondial"
   }
 }

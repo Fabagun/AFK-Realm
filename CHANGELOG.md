@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.36
+
+- Immersion Life: the chatter settings are now on the City population tab. Chat range, conversations, player reactions and the chat timings of legendary residents, beggars and buyers are together there.
+- Fishing and PvP have their own chatter cards on their tabs.
+- Cities and towns: the quest hubs and their controls are gone from the page. The normal playerbots do the questing; the module's own quest system stays off.
+- Custom city characters: every custom location the module ships with remains on the page, per role.
+- The legendary residents' config line for the yell chance is a proper option again instead of a broken line.
+- No module defaults are changed by the page.
+
 ## 1.0.35
 
 - Immersion Life: the setup page now shows only the settings worth changing, in six tabs: city population and time of day, movement and life, every city and town, custom city characters, fishing and PvP.
