@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.32
+
+- Auction house bots: the spoken catalog grows to 40,000 lines and gains 1,000 short conversations between two or three nearby bots (auction life, prices, loot, deaths, guilds and city gossip).
+- Immersion Life: 6,000 new ambient lines for legendary residents, beggars, buyers and fishers, plus 800 three-step conversations between nearby residents.
+- Immersion Life: buyer advertisements now fit the level 60 realm (55-60 greens, endgame goods) instead of level 70-80.
+- Immersion Life: the database installer applies the two new chat catalogs automatically.
+
 ## 1.0.31
 
 - Auction house bots: the setup page has a Loot filter tab with the module's built-in filter: on/off, lowest quality, food and drink, other consumables, excluded item ids and excluded name parts.

@@ -1,6 +1,13 @@
-# AFK Realm 1.0.31
+# AFK Realm 1.0.32
 
 Build, run and tweak your own Conquest of Azeroth server (AzerothCore fork with Playerbots) on Windows 10/11.
+
+## New in 1.0.32
+
+- **The auction bots have much more to say.** The spoken catalog is now 40,000 lines, including 1,000 short conversations between two or three nearby bots.
+- **Immersion Life has a large voice.** 6,000 new ambient lines for legendary residents, beggars, buyers and fishers, plus 800 three-step conversations between nearby residents.
+- **No more level 70-80 advertisements.** Buyer lines now offer level 55-60 greens and endgame goods, fitting the level 60 realm.
+- **The Immersion installer brings the new catalogs.** The database button applies both new chat files automatically.
 
 ## New in 1.0.31
 
